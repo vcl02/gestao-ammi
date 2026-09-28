@@ -735,7 +735,17 @@ button[type="submit"]:disabled {
   width: auto;
   margin: 0;
   padding: 7px 10px;
+  color: var(--primary-text);
+  background: var(--primary);
+  border: 0;
+  border-radius: 999px;
   font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cp-selecao-bar button:hover {
+  background: var(--primary-dark);
 }
 
 @media (max-width: 899px) {

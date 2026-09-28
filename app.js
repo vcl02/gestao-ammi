@@ -653,15 +653,19 @@ const cpSelecaoLimparEl = document.getElementById('cp-selecao-limpar');
 const cpGruposAlteradosManualmente = new Map();
 const cpOcorrenciasSelecionadas = new Map();
 
+function textoResumoSelecaoContasPagar(selecionadas) {
+  const total = somarValoresSelecionados(selecionadas);
+  return selecionadas.length === 1
+    ? `Selecionada: ${selecionadas[0].nome} — ${formatMoney(total)}`
+    : `${selecionadas.length} itens — ${formatMoney(total)}`;
+}
+
 function atualizarBarraSelecaoContasPagar() {
   const selecionadas = [...cpOcorrenciasSelecionadas.values()];
   cpSelecaoBarEl.hidden = selecionadas.length === 0;
   if (selecionadas.length === 0) return;
 
-  const total = somarValoresSelecionados(selecionadas);
-  cpSelecaoResumoEl.textContent = selecionadas.length === 1
-    ? `Selecionada: ${selecionadas[0].nome} — ${formatMoney(total)}`
-    : `${selecionadas.length} selecionadas — ${formatMoney(total)}`;
+  cpSelecaoResumoEl.textContent = textoResumoSelecaoContasPagar(selecionadas);
   cpSelecaoLimparEl.hidden = selecionadas.length < 2;
 }
 
@@ -1685,6 +1689,9 @@ function executarTestes() {
   });
   teste('Contas a Pagar — soma ocorrências selecionadas sem alterar pagamento', () => {
     igual(somarValoresSelecionados([{ valor: 100.15 }, { valor: 20.2 }]), 120.35);
+  });
+  teste('Contas a Pagar — várias ocorrências selecionadas aparecem como itens', () => {
+    igual(textoResumoSelecaoContasPagar([{ nome: 'Luz', valor: 100 }, { nome: 'Água', valor: 20 }]), `2 itens — ${formatMoney(120)}`);
   });
   teste('Salário — avisa dias sem venda, exceto domingo, até ontem', () => {
     igualJson(datasSemVendaEmDiasUteis([
