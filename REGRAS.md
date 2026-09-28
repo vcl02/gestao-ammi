@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-09-15 (ícone de aporte ao lado do valor do Empréstimo).
+Última revisão: 2026-09-28 (PWA instalável e seleção visual de ocorrências).
 
 ---
 

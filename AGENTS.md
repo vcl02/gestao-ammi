@@ -51,6 +51,14 @@ A separação é por blocos comentados dentro do `app.js`:
 // ===================== CAIXA CASA =====================
 ```
 
+#### Exceção: arquivos mínimos da PWA
+
+A instalação pelo Chrome também depende de `manifest.webmanifest`, `sw.js` e
+dos ícones `pwa-icon-192.png` e `pwa-icon-512.png`. São arquivos de suporte da
+PWA, não módulos novos da aplicação. Mantenha o service worker restrito ao
+cache da interface: nunca coloque respostas, credenciais ou dados do Supabase
+no cache.
+
 ### Confirme antes de decidir por conta própria
 
 Quando houver ambiguidade real (nome de campo, comportamento de uma regra,
@@ -113,10 +121,15 @@ o padrão das existentes. Sem isso, a tabela fica inacessível pelo app.
   `#desktop-grid`, que usa `display: contents` no mobile e vira grid de 4
   colunas acima de 900px. Cuidado ao mexer nisso — já causou tela em branco
   no mobile uma vez.
+- **PWA:** o manifesto declara ícones PNG quadrados de 192 e 512 px. O
+  service worker atualiza a interface pela rede primeiro e usa o cache só
+  quando não há conexão; o Chrome exige que ambos continuem acessíveis para
+  permitir a instalação.
 
 ## Testes
 
-Não há suíte de testes nem servidor de desenvolvimento configurado. Não
-existe Node instalado no ambiente. Mudanças de UI não podem ser verificadas
-automaticamente — diga isso ao usuário em vez de afirmar que algo funciona,
-e sugira que ele confira no navegador.
+A suíte de regressão fica no próprio `app.js`: abra `?testes=1` no navegador.
+Para checagens estáticas, quando Node estiver disponível, use `node --check
+app.js` e também `node --check sw.js` se a PWA for alterada. Mudanças visuais,
+instalação pelo Chrome e operações reais no Supabase continuam exigindo
+verificação manual; informe isso ao usuário em vez de afirmar que funcionam.
