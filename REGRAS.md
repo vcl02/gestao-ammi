@@ -375,7 +375,8 @@ marca nem desmarca o checkbox de pagamento, nem grava qualquer dado. A barra
 flutuante mostra a ocorrência única ou a soma de várias ocorrências
 selecionadas, identificadas como "N itens". Com duas ou mais, aparece
 **Limpar** para remover toda a seleção.
-O comportamento é o mesmo no mobile e no desktop.
+O comportamento é o mesmo no mobile e no desktop. A seleção é só da tela
+logada e é limpa ao voltar para o login.
 
 ---
 

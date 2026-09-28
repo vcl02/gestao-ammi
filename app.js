@@ -251,6 +251,7 @@ const NOMES_MES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
+const cpOcorrenciasSelecionadas = new Map();
 
 // ===================== NAVEGAÇÃO ENTRE VIEWS =====================
 
@@ -273,6 +274,7 @@ function showView(name) {
 
   const logado = name !== 'login' && name !== 'testes';
   desktopGridEl.hidden = !logado;
+  if (!logado) limparSelecaoContasPagar();
 
   if (name === 'caixa-casa' || name === 'home') carregarCaixaCasa();
   if (name === 'salario' || name === 'home') carregarSalario();
@@ -651,7 +653,14 @@ const cpSelecaoBarEl = document.getElementById('cp-selecao-bar');
 const cpSelecaoResumoEl = document.getElementById('cp-selecao-resumo');
 const cpSelecaoLimparEl = document.getElementById('cp-selecao-limpar');
 const cpGruposAlteradosManualmente = new Map();
-const cpOcorrenciasSelecionadas = new Map();
+
+function limparSelecaoContasPagar() {
+  cpOcorrenciasSelecionadas.clear();
+  const barra = document.getElementById('cp-selecao-bar');
+  if (barra) barra.hidden = true;
+  document.getElementById('cp-list')?.querySelectorAll('.cp-ocorrencia-selecionada')
+    .forEach((item) => item.classList.remove('cp-ocorrencia-selecionada'));
+}
 
 function textoResumoSelecaoContasPagar(selecionadas) {
   const total = somarValoresSelecionados(selecionadas);
@@ -697,9 +706,7 @@ cpListEl.addEventListener('click', (e) => {
 });
 
 cpSelecaoLimparEl.addEventListener('click', () => {
-  cpOcorrenciasSelecionadas.clear();
-  cpListEl.querySelectorAll('.cp-ocorrencia-selecionada').forEach((item) => item.classList.remove('cp-ocorrencia-selecionada'));
-  atualizarBarraSelecaoContasPagar();
+  limparSelecaoContasPagar();
 });
 
 const cpForm = document.getElementById('cp-form');
@@ -1692,6 +1699,13 @@ function executarTestes() {
   });
   teste('Contas a Pagar — várias ocorrências selecionadas aparecem como itens', () => {
     igual(textoResumoSelecaoContasPagar([{ nome: 'Luz', valor: 100 }, { nome: 'Água', valor: 20 }]), `2 itens — ${formatMoney(120)}`);
+  });
+  teste('Contas a Pagar — sair limpa a seleção visual', () => {
+    cpOcorrenciasSelecionadas.set('c1|2026-09-28', { nome: 'Luz', valor: 10 });
+    cpSelecaoBarEl.hidden = false;
+    limparSelecaoContasPagar();
+    igual(cpOcorrenciasSelecionadas.size, 0);
+    igual(cpSelecaoBarEl.hidden, true);
   });
   teste('Salário — avisa dias sem venda, exceto domingo, até ontem', () => {
     igualJson(datasSemVendaEmDiasUteis([
