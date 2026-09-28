@@ -1,4 +1,6 @@
-const CACHE_NAME = 'gestao-ammi-v2';
+// Rede primeiro para receber manifest e interface atualizados; o cache é só
+// reserva para falta de conexão. Dados do Supabase nunca passam pelo worker.
+const CACHE_NAME = 'gestao-ammi-v3';
 const APP_SHELL = [
   './',
   './index.html',
@@ -11,8 +13,14 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => Promise.all(
+      APP_SHELL.map(async (arquivo) => {
+        const resposta = await fetch(arquivo, { cache: 'reload' });
+        await cache.put(arquivo, resposta);
+      }),
+    )).then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -25,15 +33,18 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET' || event.request.url.startsWith(self.location.origin) === false) return;
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request)
-      .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      })
-      .catch(() => event.request.mode === 'navigate' ? caches.match('./index.html') : undefined)),
+    fetch(event.request).then(async (response) => {
+      if (response.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(event.request, response.clone());
+      }
+      return response;
+    }).catch(() => caches.match(event.request)
+      .then((cached) => cached || (event.request.mode === 'navigate' ? caches.match('./index.html') : undefined))),
   );
 });

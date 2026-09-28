@@ -79,10 +79,10 @@ Supabase renovaria o token indefinidamente e a sessão nunca expiraria.
 ### Aplicação instalável
 
 O sistema pode ser instalado pelo Chrome como aplicativo. A instalação usa o
-mesmo endereço e dados da versão web; o cache local mantém os arquivos da tela
-disponíveis, mas login e dados financeiros continuam dependendo de conexão com
-o Supabase. O modo instalado não cria uma base de dados local nem permite
-registrar alterações offline.
+mesmo endereço e dados da versão web; a interface tenta sempre buscar a versão
+publicada mais recente e usa o cache local apenas quando não há conexão. Login
+e dados financeiros continuam dependendo do Supabase. O modo instalado não
+cria uma base de dados local nem permite registrar alterações offline.
 
 A chave usada no frontend é a pública (*anon* / *publishable*) e pode ficar
 exposta no código — a proteção real vem das políticas de RLS, que exigem

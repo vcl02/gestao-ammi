@@ -1746,7 +1746,7 @@ function executarTestes() {
     igual(document.getElementById('cp-descricao').required, true);
   });
   teste('Interface — PWA declara manifesto para instalação', () => {
-    igual(Boolean(document.querySelector('link[rel="manifest"][href="manifest.webmanifest"]')), true);
+    igual(Boolean(document.querySelector('link[rel="manifest"][href="./manifest.webmanifest"]')), true);
   });
   teste('Interface — valor e ícones do Empréstimo seguem a mesma linha', () => {
     const fixture = document.createElement('div');
@@ -1794,7 +1794,7 @@ if (new URLSearchParams(window.location.search).has('testes')) {
 } else {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch((erro) => {
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch((erro) => {
         console.warn('Não foi possível preparar o app para uso instalado.', erro);
       });
     });
