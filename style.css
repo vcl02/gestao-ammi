@@ -692,6 +692,61 @@ button[type="submit"]:disabled {
   color: var(--text);
 }
 
+.cp-selecionar-btn {
+  display: inline;
+  padding: 0;
+  color: var(--text);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cp-selecionar-btn:hover {
+  color: var(--primary-dark);
+}
+
+.cp-ocorrencia-selecionada {
+  outline: 1px solid var(--primary);
+}
+
+.cp-selecao-bar {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 14px;
+  color: var(--text);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cp-selecao-bar button {
+  width: auto;
+  margin: 0;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+
+@media (max-width: 899px) {
+  .cp-selecao-bar {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    justify-content: space-between;
+  }
+}
+
 .lancamento-data {
   font-size: 12px;
   color: var(--text-muted);

@@ -17,6 +17,7 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 - [Módulo: Contas a Pagar](#módulo-contas-a-pagar)
   - [Conta Mensal (recorrente)](#conta-mensal-recorrente)
   - [Conta Parcelada](#conta-parcelada)
+  - [Seleção para soma](#seleção-para-soma)
   - [Pagamento de ocorrências](#pagamento-de-ocorrências)
   - [Pular ocorrência](#pular-ocorrência)
   - [Ajuste de valor](#ajuste-de-valor)
@@ -362,6 +363,16 @@ nem criar centavos.
 O modo escolhido **não é gravado**. Após o cálculo, o banco só guarda o
 valor final de cada parcela — não há como saber depois se foi repetido ou
 dividido, nem "recalcular" alterando o total.
+
+---
+
+### Seleção para soma
+
+Clicar no **nome** de uma ocorrência apenas a seleciona para soma visual; não
+marca nem desmarca o checkbox de pagamento, nem grava qualquer dado. A barra
+flutuante mostra a ocorrência única ou a soma de várias ocorrências
+selecionadas. Com duas ou mais, aparece **Limpar** para remover toda a seleção.
+O comportamento é o mesmo no mobile e no desktop.
 
 ---
 

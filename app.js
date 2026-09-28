@@ -86,6 +86,10 @@ function calcularSaldoSalario(lancamentos) {
   }, 0));
 }
 
+function somarValoresSelecionados(itens) {
+  return round2(itens.reduce((total, item) => total + Number(item.valor), 0));
+}
+
 // Retorna os dias não-domingo sem venda entre a primeira venda e a data-limite.
 // A verificação é apenas informativa: não cria nem modifica lançamentos.
 function datasSemVendaEmDiasUteis(vendas, hoje) {
@@ -643,17 +647,55 @@ const cpLabelSemanaAtualEl = document.getElementById('cp-label-semana-atual');
 const cpLabelProximaSemanaEl = document.getElementById('cp-label-proxima-semana');
 const cpListEl = document.getElementById('cp-list');
 const cpContasListEl = document.getElementById('cp-contas-list');
+const cpSelecaoBarEl = document.getElementById('cp-selecao-bar');
+const cpSelecaoResumoEl = document.getElementById('cp-selecao-resumo');
+const cpSelecaoLimparEl = document.getElementById('cp-selecao-limpar');
 const cpGruposAlteradosManualmente = new Map();
+const cpOcorrenciasSelecionadas = new Map();
+
+function atualizarBarraSelecaoContasPagar() {
+  const selecionadas = [...cpOcorrenciasSelecionadas.values()];
+  cpSelecaoBarEl.hidden = selecionadas.length === 0;
+  if (selecionadas.length === 0) return;
+
+  const total = somarValoresSelecionados(selecionadas);
+  cpSelecaoResumoEl.textContent = selecionadas.length === 1
+    ? `Selecionada: ${selecionadas[0].nome} — ${formatMoney(total)}`
+    : `${selecionadas.length} selecionadas — ${formatMoney(total)}`;
+  cpSelecaoLimparEl.hidden = selecionadas.length < 2;
+}
 
 function abrirGrupoPorPadrao(itens, ehSemanaAtual = false) {
   return ehSemanaAtual || itens.some((item) => !item.paga);
 }
 
 cpListEl.addEventListener('click', (e) => {
+  const selecionarBtn = e.target.closest('.cp-selecionar-btn');
+  if (selecionarBtn) {
+    const chave = `${selecionarBtn.dataset.contaId}|${selecionarBtn.dataset.data}`;
+    if (cpOcorrenciasSelecionadas.has(chave)) {
+      cpOcorrenciasSelecionadas.delete(chave);
+    } else {
+      cpOcorrenciasSelecionadas.set(chave, {
+        nome: selecionarBtn.dataset.nome,
+        valor: Number(selecionarBtn.dataset.valor),
+      });
+    }
+    selecionarBtn.closest('.lancamento-item').classList.toggle('cp-ocorrencia-selecionada', cpOcorrenciasSelecionadas.has(chave));
+    atualizarBarraSelecaoContasPagar();
+    return;
+  }
+
   const summary = e.target.closest('summary');
   const details = summary?.parentElement;
   if (!details?.classList.contains('cp-grupo-details')) return;
   cpGruposAlteradosManualmente.set(details.dataset.grupo, !details.open);
+});
+
+cpSelecaoLimparEl.addEventListener('click', () => {
+  cpOcorrenciasSelecionadas.clear();
+  cpListEl.querySelectorAll('.cp-ocorrencia-selecionada').forEach((item) => item.classList.remove('cp-ocorrencia-selecionada'));
+  atualizarBarraSelecaoContasPagar();
 });
 
 const cpForm = document.getElementById('cp-form');
@@ -1022,15 +1064,18 @@ async function carregarContasPagar() {
           </svg>
         </button>`;
 
+    const chaveSelecao = `${conta.id}|${data}`;
+    const selecionada = cpOcorrenciasSelecionadas.has(chaveSelecao);
+
     return `
-      <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}">
-        <label class="lancamento-checkbox">
-          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" class="cp-pago-checkbox" ${paga ? 'checked' : ''} ${emprestimo ? 'disabled' : ''}>
+      <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}${selecionada ? ' cp-ocorrencia-selecionada' : ''}">
+        <div class="lancamento-checkbox">
+          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" class="cp-pago-checkbox" aria-label="Marcar ${conta.descricao} como paga" ${paga ? 'checked' : ''} ${emprestimo ? 'disabled' : ''}>
           <div class="lancamento-info">
-            <span class="lancamento-desc">${conta.descricao}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</span>
+            <button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}
             <span class="lancamento-data">${formatDataBR(data)}</span>
           </div>
-        </label>
+        </div>
         <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>${botoesAcao}
       </li>
     `;
@@ -1074,6 +1119,11 @@ async function carregarContasPagar() {
     </li>
   `;
   cpListEl.innerHTML = emprestimosHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
+  const chavesDisponiveis = new Set(ocorrenciasParaExibir.map((ocorrencia) => `${ocorrencia.conta.id}|${ocorrencia.data}`));
+  cpOcorrenciasSelecionadas.forEach((_ocorrencia, chave) => {
+    if (!chavesDisponiveis.has(chave)) cpOcorrenciasSelecionadas.delete(chave);
+  });
+  atualizarBarraSelecaoContasPagar();
 
   cpContasListEl.innerHTML = contas.map((conta) => {
     const valorExibido = conta.tipo === 'parcelado'
@@ -1633,6 +1683,9 @@ function executarTestes() {
   teste('Salário — vendas somam e pagamentos subtraem', () => {
     igual(calcularSaldoSalario([{ tipo: 'venda', valor: 80 }, { tipo: 'pagamento', valor: 30 }]), 50);
   });
+  teste('Contas a Pagar — soma ocorrências selecionadas sem alterar pagamento', () => {
+    igual(somarValoresSelecionados([{ valor: 100.15 }, { valor: 20.2 }]), 120.35);
+  });
   teste('Salário — avisa dias sem venda, exceto domingo, até ontem', () => {
     igualJson(datasSemVendaEmDiasUteis([
       { data: '2026-09-01' }, { data: '2026-09-03' },
@@ -1744,6 +1797,9 @@ function executarTestes() {
   });
   teste('Interface — descrição de Contas a Pagar é obrigatória', () => {
     igual(document.getElementById('cp-descricao').required, true);
+  });
+  teste('Interface — seleção de Contas a Pagar possui barra e ação de limpar', () => {
+    igual(Boolean(document.getElementById('cp-selecao-bar') && document.getElementById('cp-selecao-limpar')), true);
   });
   teste('Interface — PWA declara manifesto para instalação', () => {
     igual(Boolean(document.querySelector('link[rel="manifest"][href="./manifest.webmanifest"]')), true);
