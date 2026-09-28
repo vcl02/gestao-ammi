@@ -1811,6 +1811,9 @@ function executarTestes() {
   teste('Interface — PWA declara manifesto para instalação', () => {
     igual(Boolean(document.querySelector('link[rel="manifest"][href="./manifest.webmanifest"]')), true);
   });
+  teste('Interface — PWA declara ícone para instalação', () => {
+    igual(Boolean(document.querySelector('link[rel="apple-touch-icon"][href="ammi-logo.png"]')), true);
+  });
   teste('Interface — valor e ícones do Empréstimo seguem a mesma linha', () => {
     const fixture = document.createElement('div');
     fixture.className = 'emprestimo-grupo';
