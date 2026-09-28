@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gestao-ammi-v1';
+const CACHE_NAME = 'gestao-ammi-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,6 +6,8 @@ const APP_SHELL = [
   './app.js',
   './manifest.webmanifest',
   './ammi-logo.png',
+  './pwa-icon-192.png',
+  './pwa-icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
