@@ -1745,6 +1745,9 @@ function executarTestes() {
   teste('Interface — descrição de Contas a Pagar é obrigatória', () => {
     igual(document.getElementById('cp-descricao').required, true);
   });
+  teste('Interface — PWA declara manifesto para instalação', () => {
+    igual(Boolean(document.querySelector('link[rel="manifest"][href="manifest.webmanifest"]')), true);
+  });
   teste('Interface — valor e ícones do Empréstimo seguem a mesma linha', () => {
     const fixture = document.createElement('div');
     fixture.className = 'emprestimo-grupo';
@@ -1789,5 +1792,12 @@ function executarTestes() {
 if (new URLSearchParams(window.location.search).has('testes')) {
   executarTestes();
 } else {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((erro) => {
+        console.warn('Não foi possível preparar o app para uso instalado.', erro);
+      });
+    });
+  }
   checkSession();
 }

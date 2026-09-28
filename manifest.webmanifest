@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Gestão Ammi",
+  "short_name": "Gestão Ammi",
+  "description": "Controle financeiro da loja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1c1a26",
+  "theme_color": "#1c1a26",
+  "icons": [
+    {
+      "src": "ammi-logo.png",
+      "sizes": "288x297",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -76,6 +76,14 @@ A sessão é limitada a **9 horas** (configurado no painel do Supabase, em
 *Authentication → Sessions → Time-box user sessions*). Sem esse ajuste, o
 Supabase renovaria o token indefinidamente e a sessão nunca expiraria.
 
+### Aplicação instalável
+
+O sistema pode ser instalado pelo Chrome como aplicativo. A instalação usa o
+mesmo endereço e dados da versão web; o cache local mantém os arquivos da tela
+disponíveis, mas login e dados financeiros continuam dependendo de conexão com
+o Supabase. O modo instalado não cria uma base de dados local nem permite
+registrar alterações offline.
+
 A chave usada no frontend é a pública (*anon* / *publishable*) e pode ficar
 exposta no código — a proteção real vem das políticas de RLS, que exigem
 usuário autenticado para qualquer leitura ou escrita.
@@ -702,7 +710,7 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - recorrências, exdates e ocupação das três vagas futuras;
 - escolha exata do primeiro `Aluguel` aberto;
 - contratos essenciais do HTML, como os ícones de início e os dois saldos do
-  Caixa Casa.
+  Caixa Casa, além da declaração do manifesto PWA.
 
 Continuam manuais as verificações que dependem do banco ou de interação real:
 RLS, cascatas, constraints SQL, sessão de 9 horas, cadastro público desativado,
