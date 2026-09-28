@@ -84,7 +84,8 @@ mesmo endereço e dados da versão web; a interface tenta sempre buscar a versã
 publicada mais recente e usa o cache local apenas quando não há conexão. Login
 e dados financeiros continuam dependendo do Supabase. O modo instalado não
 cria uma base de dados local nem permite registrar alterações offline. Os
-ícones instaláveis usam versões quadradas de 192 e 512 px do logo da Ammi.
+ícones instaláveis usam versões quadradas de 192 e 512 px do logo da Ammi; a
+versão de 192 px também é usada como favicon no navegador.
 
 A chave usada no frontend é a pública (*anon* / *publishable*) e pode ficar
 exposta no código — a proteção real vem das políticas de RLS, que exigem

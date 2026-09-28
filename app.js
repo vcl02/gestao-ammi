@@ -1812,7 +1812,7 @@ function executarTestes() {
     igual(Boolean(document.querySelector('link[rel="manifest"][href="./manifest.webmanifest"]')), true);
   });
   teste('Interface — PWA declara ícone para instalação', () => {
-    igual(Boolean(document.querySelector('link[rel="apple-touch-icon"][href="ammi-logo.png"]')), true);
+    igual(Boolean(document.querySelector('link[rel="apple-touch-icon"][href="pwa-icon-192.png"]')), true);
   });
   teste('Interface — valor e ícones do Empréstimo seguem a mesma linha', () => {
     const fixture = document.createElement('div');
