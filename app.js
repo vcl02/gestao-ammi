@@ -519,23 +519,46 @@ function mostrarAvisoDiasSemVenda(vendas) {
 
 salAvisoDiasSemVendaFecharEl.addEventListener('click', () => salAvisoDiasSemVendaEl.close());
 
+async function carregarLancamentosSalarioParaSaldo() {
+  const tamanhoPagina = 1000;
+  let inicio = 0;
+  const lancamentos = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(SAL_TABLE)
+      .select('tipo, valor')
+      .order('id', { ascending: true })
+      .range(inicio, inicio + tamanhoPagina - 1);
+
+    if (error) return { error };
+
+    lancamentos.push(...data);
+    if (data.length < tamanhoPagina) return { data: lancamentos };
+    inicio += tamanhoPagina;
+  }
+}
+
 async function carregarSalario() {
   salVendaDataInput.value = salVendaDataInput.value || hojeISO();
   salPagamentoDataInput.value = salPagamentoDataInput.value || hojeISO();
 
-  const { data, error } = await supabase
-    .from(SAL_TABLE)
-    .select('*')
-    .order('data', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(50);
+  const [{ data, error }, { data: lancamentosSaldo, error: erroSaldo }] = await Promise.all([
+    supabase
+      .from(SAL_TABLE)
+      .select('*')
+      .order('data', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(50),
+    carregarLancamentosSalarioParaSaldo(),
+  ]);
 
-  if (error) {
+  if (error || erroSaldo) {
     salListEl.innerHTML = `<li class="empty-state">Erro ao carregar lançamentos.</li>`;
     return;
   }
 
-  const saldo = calcularSaldoSalario(data);
+  const saldo = calcularSaldoSalario(lancamentosSaldo);
   salSaldoEl.textContent = formatMoney(saldo);
   salSaldoEl.classList.toggle('negative', saldo < 0);
 
@@ -1693,6 +1716,10 @@ function executarTestes() {
   });
   teste('Salário — vendas somam e pagamentos subtraem', () => {
     igual(calcularSaldoSalario([{ tipo: 'venda', valor: 80 }, { tipo: 'pagamento', valor: 30 }]), 50);
+  });
+  teste('Salário — saldo considera histórico além dos 50 itens visíveis', () => {
+    const historico = Array.from({ length: 51 }, () => ({ tipo: 'venda', valor: 10 }));
+    igual(calcularSaldoSalario(historico), 510);
   });
   teste('Contas a Pagar — soma ocorrências selecionadas sem alterar pagamento', () => {
     igual(somarValoresSelecionados([{ valor: 100.15 }, { valor: 20.2 }]), 120.35);

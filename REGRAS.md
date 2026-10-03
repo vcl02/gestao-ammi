@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-09-28 (PWA instalável e seleção visual de ocorrências).
+Última revisão: 2026-10-03 (saldo de Salário considera todo o histórico).
 
 ---
 
@@ -189,6 +189,8 @@ saldo = Σ(comissões) − Σ(pagamentos)
 
 Interpretação: **saldo positivo = ainda se deve à gerente**. Saldo negativo
 significa que ela recebeu adiantado, além do que foi comissionado até então.
+O saldo considera **todo o histórico** de lançamentos, inclusive quando a
+lista da tela está limitada aos 50 mais recentes.
 
 ### Rótulo na lista
 
@@ -741,15 +743,16 @@ não justifica.
 Coisas que funcionam assim de propósito, ou que são limitações aceitas.
 Registradas aqui para não serem "descobertas" como bug no futuro.
 
-### Limite de 50 lançamentos afeta o saldo
+### Limite de 50 lançamentos afeta o saldo do Caixa Casa
 
-Caixa Casa e Salário carregam apenas os **50 lançamentos mais recentes**, e
-o saldo é calculado sobre esses 50. Quando qualquer um dos módulos passar de
-50 lançamentos, **o saldo exibido deixa de ser o saldo real** — passa a ser
-o saldo dos últimos 50.
+Caixa Casa carrega apenas os **50 lançamentos mais recentes**, e o saldo é
+calculado sobre esses 50. Quando passar de 50 lançamentos, **o saldo exibido
+deixa de ser o saldo real** — passa a ser o saldo dos últimos 50. No Salário,
+a lista continua limitada a 50 itens, mas o saldo é calculado com o histórico
+inteiro.
 
-Este é o ponto mais provável de virar um problema real com o tempo. A
-correção exige calcular o saldo no banco (agregação) em vez de no cliente.
+Se o Caixa Casa também precisar exibir o saldo histórico real, será necessário
+separar a lista limitada do cálculo completo, como já ocorre no Salário.
 
 ### Comissão de 25% é fixa no código
 
