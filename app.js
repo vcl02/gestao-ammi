@@ -25,8 +25,13 @@ const PERCENTUAL_COMISSAO = 0.25;
 // Converte texto tipo "1.234,56" ou "1234,56" ou "1234.56" em número.
 function parseMoney(text) {
   if (typeof text !== 'string') return NaN;
-  const cleaned = text.trim().replace(/\./g, '').replace(',', '.');
-  return parseFloat(cleaned);
+  const valor = text.trim();
+  if (!valor) return NaN;
+  if (valor.includes(',')) return parseFloat(valor.replace(/\./g, '').replace(',', '.'));
+
+  const partes = valor.split('.');
+  if (partes.length === 2 && /^\d{1,2}$/.test(partes[1])) return parseFloat(valor);
+  return parseFloat(valor.replace(/\./g, ''));
 }
 
 // Desabilita o botão de submit do form enquanto o handler roda, evitando
@@ -1677,6 +1682,8 @@ function executarTestes() {
 
   teste('Dinheiro — lê valor brasileiro com milhar', () => igual(parseMoney('1.234,56'), 1234.56));
   teste('Dinheiro — lê valor brasileiro sem milhar', () => igual(parseMoney('1234,56'), 1234.56));
+  teste('Dinheiro — lê ponto com duas casas como decimal', () => igual(parseMoney('77.62'), 77.62));
+  teste('Dinheiro — mantém ponto com três casas como milhar', () => igual(parseMoney('1.234'), 1234));
   teste('Dinheiro — entrada vazia é inválida', () => igual(Number.isNaN(parseMoney('')), true));
   teste('Dinheiro — arredonda para dois centavos', () => igual(round2(10.005), 10.01));
   teste('Caixa — entradas somam e saídas subtraem', () => {

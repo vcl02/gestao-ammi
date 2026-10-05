@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-03 (saldo de Salário considera todo o histórico).
+Última revisão: 2026-10-05 (valores com ponto decimal em prompts).
 
 ---
 
@@ -55,6 +55,10 @@ os lançamentos continuam sendo feitos manualmente em cada módulo.
   separador de milhar e a vírgula é decimal. A máscara aplica isso enquanto
   a pessoa digita, tratando os dígitos como centavos da direita para a
   esquerda (digitar `12345` resulta em `123,45`).
+- Campos abertos em prompts, como Aporte e ajuste de valor, também aceitam
+  ponto seguido de uma ou duas casas decimais (`77.62` resulta em `77,62`).
+  Um ponto seguido de três casas continua sendo interpretado como milhar
+  (`1.234` resulta em `1.234,00`).
 
 ### Datas
 
