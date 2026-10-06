@@ -278,6 +278,23 @@ function formatDataBR(isoDate) {
   return `${day}/${month}/${year}`;
 }
 
+function dataCadastroConta(conta) {
+  if (!conta.created_at) return conta.data_inicio;
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return formatter.format(new Date(conta.created_at));
+}
+
+function dataExibicaoOcorrencia(ocorrencia) {
+  return ocorrencia.conta.pessoal || ehEmprestimo(ocorrencia.conta)
+    ? dataCadastroConta(ocorrencia.conta)
+    : ocorrencia.data;
+}
+
 // Quantos dias antes do dia 1 do mês a semana (domingo) já tinha começado.
 // Ex: se o mês começa numa terça, offset = 2 (o domingo foi 2 dias antes
 // do dia 1).
@@ -1184,7 +1201,7 @@ async function carregarContasPagar() {
         : calcularSaldoConta(valorOriginal, valorPago);
       const pagaRegistrada = Boolean(pagamento);
       const paga = emprestimo ? (pagaRegistrada || valorRestante === 0) : valorRestante === 0;
-      const atrasada = data < hoje && !paga;
+      const atrasada = !conta.pessoal && !emprestimo && data < hoje && !paga;
       ocorrenciasParaExibir.push({
         conta,
         data,
@@ -1318,7 +1335,7 @@ async function carregarContasPagar() {
           <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''} ${emprestimo ? 'disabled' : ''}>
           <div class="lancamento-info">
             <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${tagPessoalConta(conta)}${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
-            <span class="lancamento-data">${formatDataBR(data)}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
+            <span class="lancamento-data">${formatDataBR(dataExibicaoOcorrencia(ocorrencia))}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
           </div>
         </div>
         <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>${botoesAcao}
@@ -1350,7 +1367,8 @@ async function carregarContasPagar() {
   }
 
   const ocorrenciasEmprestimo = ocorrenciasParaExibir.filter((ocorrencia) => ocorrencia.emprestimo);
-  const demaisOcorrencias = ocorrenciasParaExibir.filter((ocorrencia) => !ocorrencia.emprestimo);
+  const ocorrenciasPessoais = ocorrenciasParaExibir.filter((ocorrencia) => !ocorrencia.emprestimo && ocorrencia.conta.pessoal);
+  const demaisOcorrencias = ocorrenciasParaExibir.filter((ocorrencia) => !ocorrencia.emprestimo && !ocorrencia.conta.pessoal);
   const emprestimosAbertos = cpGruposAlteradosManualmente.get('emprestimo') ?? abrirGrupoPorPadrao(ocorrenciasEmprestimo);
   const emprestimosHtml = ocorrenciasEmprestimo.length === 0 ? '' : `
     <li class="semana-grupo emprestimo-grupo">
@@ -1363,7 +1381,19 @@ async function carregarContasPagar() {
       </details>
     </li>
   `;
-  cpListEl.innerHTML = emprestimosHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
+  const pessoaisAbertas = cpGruposAlteradosManualmente.get('pessoal') ?? abrirGrupoPorPadrao(ocorrenciasPessoais);
+  const pessoaisHtml = ocorrenciasPessoais.length === 0 ? '' : `
+    <li class="semana-grupo pessoal-grupo">
+      <details class="cp-grupo-details" data-grupo="pessoal"${pessoaisAbertas ? ' open' : ''}>
+        <summary class="semana-grupo-titulo">
+          <span>Pessoal</span>
+          <span class="semana-grupo-total">${formatMoney(ocorrenciasPessoais.reduce((acc, item) => acc + valorExibidoOcorrencia(item), 0))}</span>
+        </summary>
+        <ul class="lancamentos">${ocorrenciasPessoais.map(renderizarItemOcorrencia).join('')}</ul>
+      </details>
+    </li>
+  `;
+  cpListEl.innerHTML = emprestimosHtml + pessoaisHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
   cpListEl.querySelectorAll('.cp-pago-checkbox[data-parcial="true"]').forEach((checkbox) => {
     checkbox.indeterminate = true;
   });
@@ -2161,6 +2191,24 @@ function executarTestes() {
   });
 
   teste('Datas — formata YYYY-MM-DD como DD/MM/AAAA', () => igual(formatDataBR('2026-09-14'), '14/09/2026'));
+  teste('Contas pessoais — mostra a data de cadastro no fuso de São Paulo', () => {
+    igual(dataExibicaoOcorrencia({
+      data: '2026-10-07',
+      conta: { pessoal: true, data_inicio: '2026-10-07', created_at: '2026-10-07T01:30:00Z' },
+    }), '2026-10-06');
+  });
+  teste('Contas comuns — mantém a data da ocorrência', () => {
+    igual(dataExibicaoOcorrencia({
+      data: '2026-10-07',
+      conta: { descricao: 'Conta comum', pessoal: false, data_inicio: '2026-10-06', created_at: '2026-10-06T21:00:00Z' },
+    }), '2026-10-07');
+  });
+  teste('Empréstimo — mostra a data de cadastro, não a data técnica', () => {
+    igual(dataExibicaoOcorrencia({
+      data: '2026-11-18',
+      conta: { descricao: 'Empréstimo', pessoal: false, data_inicio: '2026-11-18', created_at: '2026-10-06T21:00:00Z' },
+    }), '2026-10-06');
+  });
   teste('Datas — dia 31 ancora no último dia de fevereiro bissexto', () => {
     igual(montarDataOcorrencia(2024, 1, 31), '2024-02-29');
   });
@@ -2186,11 +2234,13 @@ function executarTestes() {
   teste('Ocorrências — preserva o estado escolhido por semana e Empréstimo', () => {
     cpListEl.innerHTML = '<li><details class="cp-grupo-details" data-grupo="2026-9-1" open><summary>Semana 1</summary></details></li>'
       + '<li><details class="cp-grupo-details" data-grupo="2026-9-2"><summary>Semana 2</summary></details></li>'
-      + '<li><details class="cp-grupo-details" data-grupo="emprestimo" open><summary>Empréstimo</summary></details></li>';
+      + '<li><details class="cp-grupo-details" data-grupo="emprestimo" open><summary>Empréstimo</summary></details></li>'
+      + '<li><details class="cp-grupo-details" data-grupo="pessoal" open><summary>Pessoal</summary></details></li>';
     cpListEl.querySelectorAll('.cp-grupo-details > summary').forEach((summary) => summary.click());
     igual(cpGruposAlteradosManualmente.get('2026-9-1'), false);
     igual(cpGruposAlteradosManualmente.get('2026-9-2'), true);
     igual(cpGruposAlteradosManualmente.get('emprestimo'), false);
+    igual(cpGruposAlteradosManualmente.get('pessoal'), false);
     cpGruposAlteradosManualmente.clear();
     cpListEl.innerHTML = '';
   });

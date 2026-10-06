@@ -270,6 +270,12 @@ Ao cadastrar uma conta Mensal ou Parcelada, a opção **Conta pessoal** grava
 `contas_pagar.pessoal = true`. A marcação aparece em "Contas cadastradas" e
 cada ocorrência dessa conta exibe a tag **Pessoal** junto ao nome.
 
+Contas pessoais não ficam nos grupos semanais nem recebem atraso visual. Elas
+aparecem em um bloco próprio, como Empréstimo, e mostram somente a **data de
+cadastro** no fuso America/Sao_Paulo — não há vencimento visível. A data
+interna da parcela ou recorrência continua existindo somente para preservar os
+vínculos de pagamento e os cálculos já registrados.
+
 Ao clicar no checkbox de uma ocorrência pessoal aberta, o sistema pergunta o
 valor pago. O campo começa preenchido com todo o saldo restante, mas aceita um
 valor menor. Cada novo pagamento se acumula no mesmo registro até atingir o
@@ -304,8 +310,10 @@ maiúsculas de minúsculas e ignorando espaços nas pontas, recebe tratamento
 especial. O uso esperado é uma conta Parcelada com uma única data.
 
 Todas as ocorrências chamadas `Empréstimo` ficam em um bloco próprio no topo
-da lista, antes de qualquer semana, independentemente da data. A data original
-continua visível.
+da lista, antes de qualquer semana. Elas não têm vencimento visível, não ficam
+atrasadas e mostram somente a **data de cadastro** no fuso America/Sao_Paulo.
+Sua data interna continua existindo apenas como identificador dos aportes e
+pagamentos já registrados.
 Esse bloco pode ser colapsado; começa aberto quando existe ao menos um
 Empréstimo não pago e fechado quando todos estão pagos.
 
@@ -811,6 +819,8 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - comissão e saldo do Salário, inclusive o payload de uma venda esquecida;
 - criação vinculada e reversão por cascata do pagamento de uma conta pessoal;
 - limite, saldo restante e payload acumulado dos pagamentos parciais;
+- exibição de Pessoal e Empréstimo pela data de cadastro, fora dos grupos
+  semanais e sem atraso visual;
 - identificação visual de contas pessoais e destino correto da exclusão de
   lançamentos manuais ou vinculados;
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
