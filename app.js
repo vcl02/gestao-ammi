@@ -19,6 +19,7 @@ const FI_PESSOAS_TABLE = 'fiado_pessoas';
 const FI_VENDAS_TABLE = 'fiado_vendas';
 const FI_PAGAMENTOS_TABLE = 'fiado_pagamentos';
 const PERCENTUAL_COMISSAO = 0.25;
+const modoTestes = new URLSearchParams(window.location.search).has('testes');
 
 // ===================== HELPERS: dinheiro / data =====================
 
@@ -99,6 +100,23 @@ function calcularSaldoSalario(lancamentos) {
   return round2(lancamentos.reduce((acc, item) => {
     return acc + (item.tipo === 'venda' ? Number(item.valor) : -Number(item.valor));
   }, 0));
+}
+
+function limitarValorPagoConta(valorPago, valorTotal) {
+  return Math.min(Math.max(round2(Number(valorPago) || 0), 0), Number(valorTotal));
+}
+
+function calcularSaldoConta(valorTotal, valorPago) {
+  return Math.max(round2(Number(valorTotal) - limitarValorPagoConta(valorPago, valorTotal)), 0);
+}
+
+function dadosPagamentoConta(contaId, data, valorPago, valorCaixa = 0) {
+  return {
+    conta_id: contaId,
+    data,
+    valor_pago: valorPago,
+    valor_caixa: valorCaixa,
+  };
 }
 
 function dadosSaidaCaixaDaConta(contaId, valor, data, descricao) {
@@ -232,7 +250,10 @@ function somarAportesPorOcorrencia(aportes) {
 }
 
 function valorExibidoOcorrencia(ocorrencia) {
-  return round2(ocorrencia.valor - (ocorrencia.abatimentoCaixa || 0));
+  const valorBase = ocorrencia.paga && ocorrencia.valorOriginal !== undefined
+    ? ocorrencia.valorOriginal
+    : ocorrencia.valor;
+  return round2(valorBase - (ocorrencia.abatimentoCaixa || 0));
 }
 
 // Data de hoje (YYYY-MM-DD) no fuso America/Sao_Paulo.
@@ -364,7 +385,7 @@ async function checkSession() {
 }
 
 supabase.auth.onAuthStateChange((_event, session) => {
-  if (!session) showView('login');
+  if (!session && !modoTestes) showView('login');
 });
 
 const loginForm = document.getElementById('login-form');
@@ -1043,7 +1064,7 @@ function gerarOcorrenciasRecorrenteParaExibir(conta, exdates, qtdeFuturas, hoje 
 }
 
 function encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos, ajustesRows) {
-  const pagosSet = new Set(pagos.map((pagamento) => `${pagamento.conta_id}|${pagamento.data}`));
+  const pagamentosMap = new Map(pagos.map((pagamento) => [`${pagamento.conta_id}|${pagamento.data}`, pagamento]));
   const ajustesMap = new Map(ajustesRows.map((ajuste) => [`${ajuste.conta_id}|${ajuste.data}`, Number(ajuste.valor)]));
   const alugueisAbertos = [];
 
@@ -1064,8 +1085,10 @@ function encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos
         }));
     }
 
-    ocorrencias.filter(({ data }) => !pagosSet.has(`${conta.id}|${data}`)).forEach((ocorrencia) => {
-      alugueisAbertos.push(ocorrencia);
+    ocorrencias.forEach((ocorrencia) => {
+      const pagamento = pagamentosMap.get(`${conta.id}|${ocorrencia.data}`);
+      const valorRestante = calcularSaldoConta(ocorrencia.valor, pagamento?.valor_pago);
+      if (valorRestante > 0) alugueisAbertos.push({ ...ocorrencia, valor: valorRestante });
     });
   });
 
@@ -1106,7 +1129,7 @@ async function carregarContasPagar() {
 
   const ajustesMap = new Map(ajustesRows.map((a) => [`${a.conta_id}|${a.data}`, Number(a.valor)]));
 
-  const pagosSet = new Set(pagos.map((p) => `${p.conta_id}|${p.data}`));
+  const pagamentosMap = new Map(pagos.map((p) => [`${p.conta_id}|${p.data}`, p]));
   const aportesMap = somarAportesPorOcorrencia(aportesRows);
   const saldoCaixa = calcularSaldoCaixa(caixaRows);
   const aluguelAbertoCaixa = encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos, ajustesRows);
@@ -1154,9 +1177,13 @@ async function carregarContasPagar() {
       const emprestimo = ehEmprestimo(conta);
       const valorOriginal = valor;
       const totalAportes = emprestimo ? (aportesMap.get(chave) || 0) : 0;
-      const valorRestante = emprestimo ? calcularSaldoEmprestimo(valorOriginal, totalAportes) : valorOriginal;
-      const pagaRegistrada = pagosSet.has(chave);
-      const paga = pagaRegistrada || (emprestimo && valorRestante === 0);
+      const pagamento = pagamentosMap.get(chave);
+      const valorPago = emprestimo ? 0 : limitarValorPagoConta(pagamento?.valor_pago, valorOriginal);
+      const valorRestante = emprestimo
+        ? calcularSaldoEmprestimo(valorOriginal, totalAportes)
+        : calcularSaldoConta(valorOriginal, valorPago);
+      const pagaRegistrada = Boolean(pagamento);
+      const paga = emprestimo ? (pagaRegistrada || valorRestante === 0) : valorRestante === 0;
       const atrasada = data < hoje && !paga;
       ocorrenciasParaExibir.push({
         conta,
@@ -1164,6 +1191,8 @@ async function carregarContasPagar() {
         valor: valorRestante,
         valorOriginal,
         totalAportes,
+        valorPago,
+        valorCaixaPago: Number(pagamento?.valor_caixa || 0),
         emprestimo,
         pagaRegistrada,
         paga,
@@ -1188,7 +1217,7 @@ async function carregarContasPagar() {
         ? ocorrencia.valorOriginal
         : Math.min(ocorrencia.totalAportes, ocorrencia.valorOriginal));
     }
-    return acc + (ocorrencia.paga ? valorExibidoOcorrencia(ocorrencia) : 0);
+    return acc + ocorrencia.valorPago;
   }, 0);
   const totalMesNaoPago = ocorrenciasMesAtual
     .filter((ocorrencia) => !ocorrencia.paga)
@@ -1260,11 +1289,12 @@ async function carregarContasPagar() {
   }
 
   function renderizarItemOcorrencia(ocorrencia) {
-    const { conta, data, valor, valorOriginal, emprestimo, paga, atrasada } = ocorrencia;
+    const { conta, data, valor, valorOriginal, valorPago, valorCaixaPago, emprestimo, paga, pagaRegistrada, atrasada } = ocorrencia;
     const valorExibido = valorExibidoOcorrencia(ocorrencia);
+    const parcial = valorPago > 0 && !paga;
     const botaoAporte = emprestimo && !paga ? `
         <button type="button" class="btn-icon btn-aporte cp-aporte-btn" data-conta-id="${conta.id}" data-data="${data}" data-restante="${valor}" aria-label="Fazer aporte" title="Fazer aporte">+</button>` : '';
-    const botoesAcao = paga ? '' : `
+    const botoesAcao = (paga || valorPago > 0) ? '' : `
         ${botaoAporte}
         <button type="button" class="btn-icon btn-icon-neutro cp-editar-btn" data-conta-id="${conta.id}" data-data="${data}" data-tipo="${conta.tipo}" data-valor="${valorOriginal}" aria-label="Editar valor" title="Editar valor">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1285,10 +1315,10 @@ async function carregarContasPagar() {
     return `
       <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}${selecionada ? ' cp-ocorrencia-selecionada' : ''}">
         <div class="lancamento-checkbox">
-          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="Marcar ${conta.descricao} como paga" ${paga ? 'checked' : ''} ${emprestimo ? 'disabled' : ''}>
+          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''} ${emprestimo ? 'disabled' : ''}>
           <div class="lancamento-info">
-            <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${tagPessoalConta(conta)}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
-            <span class="lancamento-data">${formatDataBR(data)}</span>
+            <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${tagPessoalConta(conta)}${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
+            <span class="lancamento-data">${formatDataBR(data)}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
           </div>
         </div>
         <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>${botoesAcao}
@@ -1334,6 +1364,9 @@ async function carregarContasPagar() {
     </li>
   `;
   cpListEl.innerHTML = emprestimosHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
+  cpListEl.querySelectorAll('.cp-pago-checkbox[data-parcial="true"]').forEach((checkbox) => {
+    checkbox.indeterminate = true;
+  });
   const chavesDisponiveis = new Set(ocorrenciasParaExibir.map((ocorrencia) => `${ocorrencia.conta.id}|${ocorrencia.data}`));
   cpOcorrenciasSelecionadas.forEach((_ocorrencia, chave) => {
     if (!chavesDisponiveis.has(chave)) cpOcorrenciasSelecionadas.delete(chave);
@@ -1371,57 +1404,108 @@ async function alternarPagoContasPagar(e) {
   const pessoal = checkbox.dataset.pessoal === 'true';
   const aluguel = checkbox.dataset.aluguel === 'true';
   const valor = Number(checkbox.dataset.valor);
+  const valorPagoAnterior = Number(checkbox.dataset.valorPago || 0);
+  const valorCaixaAnterior = Number(checkbox.dataset.valorCaixa || 0);
   const descricao = checkbox.dataset.descricao;
 
   checkbox.disabled = true;
 
   if (checkbox.checked) {
+    const valorRestante = calcularSaldoConta(valor, valorPagoAnterior);
+    let valorDestePagamento = valorRestante;
+
+    if (pessoal) {
+      const valorTexto = prompt('Valor deste pagamento:', valorRestante.toFixed(2).replace('.', ','));
+      if (valorTexto === null) {
+        await carregarContasPagar();
+        return;
+      }
+
+      valorDestePagamento = parseMoney(valorTexto);
+      if (!valorDestePagamento || valorDestePagamento <= 0 || valorDestePagamento > valorRestante) {
+        alert(`Informe um valor entre R$ 0,01 e ${formatMoney(valorRestante)}.`);
+        await carregarContasPagar();
+        return;
+      }
+    }
+
     const usarCaixa = aluguel || confirm('Esta conta foi paga com dinheiro do Caixa Casa?');
-    const { error: erroPagamento } = await supabase.from(CP_PAGAMENTOS_TABLE).insert({ conta_id: contaId, data });
+    const novoValorPago = round2(valorPagoAnterior + valorDestePagamento);
+    const novoValorCaixa = round2(valorCaixaAnterior + (usarCaixa ? valorDestePagamento : 0));
+    const pagamentoAnterior = valorPagoAnterior > 0
+      ? dadosPagamentoConta(contaId, data, valorPagoAnterior, valorCaixaAnterior)
+      : null;
+
+    const restaurarPagamentoAnterior = async () => {
+      if (!pagamentoAnterior) {
+        return supabase.from(CP_PAGAMENTOS_TABLE).delete().eq('conta_id', contaId).eq('data', data);
+      }
+
+      const { error: erroPagamento } = await supabase.from(CP_PAGAMENTOS_TABLE).upsert(pagamentoAnterior);
+      if (erroPagamento) return { error: erroPagamento };
+
+      if (pessoal) {
+        const { error: erroSalario } = await supabase.from(SAL_TABLE).upsert(
+          dadosPagamentoSalarioDaContaPessoal(contaId, valorPagoAnterior, data, descricao),
+          { onConflict: 'conta_pagar_id,data_ocorrencia' }
+        );
+        if (erroSalario) return { error: erroSalario };
+      }
+
+      if (valorCaixaAnterior > 0) {
+        return supabase.from(CC_TABLE).upsert(
+          dadosSaidaCaixaDaConta(contaId, valorCaixaAnterior, data, descricao),
+          { onConflict: 'conta_pagar_id,data_ocorrencia' }
+        );
+      }
+
+      return supabase.from(CC_TABLE)
+        .delete()
+        .eq('conta_pagar_id', contaId)
+        .eq('data_ocorrencia', data);
+    };
+
+    const { error: erroPagamento } = await supabase.from(CP_PAGAMENTOS_TABLE).upsert(
+      dadosPagamentoConta(contaId, data, novoValorPago, novoValorCaixa)
+    );
     if (erroPagamento) {
-      alert('Não foi possível marcar a conta como paga.');
+      alert('Não foi possível registrar o pagamento. Confira se a migration 009 foi aplicada.');
       await carregarContasPagar();
       return;
     }
 
     if (pessoal) {
-      const { error: erroSalario } = await supabase.from(SAL_TABLE).insert(
+      const { error: erroSalario } = await supabase.from(SAL_TABLE).upsert(
         dadosPagamentoSalarioDaContaPessoal(
           contaId,
-          valor,
+          novoValorPago,
           data,
           descricao
-        )
+        ),
+        { onConflict: 'conta_pagar_id,data_ocorrencia' }
       );
 
       if (erroSalario) {
-        const { error: erroDesfazerPagamento } = await supabase
-          .from(CP_PAGAMENTOS_TABLE)
-          .delete()
-          .eq('conta_id', contaId)
-          .eq('data', data);
+        const { error: erroDesfazerPagamento } = await restaurarPagamentoAnterior();
         alert(erroDesfazerPagamento
-          ? 'A conta foi marcada como paga, mas não entrou no Salário. Ajuste os registros no banco.'
-          : 'Não foi possível lançar a conta pessoal no Salário. A conta continua pendente. Confira se a migration 007 foi aplicada.');
+          ? 'O pagamento ficou incompleto. Ajuste os registros no banco.'
+          : 'Não foi possível atualizar o Salário. O pagamento anterior foi preservado.');
         await carregarContasPagar();
         return;
       }
     }
 
     if (usarCaixa) {
-      const { error: erroCaixa } = await supabase.from(CC_TABLE).insert(
-        dadosSaidaCaixaDaConta(contaId, valor, data, descricao)
+      const { error: erroCaixa } = await supabase.from(CC_TABLE).upsert(
+        dadosSaidaCaixaDaConta(contaId, novoValorCaixa, data, descricao),
+        { onConflict: 'conta_pagar_id,data_ocorrencia' }
       );
 
       if (erroCaixa) {
-        const { error: erroDesfazerPagamento } = await supabase
-          .from(CP_PAGAMENTOS_TABLE)
-          .delete()
-          .eq('conta_id', contaId)
-          .eq('data', data);
+        const { error: erroDesfazerPagamento } = await restaurarPagamentoAnterior();
         alert(erroDesfazerPagamento
-          ? 'A conta foi marcada como paga, mas os lançamentos automáticos ficaram incompletos. Ajuste os registros no banco.'
-          : 'Não foi possível lançar a saída no Caixa Casa. A conta continua pendente. Confira se a migration 007 foi aplicada.');
+          ? 'O pagamento ficou incompleto. Ajuste os registros no banco.'
+          : 'Não foi possível atualizar o Caixa Casa. O pagamento anterior foi preservado.');
         await carregarContasPagar();
         return;
       }
@@ -1949,6 +2033,20 @@ function executarTestes() {
       data_ocorrencia: '2026-10-10',
     });
   });
+  teste('Contas a Pagar — pagamento parcial reduz somente o saldo restante', () => {
+    igual(calcularSaldoConta(500, 125.5), 374.5);
+  });
+  teste('Contas a Pagar — pagamento não ultrapassa o valor da ocorrência', () => {
+    igual(limitarValorPagoConta(550, 500), 500);
+  });
+  teste('Contas a Pagar — baixa guarda acumulado pago e parte saída do Caixa', () => {
+    igualJson(dadosPagamentoConta('c1', '2026-10-10', 125.5, 40), {
+      conta_id: 'c1', data: '2026-10-10', valor_pago: 125.5, valor_caixa: 40,
+    });
+  });
+  teste('Contas a Pagar — ocorrência quitada continua exibindo o valor original', () => {
+    igual(valorExibidoOcorrencia({ valor: 0, valorOriginal: 500, paga: true }), 500);
+  });
   teste('Contas a Pagar — conta pessoal recebe tag na ocorrência', () => {
     igual(tagPessoalConta({ pessoal: true }).includes('Pessoal'), true);
     igual(tagPessoalConta({ pessoal: false }), '');
@@ -2127,7 +2225,9 @@ function executarTestes() {
       { conta_id: 'a', data: '2026-10-10', valor: 600 },
       { conta_id: 'b', data: '2026-08-10', valor: 100 },
     ];
-    const aluguel = encontrarPrimeiroAluguelAberto(contas, [], parcelas, [{ conta_id: 'a', data: '2026-09-10' }], []);
+    const aluguel = encontrarPrimeiroAluguelAberto(contas, [], parcelas, [
+      { conta_id: 'a', data: '2026-09-10', valor_pago: 500 },
+    ], []);
     igualJson(aluguel, { data: '2026-10-10', valor: 600 });
   });
 
@@ -2205,7 +2305,7 @@ function executarTestes() {
   resumo.className = `testes-resumo ${aprovados === resultados.length ? 'teste-ok' : 'teste-falhou'}`;
 }
 
-if (new URLSearchParams(window.location.search).has('testes')) {
+if (modoTestes) {
   executarTestes();
 } else {
   if ('serviceWorker' in navigator) {

@@ -99,7 +99,7 @@ Antes de editar qualquer arquivo em `migrations/`:
 2. Se sim, crie uma nova numerada (`004_...`) com o incremento
 3. Se não, pode editar no lugar
 
-Estado atual confirmado: **001 a 008 já foram aplicadas.** O usuário avisa
+Estado atual confirmado: **001 a 009 já foram aplicadas.** O usuário avisa
 quando roda uma nova — atualize esta linha quando isso acontecer.
 
 Toda tabela nova precisa de RLS habilitado e a policy `auth_all`, seguindo

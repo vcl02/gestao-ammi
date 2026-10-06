@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-06 (cadastro de vendas esquecidas e auditoria do banco).
+Última revisão: 2026-10-06 (pagamentos parciais de contas pessoais).
 
 ---
 
@@ -270,11 +270,17 @@ Ao cadastrar uma conta Mensal ou Parcelada, a opção **Conta pessoal** grava
 `contas_pagar.pessoal = true`. A marcação aparece em "Contas cadastradas" e
 cada ocorrência dessa conta exibe a tag **Pessoal** junto ao nome.
 
-Quando uma ocorrência pessoal é marcada como paga, o sistema também cria um
-`pagamento` no Salário com o valor real daquela ocorrência, sua data e sua
-descrição. Em conta Mensal, um ajuste pontual já existente faz parte desse
-valor. O abatimento do Caixa Casa no Aluguel é apenas visual e não reduz o
-pagamento criado no Salário.
+Ao clicar no checkbox de uma ocorrência pessoal aberta, o sistema pergunta o
+valor pago. O campo começa preenchido com todo o saldo restante, mas aceita um
+valor menor. Cada novo pagamento se acumula no mesmo registro até atingir o
+valor real da ocorrência. Em conta Mensal, um ajuste pontual já existente faz
+parte desse valor. O abatimento do Caixa Casa no Aluguel é apenas visual e não
+reduz o pagamento criado no Salário.
+
+O total acumulado pago também é o valor do `pagamento` automático no Salário.
+Enquanto houver saldo, a ocorrência permanece aberta, exibe a tag **Parcial**,
+mostra quanto já foi pago e mantém o checkbox em estado intermediário. O valor
+principal da linha e os totais pendentes mostram somente o saldo restante.
 
 O pagamento do Salário fica vinculado a `(conta_id, data)` da ocorrência e
 existe no máximo uma vez. Desmarcar o pagamento em Contas a Pagar apaga por
@@ -429,14 +435,14 @@ logada e é limpa ao voltar para o login.
 ### Pagamento de ocorrências
 
 O checkbox grava/apaga uma linha em `contas_pagar_pagamentos` para aquele
-`(conta_id, data)`.
+`(conta_id, data)`. A linha guarda `valor_pago`, com o acumulado quitado, e
+`valor_caixa`, com a parte desse acumulado que saiu do Caixa Casa.
 
-Marcar como paga **não altera** a conta nem a parcela: só registra que
-aquela data específica foi quitada. Desmarcar apaga o registro e a
-ocorrência volta a contar como pendente.
-
-Não há registro de valor pago nem de data de pagamento — apenas o fato
-booleano de que aquela ocorrência foi paga.
+Marcar como paga **não altera** a conta nem a parcela. Nas contas pessoais,
+o valor informado pode ser menor que o saldo e novos pagamentos acumulam até
+quitá-lo. Nas demais contas, o checkbox continua registrando o valor integral.
+Desmarcar uma ocorrência quitada apaga o registro e ela volta a contar como
+totalmente pendente.
 
 Em contas marcadas como pessoais, esse mesmo checkbox também segue a regra de
 [Contas pessoais](#contas-pessoais), criando ou removendo o pagamento vinculado
@@ -446,9 +452,10 @@ Se a descrição da conta for exatamente **Aluguel** (ignorando maiúsculas,
 minúsculas e espaços nas pontas), marcar como paga sempre cria uma saída no
 Caixa Casa com o valor real, data e descrição da ocorrência. Para qualquer
 outra conta, o sistema pergunta se ela foi paga com dinheiro do Caixa Casa;
-respondendo sim, cria a mesma saída vinculada. Respondendo não, apenas conclui
-a baixa e as demais integrações aplicáveis, como a do Salário para conta
-pessoal.
+respondendo sim, cria a mesma saída vinculada. Em pagamentos parciais, a saída
+acumula apenas as partes que efetivamente usaram o Caixa. Respondendo não,
+apenas registra a baixa e as demais integrações aplicáveis, como a do Salário
+para conta pessoal.
 
 Desmarcar a ocorrência remove por cascata os lançamentos automáticos vinculados
 no Salário e no Caixa Casa. Lançamentos manuais desses módulos não possuem o
@@ -803,6 +810,7 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
   conta paga com seu dinheiro;
 - comissão e saldo do Salário, inclusive o payload de uma venda esquecida;
 - criação vinculada e reversão por cascata do pagamento de uma conta pessoal;
+- limite, saldo restante e payload acumulado dos pagamentos parciais;
 - identificação visual de contas pessoais e destino correto da exclusão de
   lançamentos manuais ou vinculados;
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
