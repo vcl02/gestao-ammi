@@ -91,13 +91,30 @@ function calcularSaldoSalario(lancamentos) {
   }, 0));
 }
 
-function dadosPagamentoSalarioDaSaida(valor, data, descricao) {
+function dadosSaidaCaixaDaConta(contaId, valor, data, descricao) {
+  return {
+    tipo: 'saida',
+    valor,
+    data,
+    descricao,
+    conta_pagar_id: contaId,
+    data_ocorrencia: data,
+  };
+}
+
+function dadosPagamentoSalarioDaContaPessoal(contaId, valor, data, descricao) {
   return {
     tipo: 'pagamento',
     valor,
     data,
     descricao,
+    conta_pagar_id: contaId,
+    data_ocorrencia: data,
   };
+}
+
+function ehAluguel(conta) {
+  return conta.descricao.trim().toLocaleLowerCase('pt-BR') === 'aluguel';
 }
 
 function somarValoresSelecionados(itens) {
@@ -353,8 +370,6 @@ const ccErrorEl = document.getElementById('cc-form-error');
 const ccDescricaoInput = document.getElementById('cc-descricao');
 const ccDescricaoReq = document.getElementById('cc-descricao-req');
 const ccDataInput = document.getElementById('cc-data');
-const ccDuplicarSalarioWrap = document.getElementById('cc-duplicar-salario-wrap');
-const ccDuplicarSalarioInput = document.getElementById('cc-duplicar-salario');
 aplicarMascaraMoney(document.getElementById('cc-valor'));
 
 const CC_DESCRICAO_PADRAO = {
@@ -367,8 +382,6 @@ function updateCcDescricaoRequirement() {
   const obrigatorio = tipo === 'saida';
   ccDescricaoInput.required = obrigatorio;
   ccDescricaoReq.hidden = !obrigatorio;
-  ccDuplicarSalarioWrap.hidden = !obrigatorio;
-  if (!obrigatorio) ccDuplicarSalarioInput.checked = false;
 }
 
 document.querySelectorAll('input[name="cc-tipo"]').forEach((el) => {
@@ -446,7 +459,6 @@ bloquearDuranteSubmit(ccForm, async (e) => {
   const valor = parseMoney(document.getElementById('cc-valor').value);
   const data = ccDataInput.value;
   const descricao = ccDescricaoInput.value.trim();
-  const duplicarNoSalario = tipo === 'saida' && ccDuplicarSalarioInput.checked;
 
   if (!valor || valor <= 0) {
     ccErrorEl.textContent = 'Informe um valor válido.';
@@ -460,39 +472,17 @@ bloquearDuranteSubmit(ccForm, async (e) => {
     return;
   }
 
-  const { data: caixaSalva, error } = await supabase
-    .from(CC_TABLE)
-    .insert({
-      tipo,
-      valor,
-      data,
-      descricao: descricao || null,
-    })
-    .select('id')
-    .single();
+  const { error } = await supabase.from(CC_TABLE).insert({
+    tipo,
+    valor,
+    data,
+    descricao: descricao || null,
+  });
 
   if (error) {
     ccErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
     ccErrorEl.hidden = false;
     return;
-  }
-
-  if (duplicarNoSalario) {
-    const { error: erroSalario } = await supabase.from(SAL_TABLE).insert(
-      dadosPagamentoSalarioDaSaida(valor, data, descricao)
-    );
-
-    if (erroSalario) {
-      const { error: erroDesfazerCaixa } = await supabase
-        .from(CC_TABLE)
-        .delete()
-        .eq('id', caixaSalva.id);
-      ccErrorEl.textContent = erroDesfazerCaixa
-        ? 'A saída foi salva, mas não foi duplicada no Salário. Ajuste os registros no banco.'
-        : 'Não foi possível duplicar no Salário. Nenhum lançamento foi salvo.';
-      ccErrorEl.hidden = false;
-      return;
-    }
   }
 
   ccForm.reset();
@@ -776,6 +766,7 @@ cpSelecaoLimparEl.addEventListener('click', () => {
 const cpForm = document.getElementById('cp-form');
 const cpErrorEl = document.getElementById('cp-form-error');
 const cpDescricaoInput = document.getElementById('cp-descricao');
+const cpPessoalInput = document.getElementById('cp-pessoal');
 const cpValorInput = document.getElementById('cp-valor');
 const cpDataInicioInput = document.getElementById('cp-data-inicio');
 const cpCampoDataUnicaEl = document.getElementById('cp-campo-data-unica');
@@ -907,7 +898,7 @@ function encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos
   const ajustesMap = new Map(ajustesRows.map((ajuste) => [`${ajuste.conta_id}|${ajuste.data}`, Number(ajuste.valor)]));
   const alugueisAbertos = [];
 
-  contas.filter((conta) => conta.descricao.trim().toLocaleLowerCase('pt-BR') === 'aluguel').forEach((conta) => {
+  contas.filter(ehAluguel).forEach((conta) => {
     let ocorrencias;
     if (conta.tipo === 'parcelado') {
       ocorrencias = parcelasRows
@@ -1035,7 +1026,7 @@ async function carregarContasPagar() {
   ocorrenciasParaExibir.sort((a, b) => a.data.localeCompare(b.data));
 
   const primeiroAluguelAberto = ocorrenciasParaExibir.find((ocorrencia) => {
-    return !ocorrencia.paga && ocorrencia.conta.descricao.trim().toLocaleLowerCase('pt-BR') === 'aluguel';
+    return !ocorrencia.paga && ehAluguel(ocorrencia.conta);
   });
   if (primeiroAluguelAberto && saldoCaixa > 0) {
     primeiroAluguelAberto.abatimentoCaixa = calcularAbatimentoAluguel(saldoCaixa, primeiroAluguelAberto.valor);
@@ -1145,7 +1136,7 @@ async function carregarContasPagar() {
     return `
       <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}${selecionada ? ' cp-ocorrencia-selecionada' : ''}">
         <div class="lancamento-checkbox">
-          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" class="cp-pago-checkbox" aria-label="Marcar ${conta.descricao} como paga" ${paga ? 'checked' : ''} ${emprestimo ? 'disabled' : ''}>
+          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="Marcar ${conta.descricao} como paga" ${paga ? 'checked' : ''} ${emprestimo ? 'disabled' : ''}>
           <div class="lancamento-info">
             <button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}
             <span class="lancamento-data">${formatDataBR(data)}</span>
@@ -1209,7 +1200,7 @@ async function carregarContasPagar() {
     <li class="lancamento-item">
       <div class="lancamento-info">
         <span class="lancamento-desc">${conta.descricao}</span>
-        <span class="lancamento-data">${conta.tipo === 'parcelado' ? 'parcelado' : `mensal — dia ${conta.dia_vencimento}`}</span>
+        <span class="lancamento-data">${conta.tipo === 'parcelado' ? 'parcelado' : `mensal — dia ${conta.dia_vencimento}`}${conta.pessoal ? ' · pessoal' : ''}</span>
       </div>
       <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>
       <button type="button" class="btn-icon cp-remover-btn" data-conta-id="${conta.id}" aria-label="Remover conta" title="Remover conta">
@@ -1225,15 +1216,76 @@ async function carregarContasPagar() {
 
 async function alternarPagoContasPagar(e) {
   if (!e.target.classList.contains('cp-pago-checkbox')) return;
-  const contaId = e.target.dataset.contaId;
-  const data = e.target.dataset.data;
+  const checkbox = e.target;
+  const contaId = checkbox.dataset.contaId;
+  const data = checkbox.dataset.data;
+  const pessoal = checkbox.dataset.pessoal === 'true';
+  const aluguel = checkbox.dataset.aluguel === 'true';
+  const valor = Number(checkbox.dataset.valor);
+  const descricao = checkbox.dataset.descricao;
 
-  if (e.target.checked) {
-    await supabase.from(CP_PAGAMENTOS_TABLE).insert({ conta_id: contaId, data });
+  checkbox.disabled = true;
+
+  if (checkbox.checked) {
+    const usarCaixa = aluguel || confirm('Esta conta foi paga com dinheiro do Caixa Casa?');
+    const { error: erroPagamento } = await supabase.from(CP_PAGAMENTOS_TABLE).insert({ conta_id: contaId, data });
+    if (erroPagamento) {
+      alert('Não foi possível marcar a conta como paga.');
+      await carregarContasPagar();
+      return;
+    }
+
+    if (pessoal) {
+      const { error: erroSalario } = await supabase.from(SAL_TABLE).insert(
+        dadosPagamentoSalarioDaContaPessoal(
+          contaId,
+          valor,
+          data,
+          descricao
+        )
+      );
+
+      if (erroSalario) {
+        const { error: erroDesfazerPagamento } = await supabase
+          .from(CP_PAGAMENTOS_TABLE)
+          .delete()
+          .eq('conta_id', contaId)
+          .eq('data', data);
+        alert(erroDesfazerPagamento
+          ? 'A conta foi marcada como paga, mas não entrou no Salário. Ajuste os registros no banco.'
+          : 'Não foi possível lançar a conta pessoal no Salário. A conta continua pendente. Confira se a migration 007 foi aplicada.');
+        await carregarContasPagar();
+        return;
+      }
+    }
+
+    if (usarCaixa) {
+      const { error: erroCaixa } = await supabase.from(CC_TABLE).insert(
+        dadosSaidaCaixaDaConta(contaId, valor, data, descricao)
+      );
+
+      if (erroCaixa) {
+        const { error: erroDesfazerPagamento } = await supabase
+          .from(CP_PAGAMENTOS_TABLE)
+          .delete()
+          .eq('conta_id', contaId)
+          .eq('data', data);
+        alert(erroDesfazerPagamento
+          ? 'A conta foi marcada como paga, mas os lançamentos automáticos ficaram incompletos. Ajuste os registros no banco.'
+          : 'Não foi possível lançar a saída no Caixa Casa. A conta continua pendente. Confira se a migration 007 foi aplicada.');
+        await carregarContasPagar();
+        return;
+      }
+    }
   } else {
-    await supabase.from(CP_PAGAMENTOS_TABLE).delete().eq('conta_id', contaId).eq('data', data);
+    const { error } = await supabase
+      .from(CP_PAGAMENTOS_TABLE)
+      .delete()
+      .eq('conta_id', contaId)
+      .eq('data', data);
+    if (error) alert('Não foi possível desmarcar o pagamento.');
   }
-  await carregarContasPagar();
+  await Promise.all([carregarContasPagar(), carregarSalario(), carregarCaixaCasa()]);
 }
 
 cpListEl.addEventListener('change', alternarPagoContasPagar);
@@ -1319,6 +1371,7 @@ bloquearDuranteSubmit(cpForm, async (e) => {
   const descricao = cpDescricaoInput.value.trim();
   const valor = parseMoney(cpValorInput.value);
   const tipo = document.querySelector('input[name="cp-tipo"]:checked').value;
+  const pessoal = cpPessoalInput.checked;
 
   if (!valor || valor <= 0) {
     cpErrorEl.textContent = 'Informe um valor válido.';
@@ -1341,6 +1394,7 @@ bloquearDuranteSubmit(cpForm, async (e) => {
       tipo: 'recorrente',
       dia_vencimento: dia,
       data_inicio: dataInicio,
+      pessoal,
     });
 
     if (error) {
@@ -1365,6 +1419,7 @@ bloquearDuranteSubmit(cpForm, async (e) => {
       descricao,
       tipo: 'parcelado',
       data_inicio: dataInicio,
+      pessoal,
     }).select().single();
 
     if (error) {
@@ -1725,9 +1780,24 @@ function executarTestes() {
   teste('Caixa — entradas somam e saídas subtraem', () => {
     igual(calcularSaldoCaixa([{ tipo: 'entrada', valor: 150 }, { tipo: 'saida', valor: 40 }]), 110);
   });
-  teste('Caixa — saída duplicada vira pagamento no Salário com os mesmos dados', () => {
-    igualJson(dadosPagamentoSalarioDaSaida(40, '2026-10-06', 'Compra pessoal'), {
-      tipo: 'pagamento', valor: 40, data: '2026-10-06', descricao: 'Compra pessoal',
+  teste('Contas a Pagar — pagamento com Caixa cria saída vinculada', () => {
+    igualJson(dadosSaidaCaixaDaConta('c1', 40, '2026-10-06', 'Aluguel'), {
+      tipo: 'saida',
+      valor: 40,
+      data: '2026-10-06',
+      descricao: 'Aluguel',
+      conta_pagar_id: 'c1',
+      data_ocorrencia: '2026-10-06',
+    });
+  });
+  teste('Contas a Pagar — conta pessoal vira pagamento vinculado no Salário', () => {
+    igualJson(dadosPagamentoSalarioDaContaPessoal('c1', 89.9, '2026-10-10', 'Internet'), {
+      tipo: 'pagamento',
+      valor: 89.9,
+      data: '2026-10-10',
+      descricao: 'Internet',
+      conta_pagar_id: 'c1',
+      data_ocorrencia: '2026-10-10',
     });
   });
   teste('Caixa — saldo após aluguel nunca fica negativo', () => igual(calcularSaldoAposAluguel(300, 500), 0));
@@ -1736,6 +1806,10 @@ function executarTestes() {
   teste('Aluguel — saldo negativo não gera abatimento', () => igual(calcularAbatimentoAluguel(-10, 500), 0));
   teste('Aluguel — valor líquido alimenta linha, semana e resumo mensal', () => {
     igual(valorExibidoOcorrencia({ valor: 1000, abatimentoCaixa: 300 }), 700);
+  });
+  teste('Aluguel — só o nome exato usa o Caixa automaticamente', () => {
+    igual(ehAluguel({ descricao: ' ALUGUEL ' }), true);
+    igual(ehAluguel({ descricao: 'Aluguel casa' }), false);
   });
   teste('Salário — comissão é 25% da venda', () => igual(calcularComissao(199.99), 50));
   teste('Empréstimo — aporte informado grava somente origem manual', () => {
@@ -1861,10 +1935,10 @@ function executarTestes() {
     igualJson(gerarOcorrenciasRecorrenteAte(conta, new Set(['2024-02-29']), '2024-03-31'),
       ['2024-01-31', '2024-03-31']);
   });
-  teste('Recorrência — pagas futuras continuam ocupando uma das três vagas', () => {
+  teste('Recorrência — vencidas continuam visíveis junto das três futuras', () => {
     const conta = { id: 'c1', data_inicio: '2024-01-31', dia_vencimento: 31 };
     igualJson(gerarOcorrenciasRecorrenteParaExibir(conta, new Set(['2024-02-29']), 3, '2024-03-15'),
-      ['2024-03-31', '2024-04-30', '2024-05-31']);
+      ['2024-01-31', '2024-03-31', '2024-04-30', '2024-05-31']);
   });
   teste('Recorrência — baixa de ocorrência vencida preserva sua linha', () => {
     const conta = { id: 'c1', data_inicio: '2024-01-20', dia_vencimento: 20 };
@@ -1891,26 +1965,14 @@ function executarTestes() {
   teste('Interface — card do Caixa possui os dois saldos', () => {
     igual(Boolean(document.getElementById('cc-saldo') && document.getElementById('cc-saldo-total')), true);
   });
-  teste('Interface — Caixa possui opção de duplicar saída no Salário', () => {
-    igual(Boolean(document.getElementById('cc-duplicar-salario')), true);
-  });
-  teste('Interface — duplicação no Salário aparece somente para saída', () => {
-    const tipoOriginal = document.querySelector('input[name="cc-tipo"]:checked').value;
-    document.getElementById('cc-tipo-saida').checked = true;
-    updateCcDescricaoRequirement();
-    igual(ccDuplicarSalarioWrap.hidden, false);
-    ccDuplicarSalarioInput.checked = true;
-
-    document.getElementById('cc-tipo-entrada').checked = true;
-    updateCcDescricaoRequirement();
-    igual(ccDuplicarSalarioWrap.hidden, true);
-    igual(ccDuplicarSalarioInput.checked, false);
-
-    document.getElementById(`cc-tipo-${tipoOriginal}`).checked = true;
-    updateCcDescricaoRequirement();
+  teste('Interface — Caixa não possui mais duplicação explícita no Salário', () => {
+    igual(Boolean(document.getElementById('cc-duplicar-salario')), false);
   });
   teste('Interface — descrição de Contas a Pagar é obrigatória', () => {
     igual(document.getElementById('cp-descricao').required, true);
+  });
+  teste('Interface — Contas a Pagar permite marcar conta pessoal', () => {
+    igual(Boolean(document.getElementById('cp-pessoal')), true);
   });
   teste('Interface — seleção de Contas a Pagar possui barra e ação de limpar', () => {
     igual(Boolean(document.getElementById('cp-selecao-bar') && document.getElementById('cp-selecao-limpar')), true);

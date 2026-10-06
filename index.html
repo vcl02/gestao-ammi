@@ -122,11 +122,6 @@
         <label for="cc-descricao">Descrição <span id="cc-descricao-req" class="req" hidden>*</span></label>
         <input type="text" id="cc-descricao" placeholder="Ex: aluguel de setembro">
 
-        <label id="cc-duplicar-salario-wrap" class="cc-duplicar-salario" for="cc-duplicar-salario" hidden>
-          <input type="checkbox" id="cc-duplicar-salario">
-          <span>Duplicar no Salário</span>
-        </label>
-
         <button type="submit">Salvar</button>
         <p id="cc-form-error" class="error" hidden></p>
       </form>
@@ -265,6 +260,11 @@
 
         <label for="cp-descricao">Descrição</label>
         <input type="text" id="cp-descricao" placeholder="Ex: Aluguel" required>
+
+        <label class="cp-pessoal" for="cp-pessoal">
+          <input type="checkbox" id="cp-pessoal">
+          <span>Conta pessoal</span>
+        </label>
 
         <button type="submit">Salvar</button>
         <p id="cp-form-error" class="error" hidden></p>

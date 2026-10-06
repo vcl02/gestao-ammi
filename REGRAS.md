@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-06 (saída do Caixa duplicada no Salário).
+Última revisão: 2026-10-06 (pagamento de contas integrado ao Salário e Caixa Casa).
 
 ---
 
@@ -17,6 +17,7 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 - [Módulo: Contas a Pagar](#módulo-contas-a-pagar)
   - [Conta Mensal (recorrente)](#conta-mensal-recorrente)
   - [Conta Parcelada](#conta-parcelada)
+  - [Contas pessoais](#contas-pessoais)
   - [Seleção para soma](#seleção-para-soma)
   - [Pagamento de ocorrências](#pagamento-de-ocorrências)
   - [Pular ocorrência](#pular-ocorrência)
@@ -42,9 +43,9 @@ aluguel](#abatimento-do-caixa-casa-no-aluguel).
 Uma venda lançada no módulo Salário cria apenas a comissão salarial. Ela não
 gera aporte no Empréstimo; aportes são feitos pela ação manual em Contas a Pagar.
 
-Pagar uma conta em Contas a Pagar **não** cria um débito no Caixa Casa. O
-abatimento do aluguel é apenas uma projeção visual do valor que ainda falta;
-os lançamentos continuam sendo feitos manualmente em cada módulo.
+Pagar uma conta em Contas a Pagar pode criar lançamentos automáticos: contas
+pessoais geram pagamento no Salário; o Aluguel gera saída no Caixa Casa; e as
+demais contas perguntam no momento da baixa se foi usado dinheiro do Caixa.
 
 ### Dinheiro
 
@@ -127,16 +128,11 @@ padrão é só para economizar digitação, não uma categoria fixa.
 
 Atenção: alternar o tipo sobrescreve o que já estava digitado no campo.
 
-### Duplicar saída no Salário
+### Sem duplicação para o Salário neste formulário
 
-Ao selecionar **Saída**, o formulário oferece a opção **Duplicar no Salário**.
-Quando marcada, a mesma operação cria também um pagamento no módulo Salário,
-com o mesmo valor, data e descrição. Esse pagamento reduz o saldo devido à
-gerente e representa dinheiro do Caixa Casa usado para uma despesa pessoal.
-
-A opção não aparece para entradas e começa desmarcada. Se o pagamento no
-Salário falhar, o sistema tenta desfazer a saída recém-criada para evitar que
-somente um dos dois módulos seja alterado.
+O formulário do Caixa Casa grava apenas no próprio Caixa. A antiga opção
+"Duplicar no Salário" foi removida: despesas pessoais agora são identificadas
+no cadastro de Contas a Pagar e integradas ao Salário quando são pagas.
 
 ### Saldo
 
@@ -259,6 +255,32 @@ São mutuamente exclusivos e o banco garante isso por constraint:
 | `data_inicio` | Data escolhida | Menor data entre as parcelas |
 | Datas das ocorrências | Calculadas da regra | Linhas em `contas_pagar_parcelas` |
 | Onde mora o valor | `contas_pagar.valor` | `contas_pagar_parcelas.valor` |
+
+---
+
+### Contas pessoais
+
+Ao cadastrar uma conta Mensal ou Parcelada, a opção **Conta pessoal** grava
+`contas_pagar.pessoal = true`. A marcação aparece em "Contas cadastradas".
+
+Quando uma ocorrência pessoal é marcada como paga, o sistema também cria um
+`pagamento` no Salário com o valor real daquela ocorrência, sua data e sua
+descrição. Em conta Mensal, um ajuste pontual já existente faz parte desse
+valor. O abatimento do Caixa Casa no Aluguel é apenas visual e não reduz o
+pagamento criado no Salário.
+
+O pagamento do Salário fica vinculado a `(conta_id, data)` da ocorrência e
+existe no máximo uma vez. Desmarcar o pagamento em Contas a Pagar apaga por
+cascata somente esse lançamento automático. Excluir a conta também o apaga;
+pagamentos manuais do Salário, sem esse vínculo, nunca são afetados.
+
+Uma conta pessoal também pode ter sido paga com dinheiro do Caixa Casa. Nesse
+caso, a mesma baixa cria o pagamento no Salário e a saída no Caixa, pois são
+efeitos independentes.
+
+Se não for possível criar algum lançamento automático, o sistema tenta
+desfazer a marcação de pago; a cascata também desfaz outro lançamento
+automático que já tenha sido criado para aquela ocorrência.
 
 ---
 
@@ -408,6 +430,22 @@ ocorrência volta a contar como pendente.
 
 Não há registro de valor pago nem de data de pagamento — apenas o fato
 booleano de que aquela ocorrência foi paga.
+
+Em contas marcadas como pessoais, esse mesmo checkbox também segue a regra de
+[Contas pessoais](#contas-pessoais), criando ou removendo o pagamento vinculado
+no Salário.
+
+Se a descrição da conta for exatamente **Aluguel** (ignorando maiúsculas,
+minúsculas e espaços nas pontas), marcar como paga sempre cria uma saída no
+Caixa Casa com o valor real, data e descrição da ocorrência. Para qualquer
+outra conta, o sistema pergunta se ela foi paga com dinheiro do Caixa Casa;
+respondendo sim, cria a mesma saída vinculada. Respondendo não, apenas conclui
+a baixa e as demais integrações aplicáveis, como a do Salário para conta
+pessoal.
+
+Desmarcar a ocorrência remove por cascata os lançamentos automáticos vinculados
+no Salário e no Caixa Casa. Lançamentos manuais desses módulos não possuem o
+vínculo e não são afetados.
 
 Ocorrências pagas ficam misturadas no mesmo bloco de semana das não pagas,
 ordenadas por data como as demais — não há seção separada. A única
@@ -729,9 +767,10 @@ uma lista com cada caso aprovado ou reprovado.
 As verificações automatizadas cobrem as regras determinísticas mais sensíveis:
 
 - leitura e arredondamento de dinheiro;
-- saldo do Caixa, abatimento do aluguel, limite em zero e dados da saída
-  duplicada como pagamento no Salário;
+- saldo do Caixa, abatimento do aluguel, limite em zero e saída vinculada de
+  conta paga com seu dinheiro;
 - comissão e saldo do Salário;
+- criação vinculada e reversão por cascata do pagamento de uma conta pessoal;
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
 - alinhamento do valor e dos ícones do Empréstimo como nas demais ocorrências;
 - saldo, limite de pagamento e proteção ao remover vendas do Fiado;

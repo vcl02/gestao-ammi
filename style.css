@@ -262,7 +262,7 @@ button[type="submit"]:disabled {
   font-size: 12px;
 }
 
-.cc-duplicar-salario {
+.cp-pessoal {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -272,7 +272,7 @@ button[type="submit"]:disabled {
   cursor: pointer;
 }
 
-.cc-duplicar-salario input {
+.cp-pessoal input {
   width: 18px;
   height: 18px;
   margin: 0;
@@ -923,10 +923,6 @@ button[type="submit"]:disabled {
 
   .desktop-grid .panel .card button[type="submit"] {
     margin-top: auto;
-  }
-
-  #cp-descricao {
-    margin-bottom: 20px;
   }
 
   .desktop-grid .panel .tab-panels {

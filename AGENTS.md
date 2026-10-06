@@ -99,9 +99,8 @@ Antes de editar qualquer arquivo em `migrations/`:
 2. Se sim, crie uma nova numerada (`004_...`) com o incremento
 3. Se não, pode editar no lugar
 
-Estado confirmado pelo usuário nesta sessão: **001, 002, 003 e 004 já foram
-aplicadas. 005 (pagamentos do Fiado) e 006 (aportes do Empréstimo) ainda não.**
-O usuário avisa quando roda uma nova — atualize esta linha quando isso acontecer.
+Estado atual confirmado: **001 a 007 já foram aplicadas.** O usuário avisa
+quando roda uma nova — atualize esta linha quando isso acontecer.
 
 Toda tabela nova precisa de RLS habilitado e a policy `auth_all`, seguindo
 o padrão das existentes. Sem isso, a tabela fica inacessível pelo app.
