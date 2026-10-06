@@ -145,6 +145,24 @@ body {
   color: var(--text-muted);
 }
 
+.modal-aviso .modal-venda-progresso {
+  margin-bottom: 18px;
+}
+
+.modal-venda-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-venda-form strong {
+  color: var(--text);
+}
+
+.modal-venda-form button[type="submit"] {
+  margin-top: 8px;
+}
+
 .modal-aviso-fechar {
   position: absolute;
   top: 10px;
@@ -679,6 +697,18 @@ button[type="submit"]:disabled {
   vertical-align: middle;
 }
 
+.tag-pessoal {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  color: var(--primary-dark);
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 .lancamento-checkbox {
   display: flex;
   align-items: center;
@@ -702,6 +732,12 @@ button[type="submit"]:disabled {
   gap: 2px;
   flex: 1;
   min-width: 0;
+}
+
+.lancamento-nome-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .lancamento-desc {

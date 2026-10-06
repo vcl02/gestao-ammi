@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-06 (pagamento de contas integrado ao Salário e Caixa Casa).
+Última revisão: 2026-10-06 (cadastro de vendas esquecidas e auditoria do banco).
 
 ---
 
@@ -27,6 +27,7 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
   - [Agrupamento por semana](#agrupamento-por-semana)
 - [Módulo: Fiado](#módulo-fiado)
 - [Regras transversais](#regras-transversais)
+  - [Auditoria do banco](#auditoria-do-banco)
 - [Testes de regressão](#testes-de-regressão)
 - [Comportamentos conhecidos e limitações](#comportamentos-conhecidos-e-limitações)
 
@@ -214,9 +215,14 @@ e o valor da venda base deixa de aparecer na lista.
 Desde a data da primeira venda registrada, o sistema verifica todos os dias
 até **ontem**, exceto domingos. O dia em andamento nunca é avisado, pois a
 venda ainda pode ser registrada. Se algum dos demais dias não possuir venda,
-mostra um modal simples com as datas faltantes e a orientação para ajustá-las
-diretamente no banco. O aviso é somente de leitura: não cria, edita ou apaga
-lançamentos, e aparece no máximo uma vez por sessão.
+mostra um modal começando pelo dia faltante mais antigo. A data é preenchida e
+exibida automaticamente; o usuário informa apenas o valor bruto vendido. Ao
+salvar, o sistema registra uma venda naquela data, acrescenta sua comissão de
+25% ao Salário e avança para o próximo dia faltante, em ordem cronológica, até
+chegar ao mais recente.
+
+O botão de salvar mostra previamente o valor da comissão. O modal pode ser
+fechado sem preencher todos os dias e aparece no máximo uma vez por sessão.
 
 ---
 
@@ -261,7 +267,8 @@ São mutuamente exclusivos e o banco garante isso por constraint:
 ### Contas pessoais
 
 Ao cadastrar uma conta Mensal ou Parcelada, a opção **Conta pessoal** grava
-`contas_pagar.pessoal = true`. A marcação aparece em "Contas cadastradas".
+`contas_pagar.pessoal = true`. A marcação aparece em "Contas cadastradas" e
+cada ocorrência dessa conta exibe a tag **Pessoal** junto ao nome.
 
 Quando uma ocorrência pessoal é marcada como paga, o sistema também cria um
 `pagamento` no Salário com o valor real daquela ocorrência, sua data e sua
@@ -724,11 +731,36 @@ soma das vendas menos soma dos pagamentos, sem filtro de data.
 
 ## Regras transversais
 
-### Nada é editável depois de salvo (com uma exceção)
+### Auditoria do banco
 
-Lançamentos de Caixa Casa e Salário **não podem ser editados nem excluídos**
-pela interface. Uma vez salvos, são definitivos — correções exigem acesso
-direto ao banco.
+A tabela `auditoria_db` registra uma linha para cada `INSERT`, `UPDATE` ou
+`DELETE` ocorrido nas tabelas do aplicativo depois da aplicação da migration
+008. Cada linha contém data e hora, transação, usuário autenticado quando
+disponível, tabela, operação, identificação do registro, estado anterior,
+estado novo e um JSON `diferencas` somente com os campos alterados.
+
+A auditoria não registra leituras (`SELECT`), pois elas não modificam dados,
+nem alterações de estrutura (`DDL`), que continuam documentadas pelos arquivos
+e pelo histórico de migrations. A própria tabela de auditoria não gera logs de
+si mesma, evitando recursão.
+
+Usuários autenticados podem consultar a auditoria, mas não inserir, editar ou
+apagar suas linhas diretamente. A gravação é feita apenas pelos triggers
+internos das tabelas financeiras.
+
+---
+
+### Edição e exclusão de lançamentos
+
+Lançamentos de Caixa Casa e Salário não podem ser editados, mas podem ser
+excluídos pela lixeira de cada linha, após confirmação. Uma venda excluída
+retira sua comissão do saldo do Salário; excluir um pagamento devolve o valor
+ao saldo; e excluir uma entrada ou saída recalcula o Caixa Casa.
+
+Se a linha foi criada automaticamente ao pagar uma conta, a lixeira desmarca
+a ocorrência em Contas a Pagar. A cascata remove todos os efeitos automáticos
+daquela baixa, inclusive Salário e Caixa Casa quando os dois existirem. Isso
+evita deixar uma conta marcada como paga sem os lançamentos que a representam.
 
 A única edição disponível em todo o sistema é o valor de uma ocorrência de
 Contas a Pagar, e ainda assim porque ali o "lançamento" é uma previsão, não
@@ -769,8 +801,10 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - leitura e arredondamento de dinheiro;
 - saldo do Caixa, abatimento do aluguel, limite em zero e saída vinculada de
   conta paga com seu dinheiro;
-- comissão e saldo do Salário;
+- comissão e saldo do Salário, inclusive o payload de uma venda esquecida;
 - criação vinculada e reversão por cascata do pagamento de uma conta pessoal;
+- identificação visual de contas pessoais e destino correto da exclusão de
+  lançamentos manuais ou vinculados;
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
 - alinhamento do valor e dos ícones do Empréstimo como nas demais ocorrências;
 - saldo, limite de pagamento e proteção ao remover vendas do Fiado;
@@ -782,11 +816,12 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - recorrências, exdates e ocupação das três vagas futuras;
 - escolha exata do primeiro `Aluguel` aberto;
 - contratos essenciais do HTML, como os ícones de início e os dois saldos do
-  Caixa Casa, além da declaração do manifesto PWA.
+  Caixa Casa, o formulário do aviso de venda e a declaração do manifesto PWA.
 
 Continuam manuais as verificações que dependem do banco ou de interação real:
-RLS, cascatas, constraints SQL, sessão de 9 horas, cadastro público desativado,
-operações efetivas no Supabase, confirmações destrutivas e aparência responsiva.
+RLS, cascatas, constraints e triggers SQL, sessão de 9 horas, cadastro público
+desativado, operações efetivas no Supabase, confirmações destrutivas e aparência
+responsiva.
 As migrations preservam essas garantias no banco, mas testá-las de verdade
 exigiria um Supabase separado para testes — complexidade que este projeto ainda
 não justifica.

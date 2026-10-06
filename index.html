@@ -365,7 +365,14 @@
   <dialog id="sal-aviso-dias-sem-venda" class="modal-aviso" aria-labelledby="sal-aviso-dias-sem-venda-titulo">
     <button type="button" id="sal-aviso-dias-sem-venda-fechar" class="btn-icon modal-aviso-fechar" aria-label="Fechar aviso">×</button>
     <h2 id="sal-aviso-dias-sem-venda-titulo">Vendas faltando</h2>
-    <p id="sal-aviso-dias-sem-venda-texto"></p>
+    <p id="sal-aviso-dias-sem-venda-progresso" class="modal-venda-progresso"></p>
+    <form id="sal-aviso-dias-sem-venda-form" class="modal-venda-form">
+      <p>Venda esquecida em <strong id="sal-aviso-dias-sem-venda-data"></strong></p>
+      <label for="sal-aviso-dias-sem-venda-valor">Valor vendido</label>
+      <input type="text" id="sal-aviso-dias-sem-venda-valor" inputmode="decimal" placeholder="0,00" required>
+      <button type="submit" id="sal-aviso-dias-sem-venda-salvar">Salvar</button>
+      <p id="sal-aviso-dias-sem-venda-error" class="error" hidden></p>
+    </form>
   </dialog>
 
   <!-- ===================== TESTES DE REGRESSÃO (?testes=1) ===================== -->

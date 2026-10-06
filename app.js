@@ -85,6 +85,16 @@ function calcularComissao(valorVenda) {
   return round2(valorVenda * PERCENTUAL_COMISSAO);
 }
 
+function dadosVendaSalario(vendaBase, data, descricao = null) {
+  return {
+    tipo: 'venda',
+    valor: calcularComissao(vendaBase),
+    venda_base: vendaBase,
+    descricao,
+    data,
+  };
+}
+
 function calcularSaldoSalario(lancamentos) {
   return round2(lancamentos.reduce((acc, item) => {
     return acc + (item.tipo === 'venda' ? Number(item.valor) : -Number(item.valor));
@@ -117,12 +127,36 @@ function ehAluguel(conta) {
   return conta.descricao.trim().toLocaleLowerCase('pt-BR') === 'aluguel';
 }
 
+function tagPessoalConta(conta) {
+  return conta.pessoal ? ' <span class="tag-pessoal">Pessoal</span>' : '';
+}
+
+function alvoExclusaoLancamento(tabela, lancamento) {
+  if (lancamento.conta_pagar_id && lancamento.data_ocorrencia) {
+    return {
+      tabela: CP_PAGAMENTOS_TABLE,
+      filtros: { conta_id: lancamento.conta_pagar_id, data: lancamento.data_ocorrencia },
+      vinculado: true,
+    };
+  }
+  return { tabela, filtros: { id: lancamento.id }, vinculado: false };
+}
+
+async function excluirLancamentoFinanceiro(tabela, lancamento) {
+  const alvo = alvoExclusaoLancamento(tabela, lancamento);
+  let consulta = supabase.from(alvo.tabela).delete();
+  Object.entries(alvo.filtros).forEach(([campo, valor]) => {
+    consulta = consulta.eq(campo, valor);
+  });
+  const { error } = await consulta;
+  return { error, vinculado: alvo.vinculado };
+}
+
 function somarValoresSelecionados(itens) {
   return round2(itens.reduce((total, item) => total + Number(item.valor), 0));
 }
 
 // Retorna os dias não-domingo sem venda entre a primeira venda e a data-limite.
-// A verificação é apenas informativa: não cria nem modifica lançamentos.
 function datasSemVendaEmDiasUteis(vendas, hoje) {
   const datasVendas = new Set(vendas
     .map((venda) => venda.data)
@@ -446,10 +480,40 @@ async function carregarCaixaCasa() {
           <span class="lancamento-data">${formatDataBR(l.data)}</span>
         </div>
         <span class="lancamento-valor ${positivo ? 'positivo' : 'negativo'}">${sinal} ${formatMoney(l.valor)}</span>
+        <button type="button" class="btn-icon cc-excluir-lancamento" data-id="${l.id}" data-conta-id="${l.conta_pagar_id || ''}" data-data-ocorrencia="${l.data_ocorrencia || ''}" aria-label="Excluir lançamento" title="Excluir lançamento">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
       </li>
     `;
   }).join('');
 }
+
+ccListEl.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.cc-excluir-lancamento');
+  if (!btn) return;
+  const lancamento = {
+    id: btn.dataset.id,
+    conta_pagar_id: btn.dataset.contaId || null,
+    data_ocorrencia: btn.dataset.dataOcorrencia || null,
+  };
+  const vinculado = Boolean(lancamento.conta_pagar_id && lancamento.data_ocorrencia);
+  const mensagem = vinculado
+    ? 'Excluir este lançamento e desfazer o pagamento da conta vinculada?'
+    : 'Excluir este lançamento do Caixa Casa?';
+  if (!confirm(mensagem)) return;
+
+  btn.disabled = true;
+  const { error } = await excluirLancamentoFinanceiro(CC_TABLE, lancamento);
+  if (error) {
+    alert('Não foi possível excluir o lançamento.');
+    btn.disabled = false;
+    return;
+  }
+  await Promise.all([carregarCaixaCasa(), carregarContasPagar(), carregarSalario()]);
+});
 
 bloquearDuranteSubmit(ccForm, async (e) => {
   e.preventDefault();
@@ -498,9 +562,17 @@ bloquearDuranteSubmit(ccForm, async (e) => {
 const salSaldoEl = document.getElementById('sal-saldo');
 const salListEl = document.getElementById('sal-list');
 const salAvisoDiasSemVendaEl = document.getElementById('sal-aviso-dias-sem-venda');
-const salAvisoDiasSemVendaTextoEl = document.getElementById('sal-aviso-dias-sem-venda-texto');
 const salAvisoDiasSemVendaFecharEl = document.getElementById('sal-aviso-dias-sem-venda-fechar');
+const salAvisoDiasSemVendaProgressoEl = document.getElementById('sal-aviso-dias-sem-venda-progresso');
+const salAvisoDiasSemVendaForm = document.getElementById('sal-aviso-dias-sem-venda-form');
+const salAvisoDiasSemVendaDataEl = document.getElementById('sal-aviso-dias-sem-venda-data');
+const salAvisoDiasSemVendaValorInput = document.getElementById('sal-aviso-dias-sem-venda-valor');
+const salAvisoDiasSemVendaSalvarEl = document.getElementById('sal-aviso-dias-sem-venda-salvar');
+const salAvisoDiasSemVendaErrorEl = document.getElementById('sal-aviso-dias-sem-venda-error');
 let avisoDiasSemVendaExibido = false;
+let diasSemVendaPendentes = [];
+let totalDiasSemVenda = 0;
+aplicarMascaraMoney(salAvisoDiasSemVendaValorInput);
 
 const salVendaForm = document.getElementById('sal-venda-form');
 const salVendaValorInput = document.getElementById('sal-venda-valor');
@@ -538,17 +610,70 @@ function updateSalVendaSubmitLabel() {
 
 salVendaValorInput.addEventListener('input', updateSalVendaSubmitLabel);
 
+function atualizarVendaEsquecidaAtual() {
+  const data = diasSemVendaPendentes[0];
+  if (!data) {
+    salAvisoDiasSemVendaEl.close();
+    return;
+  }
+
+  const numeroAtual = totalDiasSemVenda - diasSemVendaPendentes.length + 1;
+  salAvisoDiasSemVendaProgressoEl.textContent = `${numeroAtual} de ${totalDiasSemVenda} dia(s) sem venda`;
+  salAvisoDiasSemVendaDataEl.textContent = formatDataBR(data);
+  salAvisoDiasSemVendaValorInput.value = '';
+  salAvisoDiasSemVendaSalvarEl.textContent = 'Salvar';
+  salAvisoDiasSemVendaErrorEl.hidden = true;
+  salAvisoDiasSemVendaValorInput.focus();
+}
+
+function updateVendaEsquecidaSubmitLabel() {
+  const valor = parseMoney(salAvisoDiasSemVendaValorInput.value);
+  salAvisoDiasSemVendaSalvarEl.textContent = valor > 0
+    ? `Salvar — ${formatMoney(calcularComissao(valor))}`
+    : 'Salvar';
+}
+
+salAvisoDiasSemVendaValorInput.addEventListener('input', updateVendaEsquecidaSubmitLabel);
+
 function mostrarAvisoDiasSemVenda(vendas) {
   if (avisoDiasSemVendaExibido) return;
   const faltantes = datasSemVendaEmDiasUteis(vendas, dataAnteriorISO(hojeISO()));
   if (faltantes.length === 0) return;
 
   avisoDiasSemVendaExibido = true;
-  salAvisoDiasSemVendaTextoEl.textContent = `Faltam vendas em ${faltantes.length} dia(s): ${faltantes.map(formatDataBR).join(', ')}. Ajuste os registros diretamente no banco.`;
+  diasSemVendaPendentes = faltantes;
+  totalDiasSemVenda = faltantes.length;
   salAvisoDiasSemVendaEl.showModal();
+  atualizarVendaEsquecidaAtual();
 }
 
 salAvisoDiasSemVendaFecharEl.addEventListener('click', () => salAvisoDiasSemVendaEl.close());
+
+bloquearDuranteSubmit(salAvisoDiasSemVendaForm, async (e) => {
+  e.preventDefault();
+  salAvisoDiasSemVendaErrorEl.hidden = true;
+
+  const vendaBase = parseMoney(salAvisoDiasSemVendaValorInput.value);
+  const data = diasSemVendaPendentes[0];
+  if (!vendaBase || vendaBase <= 0) {
+    salAvisoDiasSemVendaErrorEl.textContent = 'Informe um valor de venda válido.';
+    salAvisoDiasSemVendaErrorEl.hidden = false;
+    return;
+  }
+
+  const { error } = await supabase.from(SAL_TABLE).insert(
+    dadosVendaSalario(vendaBase, data)
+  );
+  if (error) {
+    salAvisoDiasSemVendaErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
+    salAvisoDiasSemVendaErrorEl.hidden = false;
+    return;
+  }
+
+  diasSemVendaPendentes.shift();
+  atualizarVendaEsquecidaAtual();
+  await carregarSalario();
+});
 
 async function carregarLancamentosSalarioParaSaldo() {
   const tamanhoPagina = 1000;
@@ -619,10 +744,40 @@ async function carregarSalario() {
           <span class="lancamento-data">${formatDataBR(l.data)}</span>
         </div>
         <span class="lancamento-valor ${positivo ? 'positivo' : 'negativo'}">${sinal} ${formatMoney(l.valor)}</span>
+        <button type="button" class="btn-icon sal-excluir-lancamento" data-id="${l.id}" data-conta-id="${l.conta_pagar_id || ''}" data-data-ocorrencia="${l.data_ocorrencia || ''}" aria-label="Excluir lançamento" title="Excluir lançamento">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
       </li>
     `;
   }).join('');
 }
+
+salListEl.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.sal-excluir-lancamento');
+  if (!btn) return;
+  const lancamento = {
+    id: btn.dataset.id,
+    conta_pagar_id: btn.dataset.contaId || null,
+    data_ocorrencia: btn.dataset.dataOcorrencia || null,
+  };
+  const vinculado = Boolean(lancamento.conta_pagar_id && lancamento.data_ocorrencia);
+  const mensagem = vinculado
+    ? 'Excluir este lançamento e desfazer o pagamento da conta vinculada?'
+    : 'Excluir este lançamento do Salário?';
+  if (!confirm(mensagem)) return;
+
+  btn.disabled = true;
+  const { error } = await excluirLancamentoFinanceiro(SAL_TABLE, lancamento);
+  if (error) {
+    alert('Não foi possível excluir o lançamento.');
+    btn.disabled = false;
+    return;
+  }
+  await Promise.all([carregarSalario(), carregarContasPagar(), carregarCaixaCasa()]);
+});
 
 bloquearDuranteSubmit(salVendaForm, async (e) => {
   e.preventDefault();
@@ -638,15 +793,9 @@ bloquearDuranteSubmit(salVendaForm, async (e) => {
     return;
   }
 
-  const comissao = calcularComissao(vendaBase);
-
-  const { error } = await supabase.from(SAL_TABLE).insert({
-    tipo: 'venda',
-    valor: comissao,
-    venda_base: vendaBase,
-    descricao: descricao || null,
-    data,
-  });
+  const { error } = await supabase.from(SAL_TABLE).insert(
+    dadosVendaSalario(vendaBase, data, descricao || null)
+  );
 
   if (error) {
     salVendaErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
@@ -1138,7 +1287,7 @@ async function carregarContasPagar() {
         <div class="lancamento-checkbox">
           <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="Marcar ${conta.descricao} como paga" ${paga ? 'checked' : ''} ${emprestimo ? 'disabled' : ''}>
           <div class="lancamento-info">
-            <button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}
+            <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${tagPessoalConta(conta)}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
             <span class="lancamento-data">${formatDataBR(data)}</span>
           </div>
         </div>
@@ -1800,6 +1949,24 @@ function executarTestes() {
       data_ocorrencia: '2026-10-10',
     });
   });
+  teste('Contas a Pagar — conta pessoal recebe tag na ocorrência', () => {
+    igual(tagPessoalConta({ pessoal: true }).includes('Pessoal'), true);
+    igual(tagPessoalConta({ pessoal: false }), '');
+  });
+  teste('Exclusão — lançamento vinculado desfaz o pagamento da conta', () => {
+    igualJson(alvoExclusaoLancamento(SAL_TABLE, {
+      id: 's1', conta_pagar_id: 'c1', data_ocorrencia: '2026-10-06',
+    }), {
+      tabela: CP_PAGAMENTOS_TABLE,
+      filtros: { conta_id: 'c1', data: '2026-10-06' },
+      vinculado: true,
+    });
+  });
+  teste('Exclusão — lançamento manual apaga somente sua própria linha', () => {
+    igualJson(alvoExclusaoLancamento(CC_TABLE, { id: 'cx1' }), {
+      tabela: CC_TABLE, filtros: { id: 'cx1' }, vinculado: false,
+    });
+  });
   teste('Caixa — saldo após aluguel nunca fica negativo', () => igual(calcularSaldoAposAluguel(300, 500), 0));
   teste('Caixa — saldo após aluguel preserva a sobra', () => igual(calcularSaldoAposAluguel(800, 500), 300));
   teste('Aluguel — abatimento não ultrapassa o aluguel', () => igual(calcularAbatimentoAluguel(800, 500), 500));
@@ -1812,6 +1979,11 @@ function executarTestes() {
     igual(ehAluguel({ descricao: 'Aluguel casa' }), false);
   });
   teste('Salário — comissão é 25% da venda', () => igual(calcularComissao(199.99), 50));
+  teste('Salário — venda esquecida grava valor bruto e comissão na data exibida', () => {
+    igualJson(dadosVendaSalario(200, '2026-09-02'), {
+      tipo: 'venda', valor: 50, venda_base: 200, descricao: null, data: '2026-09-02',
+    });
+  });
   teste('Empréstimo — aporte informado grava somente origem manual', () => {
     igualJson(dadosAporteManual('e1', '2026-09-10', 50, '2026-09-15'), {
       conta_id: 'e1', data_ocorrencia: '2026-09-10', valor: 50, origem: 'manual', data: '2026-09-15',
@@ -1973,6 +2145,15 @@ function executarTestes() {
   });
   teste('Interface — Contas a Pagar permite marcar conta pessoal', () => {
     igual(Boolean(document.getElementById('cp-pessoal')), true);
+  });
+  teste('Interface — aviso de venda esquecida possui data automática e valor', () => {
+    igual(Boolean(document.getElementById('sal-aviso-dias-sem-venda-data')
+      && document.getElementById('sal-aviso-dias-sem-venda-valor')), true);
+  });
+  teste('Interface — Caixa e Salário possuem ação para excluir lançamentos', () => {
+    const fixture = document.createElement('div');
+    fixture.innerHTML = '<button class="cc-excluir-lancamento"></button><button class="sal-excluir-lancamento"></button>';
+    igual(fixture.querySelectorAll('.cc-excluir-lancamento, .sal-excluir-lancamento').length, 2);
   });
   teste('Interface — seleção de Contas a Pagar possui barra e ação de limpar', () => {
     igual(Boolean(document.getElementById('cp-selecao-bar') && document.getElementById('cp-selecao-limpar')), true);
