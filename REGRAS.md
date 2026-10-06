@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-05 (valores com ponto decimal em prompts).
+Última revisão: 2026-10-06 (saída do Caixa duplicada no Salário).
 
 ---
 
@@ -126,6 +126,17 @@ São os casos mais frequentes na prática. O campo continua editável — o
 padrão é só para economizar digitação, não uma categoria fixa.
 
 Atenção: alternar o tipo sobrescreve o que já estava digitado no campo.
+
+### Duplicar saída no Salário
+
+Ao selecionar **Saída**, o formulário oferece a opção **Duplicar no Salário**.
+Quando marcada, a mesma operação cria também um pagamento no módulo Salário,
+com o mesmo valor, data e descrição. Esse pagamento reduz o saldo devido à
+gerente e representa dinheiro do Caixa Casa usado para uma despesa pessoal.
+
+A opção não aparece para entradas e começa desmarcada. Se o pagamento no
+Salário falhar, o sistema tenta desfazer a saída recém-criada para evitar que
+somente um dos dois módulos seja alterado.
 
 ### Saldo
 
@@ -718,7 +729,8 @@ uma lista com cada caso aprovado ou reprovado.
 As verificações automatizadas cobrem as regras determinísticas mais sensíveis:
 
 - leitura e arredondamento de dinheiro;
-- saldo do Caixa, abatimento do aluguel e limite em zero;
+- saldo do Caixa, abatimento do aluguel, limite em zero e dados da saída
+  duplicada como pagamento no Salário;
 - comissão e saldo do Salário;
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
 - alinhamento do valor e dos ícones do Empréstimo como nas demais ocorrências;

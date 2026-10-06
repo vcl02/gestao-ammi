@@ -262,6 +262,23 @@ button[type="submit"]:disabled {
   font-size: 12px;
 }
 
+.cc-duplicar-salario {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 2px 0 14px;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.cc-duplicar-salario input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
 /* Menu (home) */
 .menu {
   display: flex;

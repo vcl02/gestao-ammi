@@ -91,6 +91,15 @@ function calcularSaldoSalario(lancamentos) {
   }, 0));
 }
 
+function dadosPagamentoSalarioDaSaida(valor, data, descricao) {
+  return {
+    tipo: 'pagamento',
+    valor,
+    data,
+    descricao,
+  };
+}
+
 function somarValoresSelecionados(itens) {
   return round2(itens.reduce((total, item) => total + Number(item.valor), 0));
 }
@@ -344,6 +353,8 @@ const ccErrorEl = document.getElementById('cc-form-error');
 const ccDescricaoInput = document.getElementById('cc-descricao');
 const ccDescricaoReq = document.getElementById('cc-descricao-req');
 const ccDataInput = document.getElementById('cc-data');
+const ccDuplicarSalarioWrap = document.getElementById('cc-duplicar-salario-wrap');
+const ccDuplicarSalarioInput = document.getElementById('cc-duplicar-salario');
 aplicarMascaraMoney(document.getElementById('cc-valor'));
 
 const CC_DESCRICAO_PADRAO = {
@@ -356,6 +367,8 @@ function updateCcDescricaoRequirement() {
   const obrigatorio = tipo === 'saida';
   ccDescricaoInput.required = obrigatorio;
   ccDescricaoReq.hidden = !obrigatorio;
+  ccDuplicarSalarioWrap.hidden = !obrigatorio;
+  if (!obrigatorio) ccDuplicarSalarioInput.checked = false;
 }
 
 document.querySelectorAll('input[name="cc-tipo"]').forEach((el) => {
@@ -433,6 +446,7 @@ bloquearDuranteSubmit(ccForm, async (e) => {
   const valor = parseMoney(document.getElementById('cc-valor').value);
   const data = ccDataInput.value;
   const descricao = ccDescricaoInput.value.trim();
+  const duplicarNoSalario = tipo === 'saida' && ccDuplicarSalarioInput.checked;
 
   if (!valor || valor <= 0) {
     ccErrorEl.textContent = 'Informe um valor válido.';
@@ -446,17 +460,39 @@ bloquearDuranteSubmit(ccForm, async (e) => {
     return;
   }
 
-  const { error } = await supabase.from(CC_TABLE).insert({
-    tipo,
-    valor,
-    data,
-    descricao: descricao || null,
-  });
+  const { data: caixaSalva, error } = await supabase
+    .from(CC_TABLE)
+    .insert({
+      tipo,
+      valor,
+      data,
+      descricao: descricao || null,
+    })
+    .select('id')
+    .single();
 
   if (error) {
     ccErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
     ccErrorEl.hidden = false;
     return;
+  }
+
+  if (duplicarNoSalario) {
+    const { error: erroSalario } = await supabase.from(SAL_TABLE).insert(
+      dadosPagamentoSalarioDaSaida(valor, data, descricao)
+    );
+
+    if (erroSalario) {
+      const { error: erroDesfazerCaixa } = await supabase
+        .from(CC_TABLE)
+        .delete()
+        .eq('id', caixaSalva.id);
+      ccErrorEl.textContent = erroDesfazerCaixa
+        ? 'A saída foi salva, mas não foi duplicada no Salário. Ajuste os registros no banco.'
+        : 'Não foi possível duplicar no Salário. Nenhum lançamento foi salvo.';
+      ccErrorEl.hidden = false;
+      return;
+    }
   }
 
   ccForm.reset();
@@ -1689,6 +1725,11 @@ function executarTestes() {
   teste('Caixa — entradas somam e saídas subtraem', () => {
     igual(calcularSaldoCaixa([{ tipo: 'entrada', valor: 150 }, { tipo: 'saida', valor: 40 }]), 110);
   });
+  teste('Caixa — saída duplicada vira pagamento no Salário com os mesmos dados', () => {
+    igualJson(dadosPagamentoSalarioDaSaida(40, '2026-10-06', 'Compra pessoal'), {
+      tipo: 'pagamento', valor: 40, data: '2026-10-06', descricao: 'Compra pessoal',
+    });
+  });
   teste('Caixa — saldo após aluguel nunca fica negativo', () => igual(calcularSaldoAposAluguel(300, 500), 0));
   teste('Caixa — saldo após aluguel preserva a sobra', () => igual(calcularSaldoAposAluguel(800, 500), 300));
   teste('Aluguel — abatimento não ultrapassa o aluguel', () => igual(calcularAbatimentoAluguel(800, 500), 500));
@@ -1849,6 +1890,24 @@ function executarTestes() {
   });
   teste('Interface — card do Caixa possui os dois saldos', () => {
     igual(Boolean(document.getElementById('cc-saldo') && document.getElementById('cc-saldo-total')), true);
+  });
+  teste('Interface — Caixa possui opção de duplicar saída no Salário', () => {
+    igual(Boolean(document.getElementById('cc-duplicar-salario')), true);
+  });
+  teste('Interface — duplicação no Salário aparece somente para saída', () => {
+    const tipoOriginal = document.querySelector('input[name="cc-tipo"]:checked').value;
+    document.getElementById('cc-tipo-saida').checked = true;
+    updateCcDescricaoRequirement();
+    igual(ccDuplicarSalarioWrap.hidden, false);
+    ccDuplicarSalarioInput.checked = true;
+
+    document.getElementById('cc-tipo-entrada').checked = true;
+    updateCcDescricaoRequirement();
+    igual(ccDuplicarSalarioWrap.hidden, true);
+    igual(ccDuplicarSalarioInput.checked, false);
+
+    document.getElementById(`cc-tipo-${tipoOriginal}`).checked = true;
+    updateCcDescricaoRequirement();
   });
   teste('Interface — descrição de Contas a Pagar é obrigatória', () => {
     igual(document.getElementById('cp-descricao').required, true);
