@@ -256,6 +256,10 @@ function valorExibidoOcorrencia(ocorrencia) {
   return round2(valorBase - (ocorrencia.abatimentoCaixa || 0));
 }
 
+function entraNoResumoSemanal(ocorrencia) {
+  return !ocorrencia.paga && !ocorrencia.emprestimo && !ocorrencia.conta.pessoal;
+}
+
 // Data de hoje (YYYY-MM-DD) no fuso America/Sao_Paulo.
 function hojeISO() {
   const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -1271,7 +1275,7 @@ async function carregarContasPagar() {
   function totalPendenteDaSemana(ano, mes, semana) {
     const grupo = gruposSemanaTodos.find((g) => g.ano === ano && g.mes === mes && g.semana === semana);
     if (!grupo) return null;
-    const pendentes = grupo.itens.filter((i) => !i.paga);
+    const pendentes = grupo.itens.filter(entraNoResumoSemanal);
     if (pendentes.length === 0) return null;
     return pendentes.reduce((acc, i) => acc + valorExibidoOcorrencia(i), 0);
   }
@@ -1282,7 +1286,7 @@ async function carregarContasPagar() {
   // achar uma com pendência — sem limite.
   function acharSemanaComPendencia(dataRef, saltos) {
     const datasPendentes = ocorrenciasParaExibir
-      .filter((ocorrencia) => !ocorrencia.paga)
+      .filter(entraNoResumoSemanal)
       .map((ocorrencia) => ocorrencia.data)
       .sort();
     const ultimaDataPendente = datasPendentes[datasPendentes.length - 1];
@@ -2097,6 +2101,14 @@ function executarTestes() {
   });
   teste('Contas a Pagar — ocorrência quitada continua exibindo o valor original', () => {
     igual(valorExibidoOcorrencia({ valor: 0, valorOriginal: 500, paga: true }), 500);
+  });
+  teste('Resumo semanal — ignora Empréstimo e contas pessoais', () => {
+    const ocorrencias = [
+      { valor: 467.4, paga: false, emprestimo: true, conta: { pessoal: false } },
+      { valor: 20, paga: false, emprestimo: false, conta: { pessoal: true } },
+      { valor: 214.9, paga: false, emprestimo: false, conta: { pessoal: false } },
+    ];
+    igual(ocorrencias.filter(entraNoResumoSemanal).reduce((total, item) => total + item.valor, 0), 214.9);
   });
   teste('Contas a Pagar — conta pessoal recebe tag na ocorrência', () => {
     igual(tagPessoalConta({ pessoal: true }).includes('Pessoal'), true);

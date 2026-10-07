@@ -600,9 +600,11 @@ seguinte à do primeiro, buscada da mesma forma — então se o primeiro virou
 semanas", "Em 4 semanas", etc.
 
 A busca avança semana a semana até achar uma pendência entre as ocorrências
-carregadas. Se não existir nenhuma pendência naquela semana nem depois dela,
-o card mostra `R$ 0,00`; isso também impede uma busca infinita quando existem
-somente contas parceladas antigas.
+comuns carregadas. **Empréstimo e contas pessoais nunca entram nesses dois
+cards semanais**, pois já ficam em blocos separados. Se não existir nenhuma
+pendência comum naquela semana nem depois dela, o card mostra `R$ 0,00`; isso
+também impede uma busca infinita quando existem somente contas parceladas
+antigas, pessoais ou Empréstimo.
 
 Enquanto houver pendências futuras carregadas, o card continua respondendo
 "o que eu preciso resolver agora" e avança até a primeira delas.
@@ -830,6 +832,7 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
   lançamentos manuais ou vinculados;
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
 - alinhamento do valor e dos ícones do Empréstimo como nas demais ocorrências;
+- exclusão de Empréstimo e contas pessoais dos cards semanais;
 - saldo, limite de pagamento e proteção ao remover vendas do Fiado;
 - repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
   de quantidade após salvar uma conta parcelada;
