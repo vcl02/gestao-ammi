@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-06 (pagamentos parciais de contas pessoais).
+Última revisão: 2026-10-07 (Empréstimo como livro de movimentos).
 
 ---
 
@@ -43,7 +43,7 @@ aberto, conforme a regra documentada em [Abatimento do Caixa Casa no
 aluguel](#abatimento-do-caixa-casa-no-aluguel).
 
 Uma venda lançada no módulo Salário cria apenas a comissão salarial. Ela não
-gera aporte no Empréstimo; aportes são feitos pela ação manual em Contas a Pagar.
+movimenta o Empréstimo, que é controlado manualmente em seu próprio bloco.
 
 Pagar uma conta em Contas a Pagar pode criar lançamentos automáticos: contas
 pessoais geram pagamento no Salário; o Aluguel gera saída no Caixa Casa; e as
@@ -187,11 +187,11 @@ Quando você lança uma venda:
 O botão "Salvar" mostra em tempo real a comissão que será gravada
 (`Salvar — R$ 25,00`), para conferência antes de confirmar.
 
-### Sem aporte ao salvar uma venda
+### Sem movimento no Empréstimo ao salvar uma venda
 
 Salvar uma venda registra somente a comissão da gerente. O valor bruto da venda
-não é usado para reduzir nenhum Empréstimo. Para reduzir o saldo do Empréstimo,
-é preciso usar manualmente o botão **Aporte** na ocorrência desejada.
+não é usado para reduzir nenhum Empréstimo. Os movimentos do Empréstimo são
+registrados manualmente em seu bloco próprio.
 
 ### Pagamento
 
@@ -311,40 +311,26 @@ automático que já tenha sido criado para aquela ocorrência.
 
 ### Empréstimo
 
-Uma conta cuja descrição seja exatamente `Empréstimo`, sem diferenciar
-maiúsculas de minúsculas e ignorando espaços nas pontas, recebe tratamento
-especial. O uso esperado é uma conta Parcelada com uma única data.
+O Empréstimo é independente de Contas a Pagar, igual ao Cartão de Crédito.
+Ele aparece sempre em um bloco próprio nas Ocorrências, antes do Cartão, sem
+vencimento, atraso, data de cadastro, cards semanais ou resumo mensal.
 
-Todas as ocorrências chamadas `Empréstimo` ficam em um bloco próprio no topo
-da lista, antes de qualquer semana. Elas não têm vencimento visível, não ficam
-atrasadas e mostram somente a **data de cadastro** no fuso America/Sao_Paulo.
-Sua data interna continua existindo apenas como identificador dos aportes e
-pagamentos já registrados.
-Esse bloco pode ser colapsado; começa aberto quando existe ao menos um
-Empréstimo não pago e fechado quando todos estão pagos.
+Cada movimento fica em `emprestimo_lancamentos`, com valor sempre positivo e
+um tipo que define o sinal:
 
-O valor mostrado é o saldo restante:
+| Ação | Tipo no banco | Efeito no saldo |
+|---|---|---|
+| `+` Adicionar dívida | `divida` | aumenta o saldo devedor |
+| `−` Abater dívida | `abatimento` | reduz o saldo devedor |
 
 ```
-saldo_restante = max(valor_original − soma_dos_aportes, 0)
+saldo do empréstimo = Σ(dívidas) − Σ(abatimentos)
 ```
 
-Cada linha mostra a descrição, a data e o saldo restante com o valor alinhado
-como nas demais ocorrências. O total aportado não aparece como texto na linha;
-ele continua abatendo o saldo restante. Após o valor ficam os ícones de ação,
-como nas demais ocorrências. O ícone **+** ("Fazer aporte") aceita um pagamento
-parcial manual; se o valor informado ultrapassar o saldo, somente o necessário
-para zerar é registrado. Ao chegar a zero, a ocorrência é considerada paga e
-não aceita novos aportes.
-
-Os aportes novos ficam em `emprestimo_aportes`, um por linha, sempre com origem
-`manual` e data. A estrutura do banco ainda admite a origem `venda` para
-preservar eventuais aportes feitos antes desta mudança; eles continuam entrando
-no saldo e não são apagados. Excluir a conta remove seus aportes em cascata.
-
-No resumo mensal, aportes feitos no Empréstimo contam como valor pago e o
-saldo restante conta como valor não pago. Nos totais da semana e na linha da
-ocorrência aparece apenas o saldo restante.
+O botão `−` sugere o saldo atual e limita o valor ao necessário para zerar,
+portanto o saldo não fica negativo pela interface. Cada movimento mostra data,
+tipo e valor; pode ser excluído individualmente após confirmação. A conversão
+do modelo antigo preservou cada dívida e aporte como movimentos equivalentes.
 
 ---
 
@@ -821,8 +807,8 @@ um fato consumado.
 ### Exclusão de conta é em cascata
 
 Remover uma conta em "Contas cadastradas" apaga também, por `on delete
-cascade`, todas as suas parcelas, exdates, pagamentos, ajustes e aportes de
-Empréstimo. Não há lixeira nem desfazer. Por isso a ação pede confirmação.
+cascade`, todas as suas parcelas, exdates, pagamentos e ajustes. Não há
+lixeira nem desfazer. Por isso a ação pede confirmação.
 
 ### Valores na lista "Contas cadastradas"
 
@@ -856,15 +842,13 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - comissão e saldo do Salário, inclusive o payload de uma venda esquecida;
 - criação vinculada e reversão por cascata do pagamento de uma conta pessoal;
 - limite, saldo restante e payload acumulado dos pagamentos parciais;
-- exibição de Pessoal e Empréstimo pela data de cadastro, fora dos grupos
-  semanais e sem atraso visual;
+- exibição de contas Pessoais pela data de cadastro, fora dos grupos semanais
+  e sem atraso visual;
 - identificação visual de contas pessoais e destino correto da exclusão de
   lançamentos manuais ou vinculados, incluindo o respiro visual após a
   descrição no formulário;
-- dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
-- alinhamento do valor e dos ícones do Empréstimo como nas demais ocorrências;
-- saldo, limite de abatimento, payload e presença permanente do Cartão de Crédito;
-- exclusão de Empréstimo e contas pessoais dos cards semanais;
+- saldo, limite de abatimento, payload e presença permanente de Empréstimo e Cartão de Crédito;
+- exclusão de contas pessoais dos cards semanais;
 - soma de contas comuns atrasadas no primeiro card semanal;
 - saldo, limite de pagamento e proteção ao remover vendas do Fiado;
 - nomes distintos do Fiado, reaproveitamento de grafia e criação direta pela venda;

@@ -14,7 +14,7 @@ const CP_EXDATES_TABLE = 'contas_pagar_exdates';
 const CP_PARCELAS_TABLE = 'contas_pagar_parcelas';
 const CP_PAGAMENTOS_TABLE = 'contas_pagar_pagamentos';
 const CP_AJUSTES_TABLE = 'contas_pagar_ajustes';
-const EMPRESTIMO_APORTES_TABLE = 'emprestimo_aportes';
+const EMPRESTIMO_TABLE = 'emprestimo_lancamentos';
 const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
 const FI_VENDAS_TABLE = 'fiado_vendas';
 const FI_PAGAMENTOS_TABLE = 'fiado_pagamentos';
@@ -232,31 +232,23 @@ function calcularAbatimentoAluguel(saldoCaixa, valorAluguel) {
   return Math.min(Math.max(round2(saldoCaixa), 0), Number(valorAluguel));
 }
 
-function ehEmprestimo(conta) {
-  return conta.descricao.trim().toLocaleLowerCase('pt-BR') === 'empréstimo';
-}
-
-function calcularSaldoEmprestimo(valorOriginal, totalAportes) {
-  return Math.max(round2(Number(valorOriginal) - Number(totalAportes)), 0);
-}
-
-function calcularSaldoCartaoCredito(lancamentos) {
+function calcularSaldoDivida(lancamentos) {
   return round2(lancamentos.reduce((saldo, lancamento) => {
     const valor = Number(lancamento.valor);
     return lancamento.tipo === 'divida' ? saldo + valor : saldo - valor;
   }, 0));
 }
 
-function limitarAbatimentoCartaoCredito(valor, saldoAtual) {
+function limitarAbatimentoDivida(valor, saldoAtual) {
   return Math.min(round2(Number(valor)), Math.max(round2(Number(saldoAtual)), 0));
 }
 
-function dadosLancamentoCartaoCredito(tipo, valor, data = hojeISO()) {
+function dadosLancamentoDivida(tipo, valor, data = hojeISO()) {
   return { tipo, valor: round2(Number(valor)), data };
 }
 
-function renderizarCartaoCredito(lancamentos, saldo) {
-  const aberto = cpGruposAlteradosManualmente.get('cartao-credito') ?? true;
+function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, saldo }) {
+  const aberto = cpGruposAlteradosManualmente.get(grupo) ?? true;
   const movimentos = lancamentos.map((lancamento) => {
     const divida = lancamento.tipo === 'divida';
     return `
@@ -266,7 +258,7 @@ function renderizarCartaoCredito(lancamentos, saldo) {
           <span class="lancamento-data">${formatDataBR(lancamento.data)}</span>
         </div>
         <span class="lancamento-valor ${divida ? 'negativo' : 'positivo'}">${divida ? '+' : '−'} ${formatMoney(lancamento.valor)}</span>
-        <button type="button" class="btn-icon cartao-excluir-btn" data-id="${lancamento.id}" aria-label="Excluir movimento do Cartão de Crédito" title="Excluir movimento">
+        <button type="button" class="btn-icon cartao-excluir-btn" data-id="${lancamento.id}" data-tabela="${tabela}" data-nome="${titulo}" aria-label="Excluir movimento do ${titulo}" title="Excluir movimento">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4h6v2"></path>
           </svg>
@@ -275,10 +267,10 @@ function renderizarCartaoCredito(lancamentos, saldo) {
   }).join('') || '<li class="empty-state">Nenhum movimento registrado.</li>';
 
   return `
-    <li class="semana-grupo cartao-credito-grupo">
-      <details class="cp-grupo-details" data-grupo="cartao-credito"${aberto ? ' open' : ''}>
+    <li class="semana-grupo ${classe}">
+      <details class="cp-grupo-details" data-grupo="${grupo}"${aberto ? ' open' : ''}>
         <summary class="semana-grupo-titulo">
-          <span>Cartão de Crédito</span>
+          <span>${titulo}</span>
           <span class="semana-grupo-total">${formatMoney(saldo)}</span>
         </summary>
         <ul class="lancamentos">
@@ -288,8 +280,8 @@ function renderizarCartaoCredito(lancamentos, saldo) {
               <span class="lancamento-data">+ aumenta a dívida · − abate</span>
             </div>
             <span class="lancamento-valor negativo">${formatMoney(saldo)}</span>
-            <button type="button" class="btn-icon btn-aporte cartao-movimento-btn" data-tipo="divida" aria-label="Adicionar dívida no Cartão de Crédito" title="Adicionar dívida">+</button>
-            <button type="button" class="btn-icon btn-abater cartao-movimento-btn" data-tipo="abatimento" aria-label="Abater Cartão de Crédito" title="Abater dívida"${saldo <= 0 ? ' disabled' : ''}>−</button>
+            <button type="button" class="btn-icon btn-aporte divida-movimento-btn" data-tabela="${tabela}" data-tipo="divida" data-nome="${titulo}" aria-label="Adicionar dívida no ${titulo}" title="Adicionar dívida">+</button>
+            <button type="button" class="btn-icon btn-abater divida-movimento-btn" data-tabela="${tabela}" data-tipo="abatimento" data-nome="${titulo}" aria-label="Abater ${titulo}" title="Abater dívida"${saldo <= 0 ? ' disabled' : ''}>−</button>
           </li>
           ${movimentos}
         </ul>
@@ -297,26 +289,18 @@ function renderizarCartaoCredito(lancamentos, saldo) {
     </li>`;
 }
 
-function limitarAporteEmprestimo(valorAporte, valorRestante) {
-  return Math.min(round2(Number(valorAporte)), Number(valorRestante));
+function renderizarCartaoCredito(lancamentos, saldo) {
+  return renderizarDividaEspecial({
+    grupo: 'cartao-credito', classe: 'cartao-credito-grupo', titulo: 'Cartão de Crédito',
+    tabela: CARTAO_CREDITO_TABLE, lancamentos, saldo,
+  });
 }
 
-function dadosAporteManual(contaId, dataOcorrencia, valor, data) {
-  return {
-    conta_id: contaId,
-    data_ocorrencia: dataOcorrencia,
-    valor,
-    origem: 'manual',
-    data,
-  };
-}
-
-function somarAportesPorOcorrencia(aportes) {
-  return aportes.reduce((totais, aporte) => {
-    const chave = `${aporte.conta_id}|${aporte.data_ocorrencia}`;
-    totais.set(chave, round2((totais.get(chave) || 0) + Number(aporte.valor)));
-    return totais;
-  }, new Map());
+function renderizarEmprestimo(lancamentos, saldo) {
+  return renderizarDividaEspecial({
+    grupo: 'emprestimo', classe: 'emprestimo-grupo', titulo: 'Empréstimo',
+    tabela: EMPRESTIMO_TABLE, lancamentos, saldo,
+  });
 }
 
 function valorExibidoOcorrencia(ocorrencia) {
@@ -327,7 +311,7 @@ function valorExibidoOcorrencia(ocorrencia) {
 }
 
 function entraNoResumoSemanal(ocorrencia) {
-  return !ocorrencia.paga && !ocorrencia.emprestimo && !ocorrencia.conta.pessoal;
+  return !ocorrencia.paga && !ocorrencia.conta.pessoal;
 }
 
 function totalAtrasadasNoResumoSemanal(ocorrencias, hoje) {
@@ -370,7 +354,7 @@ function dataCadastroConta(conta) {
 }
 
 function dataExibicaoOcorrencia(ocorrencia) {
-  return ocorrencia.conta.pessoal || ehEmprestimo(ocorrencia.conta)
+  return ocorrencia.conta.pessoal
     ? dataCadastroConta(ocorrencia.conta)
     : ocorrencia.data;
 }
@@ -993,6 +977,7 @@ const cpSelecaoResumoEl = document.getElementById('cp-selecao-resumo');
 const cpSelecaoLimparEl = document.getElementById('cp-selecao-limpar');
 const cpGruposAlteradosManualmente = new Map();
 let cartaoSaldoAtual = 0;
+let emprestimoSaldoAtual = 0;
 
 function limparSelecaoContasPagar() {
   cpOcorrenciasSelecionadas.clear();
@@ -1226,7 +1211,7 @@ async function carregarContasPagar() {
     { data: pagos, error: errPag },
     { data: ajustesRows, error: errAjustes },
     { data: caixaRows, error: errCaixa },
-    { data: aportesRows, error: errAportes },
+    { data: emprestimoRows, error: errEmprestimo },
     { data: cartaoRows, error: errCartao },
   ] = await Promise.all([
     supabase.from(CP_TABLE).select('*').order('data_inicio', { ascending: true }),
@@ -1239,12 +1224,12 @@ async function carregarContasPagar() {
       .order('data', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(50),
-    supabase.from(EMPRESTIMO_APORTES_TABLE).select('*').order('data', { ascending: false }),
+    supabase.from(EMPRESTIMO_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from(CARTAO_CREDITO_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
   ]);
 
-  if (errContas || errEx || errParc || errPag || errAjustes || errCaixa || errAportes || errCartao) {
-    cpListEl.innerHTML = `<li class="empty-state">${errAportes ? 'Aplique a migration 006 para habilitar os aportes.' : errCartao ? 'Aplique a migration 010 para habilitar o Cartão de Crédito.' : 'Erro ao carregar contas a pagar.'}</li>`;
+  if (errContas || errEx || errParc || errPag || errAjustes || errCaixa || errEmprestimo || errCartao) {
+    cpListEl.innerHTML = `<li class="empty-state">${errEmprestimo ? 'Aplique a migration 012 para habilitar o Empréstimo.' : errCartao ? 'Aplique a migration 010 para habilitar o Cartão de Crédito.' : 'Erro ao carregar contas a pagar.'}</li>`;
     cpContasListEl.innerHTML = '';
     return;
   }
@@ -1252,8 +1237,9 @@ async function carregarContasPagar() {
   const ajustesMap = new Map(ajustesRows.map((a) => [`${a.conta_id}|${a.data}`, Number(a.valor)]));
 
   const pagamentosMap = new Map(pagos.map((p) => [`${p.conta_id}|${p.data}`, p]));
-  const aportesMap = somarAportesPorOcorrencia(aportesRows);
-  cartaoSaldoAtual = calcularSaldoCartaoCredito(cartaoRows);
+  emprestimoSaldoAtual = calcularSaldoDivida(emprestimoRows);
+  cartaoSaldoAtual = calcularSaldoDivida(cartaoRows);
+  const emprestimoHtml = renderizarEmprestimo(emprestimoRows, emprestimoSaldoAtual);
   const cartaoCreditoHtml = renderizarCartaoCredito(cartaoRows, cartaoSaldoAtual);
   const saldoCaixa = calcularSaldoCaixa(caixaRows);
   const aluguelAbertoCaixa = encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos, ajustesRows);
@@ -1263,7 +1249,7 @@ async function carregarContasPagar() {
   ccSaldoTotalEl.classList.toggle('negative', saldoCaixa < 0);
 
   if (contas.length === 0) {
-    cpListEl.innerHTML = cartaoCreditoHtml + '<li class="empty-state">Nenhuma conta cadastrada.</li>';
+    cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + '<li class="empty-state">Nenhuma conta cadastrada.</li>';
     cpContasListEl.innerHTML = `<li class="empty-state">Nenhuma conta cadastrada.</li>`;
     cpTotalMesPagoEl.textContent = formatMoney(0);
     cpTotalMesGeralEl.textContent = formatMoney(0);
@@ -1297,28 +1283,19 @@ async function carregarContasPagar() {
     }
 
     ocorrencias.forEach(({ data, valor }) => {
-      const chave = `${conta.id}|${data}`;
-      const emprestimo = ehEmprestimo(conta);
       const valorOriginal = valor;
-      const totalAportes = emprestimo ? (aportesMap.get(chave) || 0) : 0;
       const pagamento = pagamentosMap.get(chave);
-      const valorPago = emprestimo ? 0 : limitarValorPagoConta(pagamento?.valor_pago, valorOriginal);
-      const valorRestante = emprestimo
-        ? calcularSaldoEmprestimo(valorOriginal, totalAportes)
-        : calcularSaldoConta(valorOriginal, valorPago);
-      const pagaRegistrada = Boolean(pagamento);
-      const paga = emprestimo ? (pagaRegistrada || valorRestante === 0) : valorRestante === 0;
-      const atrasada = !conta.pessoal && !emprestimo && data < hoje && !paga;
+      const valorPago = limitarValorPagoConta(pagamento?.valor_pago, valorOriginal);
+      const valorRestante = calcularSaldoConta(valorOriginal, valorPago);
+      const paga = valorRestante === 0;
+      const atrasada = !conta.pessoal && data < hoje && !paga;
       ocorrenciasParaExibir.push({
         conta,
         data,
         valor: valorRestante,
         valorOriginal,
-        totalAportes,
         valorPago,
         valorCaixaPago: Number(pagamento?.valor_caixa || 0),
-        emprestimo,
-        pagaRegistrada,
         paga,
         atrasada,
       });
@@ -1335,14 +1312,7 @@ async function carregarContasPagar() {
   }
 
   const ocorrenciasMesAtual = ocorrenciasParaExibir.filter((ocorrencia) => ocorrencia.data.slice(0, 7) === mesAtual);
-  const totalMesPago = ocorrenciasMesAtual.reduce((acc, ocorrencia) => {
-    if (ocorrencia.emprestimo) {
-      return acc + (ocorrencia.pagaRegistrada
-        ? ocorrencia.valorOriginal
-        : Math.min(ocorrencia.totalAportes, ocorrencia.valorOriginal));
-    }
-    return acc + ocorrencia.valorPago;
-  }, 0);
+  const totalMesPago = ocorrenciasMesAtual.reduce((acc, ocorrencia) => acc + ocorrencia.valorPago, 0);
   const totalMesNaoPago = ocorrenciasMesAtual
     .filter((ocorrencia) => !ocorrencia.paga)
     .reduce((acc, ocorrencia) => acc + valorExibidoOcorrencia(ocorrencia), 0);
@@ -1416,13 +1386,10 @@ async function carregarContasPagar() {
   }
 
   function renderizarItemOcorrencia(ocorrencia) {
-    const { conta, data, valor, valorOriginal, valorPago, valorCaixaPago, emprestimo, paga, pagaRegistrada, atrasada } = ocorrencia;
+    const { conta, data, valor, valorOriginal, valorPago, valorCaixaPago, paga, atrasada } = ocorrencia;
     const valorExibido = valorExibidoOcorrencia(ocorrencia);
     const parcial = valorPago > 0 && !paga;
-    const botaoAporte = emprestimo && !paga ? `
-        <button type="button" class="btn-icon btn-aporte cp-aporte-btn" data-conta-id="${conta.id}" data-data="${data}" data-restante="${valor}" aria-label="Fazer aporte" title="Fazer aporte">+</button>` : '';
     const botoesAcao = (paga || valorPago > 0) ? '' : `
-        ${botaoAporte}
         <button type="button" class="btn-icon btn-icon-neutro cp-editar-btn" data-conta-id="${conta.id}" data-data="${data}" data-tipo="${conta.tipo}" data-valor="${valorOriginal}" aria-label="Editar valor" title="Editar valor">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -1442,7 +1409,7 @@ async function carregarContasPagar() {
     return `
       <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}${selecionada ? ' cp-ocorrencia-selecionada' : ''}">
         <div class="lancamento-checkbox">
-          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''} ${emprestimo ? 'disabled' : ''}>
+          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
           <div class="lancamento-info">
             <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${tagPessoalConta(conta)}${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
             <span class="lancamento-data">${formatDataBR(dataExibicaoOcorrencia(ocorrencia))}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
@@ -1476,21 +1443,8 @@ async function carregarContasPagar() {
     }).join('');
   }
 
-  const ocorrenciasEmprestimo = ocorrenciasParaExibir.filter((ocorrencia) => ocorrencia.emprestimo);
-  const ocorrenciasPessoais = ocorrenciasParaExibir.filter((ocorrencia) => !ocorrencia.emprestimo && ocorrencia.conta.pessoal);
-  const demaisOcorrencias = ocorrenciasParaExibir.filter((ocorrencia) => !ocorrencia.emprestimo && !ocorrencia.conta.pessoal);
-  const emprestimosAbertos = cpGruposAlteradosManualmente.get('emprestimo') ?? abrirGrupoPorPadrao(ocorrenciasEmprestimo);
-  const emprestimosHtml = ocorrenciasEmprestimo.length === 0 ? '' : `
-    <li class="semana-grupo emprestimo-grupo">
-      <details class="cp-grupo-details" data-grupo="emprestimo"${emprestimosAbertos ? ' open' : ''}>
-        <summary class="semana-grupo-titulo">
-          <span>Empréstimo</span>
-          <span class="semana-grupo-total">${formatMoney(ocorrenciasEmprestimo.reduce((acc, item) => acc + item.valor, 0))}</span>
-        </summary>
-        <ul class="lancamentos">${ocorrenciasEmprestimo.map(renderizarItemOcorrencia).join('')}</ul>
-      </details>
-    </li>
-  `;
+  const ocorrenciasPessoais = ocorrenciasParaExibir.filter((ocorrencia) => ocorrencia.conta.pessoal);
+  const demaisOcorrencias = ocorrenciasParaExibir.filter((ocorrencia) => !ocorrencia.conta.pessoal);
   const pessoaisAbertas = cpGruposAlteradosManualmente.get('pessoal') ?? abrirGrupoPorPadrao(ocorrenciasPessoais);
   const pessoaisHtml = ocorrenciasPessoais.length === 0 ? '' : `
     <li class="semana-grupo pessoal-grupo">
@@ -1503,7 +1457,7 @@ async function carregarContasPagar() {
       </details>
     </li>
   `;
-  cpListEl.innerHTML = emprestimosHtml + cartaoCreditoHtml + pessoaisHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
+  cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + pessoaisHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
   cpListEl.querySelectorAll('.cp-pago-checkbox[data-parcial="true"]').forEach((checkbox) => {
     checkbox.indeterminate = true;
   });
@@ -1664,21 +1618,27 @@ async function alternarPagoContasPagar(e) {
 cpListEl.addEventListener('change', alternarPagoContasPagar);
 
 cpListEl.addEventListener('click', async (e) => {
-  const cartaoExcluirBtn = e.target.closest('.cartao-excluir-btn');
-  if (cartaoExcluirBtn) {
-    if (!confirm('Excluir este movimento do Cartão de Crédito?')) return;
-    const { error } = await supabase.from(CARTAO_CREDITO_TABLE).delete().eq('id', cartaoExcluirBtn.dataset.id);
-    if (error) alert('Não foi possível excluir o movimento do Cartão de Crédito.');
+  const dividaExcluirBtn = e.target.closest('.cartao-excluir-btn');
+  if (dividaExcluirBtn) {
+    const tabela = dividaExcluirBtn.dataset.tabela;
+    const nome = dividaExcluirBtn.dataset.nome;
+    if (!confirm(`Excluir este movimento do ${nome}?`)) return;
+    const { error } = await supabase.from(tabela).delete().eq('id', dividaExcluirBtn.dataset.id);
+    if (error) alert(`Não foi possível excluir o movimento do ${nome}.`);
     await carregarContasPagar();
     return;
   }
 
-  const cartaoMovimentoBtn = e.target.closest('.cartao-movimento-btn');
-  if (cartaoMovimentoBtn) {
-    const abatimento = cartaoMovimentoBtn.dataset.tipo === 'abatimento';
+  const dividaMovimentoBtn = e.target.closest('.divida-movimento-btn');
+  if (dividaMovimentoBtn) {
+    const abatimento = dividaMovimentoBtn.dataset.tipo === 'abatimento';
+    const nome = dividaMovimentoBtn.dataset.nome;
+    const saldoAtual = dividaMovimentoBtn.dataset.tabela === EMPRESTIMO_TABLE
+      ? emprestimoSaldoAtual
+      : cartaoSaldoAtual;
     const valorTexto = prompt(
-      abatimento ? 'Valor para abater do Cartão de Crédito:' : 'Valor para adicionar ao Cartão de Crédito:',
-      abatimento ? cartaoSaldoAtual.toFixed(2).replace('.', ',') : ''
+      abatimento ? `Valor para abater do ${nome}:` : `Valor para adicionar ao ${nome}:`,
+      abatimento ? saldoAtual.toFixed(2).replace('.', ',') : ''
     );
     if (valorTexto === null) return;
 
@@ -1689,53 +1649,20 @@ cpListEl.addEventListener('click', async (e) => {
     }
 
     const valor = abatimento
-      ? limitarAbatimentoCartaoCredito(valorInformado, cartaoSaldoAtual)
+      ? limitarAbatimentoDivida(valorInformado, saldoAtual)
       : valorInformado;
     if (!valor) {
       alert('Não há saldo para abater.');
       return;
     }
 
-    const { error } = await supabase.from(CARTAO_CREDITO_TABLE).insert(
-      dadosLancamentoCartaoCredito(cartaoMovimentoBtn.dataset.tipo, valor)
+    const { error } = await supabase.from(dividaMovimentoBtn.dataset.tabela).insert(
+      dadosLancamentoDivida(dividaMovimentoBtn.dataset.tipo, valor)
     );
     if (error) {
-      alert('Erro ao registrar o movimento. Confira se a migration 010 foi aplicada.');
+      alert(`Erro ao registrar o movimento. Confira se a migration ${nome === 'Empréstimo' ? '012' : '010'} foi aplicada.`);
       return;
     }
-    await carregarContasPagar();
-    return;
-  }
-
-  const aporteBtn = e.target.closest('.cp-aporte-btn');
-  if (aporteBtn) {
-    const valorTexto = prompt('Valor do aporte:', aporteBtn.dataset.restante.replace('.', ','));
-    if (valorTexto === null) return;
-
-    const valorInformado = parseMoney(valorTexto);
-    if (!valorInformado || valorInformado <= 0) {
-      alert('Valor inválido.');
-      return;
-    }
-
-    const valorRestante = Number(aporteBtn.dataset.restante);
-    const valorAporte = limitarAporteEmprestimo(valorInformado, valorRestante);
-    const { error } = await supabase.from(EMPRESTIMO_APORTES_TABLE).insert(
-      dadosAporteManual(aporteBtn.dataset.contaId, aporteBtn.dataset.data, valorAporte, hojeISO())
-    );
-
-    if (error) {
-      alert('Erro ao registrar o aporte. Confira se a migration 006 foi aplicada.');
-      return;
-    }
-
-    if (valorAporte >= valorRestante) {
-      await supabase.from(CP_PAGAMENTOS_TABLE).upsert({
-        conta_id: aporteBtn.dataset.contaId,
-        data: aporteBtn.dataset.data,
-      });
-    }
-
     await carregarContasPagar();
     return;
   }
@@ -2204,20 +2131,18 @@ function executarTestes() {
   teste('Contas a Pagar — ocorrência quitada continua exibindo o valor original', () => {
     igual(valorExibidoOcorrencia({ valor: 0, valorOriginal: 500, paga: true }), 500);
   });
-  teste('Resumo semanal — ignora Empréstimo e contas pessoais', () => {
+  teste('Resumo semanal — ignora contas pessoais', () => {
     const ocorrencias = [
-      { valor: 467.4, paga: false, emprestimo: true, conta: { pessoal: false } },
-      { valor: 20, paga: false, emprestimo: false, conta: { pessoal: true } },
-      { valor: 214.9, paga: false, emprestimo: false, conta: { pessoal: false } },
+      { valor: 20, paga: false, conta: { pessoal: true } },
+      { valor: 214.9, paga: false, conta: { pessoal: false } },
     ];
     igual(ocorrencias.filter(entraNoResumoSemanal).reduce((total, item) => total + item.valor, 0), 214.9);
   });
   teste('Resumo semanal — soma atrasadas comuns ao primeiro card', () => {
     const ocorrencias = [
-      { data: '2026-09-23', valor: 182.93, paga: false, emprestimo: false, conta: { pessoal: false } },
-      { data: '2026-10-07', valor: 214.9, paga: false, emprestimo: false, conta: { pessoal: false } },
-      { data: '2026-10-05', valor: 467.4, paga: false, emprestimo: true, conta: { pessoal: false } },
-      { data: '2026-10-04', valor: 75, paga: false, emprestimo: false, conta: { pessoal: true } },
+      { data: '2026-09-23', valor: 182.93, paga: false, conta: { pessoal: false } },
+      { data: '2026-10-07', valor: 214.9, paga: false, conta: { pessoal: false } },
+      { data: '2026-10-04', valor: 75, paga: false, conta: { pessoal: true } },
     ];
     igual(totalAtrasadasNoResumoSemanal(ocorrencias, '2026-10-06'), 182.93);
   });
@@ -2256,42 +2181,18 @@ function executarTestes() {
       tipo: 'venda', valor: 50, venda_base: 200, descricao: null, data: '2026-09-02',
     });
   });
-  teste('Empréstimo — aporte informado grava somente origem manual', () => {
-    igualJson(dadosAporteManual('e1', '2026-09-10', 50, '2026-09-15'), {
-      conta_id: 'e1', data_ocorrencia: '2026-09-10', valor: 50, origem: 'manual', data: '2026-09-15',
-    });
-  });
-  teste('Empréstimo — aportes reduzem o saldo sem deixá-lo negativo', () => {
-    igual(calcularSaldoEmprestimo(1000, 1250), 0);
-  });
-  teste('Empréstimo — aporte maior é limitado ao saldo restante', () => {
-    igual(limitarAporteEmprestimo(500, 120), 120);
-  });
-  teste('Empréstimo — soma o histórico por ocorrência', () => {
-    const totais = somarAportesPorOcorrencia([
-      { conta_id: 'e1', data_ocorrencia: '2026-09-10', valor: 25, origem: 'venda' },
-      { conta_id: 'e1', data_ocorrencia: '2026-09-10', valor: 12.5, origem: 'manual' },
-      { conta_id: 'e1', data_ocorrencia: '2026-10-10', valor: 10, origem: 'manual' },
-    ]);
-    igual(totais.get('e1|2026-09-10'), 37.5);
-    igual(totais.get('e1|2026-10-10'), 10);
-  });
-  teste('Empréstimo — nome aproximado não recebe tratamento especial', () => {
-    igual(ehEmprestimo({ descricao: ' EMPRÉSTIMO ' }), true);
-    igual(ehEmprestimo({ descricao: 'Empréstimo banco' }), false);
-  });
-  teste('Cartão de Crédito — dívida aumenta e abatimento reduz o saldo', () => {
-    igual(calcularSaldoCartaoCredito([
+  teste('Empréstimo e Cartão — dívida aumenta e abatimento reduz o saldo', () => {
+    igual(calcularSaldoDivida([
       { tipo: 'divida', valor: 250 },
       { tipo: 'divida', valor: 75.5 },
       { tipo: 'abatimento', valor: 100 },
     ]), 225.5);
   });
-  teste('Cartão de Crédito — abatimento não ultrapassa o saldo', () => {
-    igual(limitarAbatimentoCartaoCredito(100, 62.3), 62.3);
+  teste('Empréstimo e Cartão — abatimento não ultrapassa o saldo', () => {
+    igual(limitarAbatimentoDivida(100, 62.3), 62.3);
   });
-  teste('Cartão de Crédito — movimento grava valor positivo com tipo e data', () => {
-    igualJson(dadosLancamentoCartaoCredito('divida', 80, '2026-10-06'), {
+  teste('Empréstimo e Cartão — movimento grava valor positivo com tipo e data', () => {
+    igualJson(dadosLancamentoDivida('divida', 80, '2026-10-06'), {
       tipo: 'divida', valor: 80, data: '2026-10-06',
     });
   });
@@ -2380,12 +2281,6 @@ function executarTestes() {
       data: '2026-10-07',
       conta: { descricao: 'Conta comum', pessoal: false, data_inicio: '2026-10-06', created_at: '2026-10-06T21:00:00Z' },
     }), '2026-10-07');
-  });
-  teste('Empréstimo — mostra a data de cadastro, não a data técnica', () => {
-    igual(dataExibicaoOcorrencia({
-      data: '2026-11-18',
-      conta: { descricao: 'Empréstimo', pessoal: false, data_inicio: '2026-11-18', created_at: '2026-10-06T21:00:00Z' },
-    }), '2026-10-06');
   });
   teste('Datas — dia 31 ancora no último dia de fevereiro bissexto', () => {
     igual(montarDataOcorrencia(2024, 1, 31), '2024-02-29');
@@ -2489,8 +2384,15 @@ function executarTestes() {
   teste('Interface — Cartão de Crédito fica visível mesmo sem movimentos', () => {
     const fixture = document.createElement('ul');
     fixture.innerHTML = renderizarCartaoCredito([], 0);
-    igual(fixture.querySelector('.cartao-credito-grupo .cartao-movimento-btn[data-tipo="divida"]') !== null, true);
-    igual(fixture.querySelector('.cartao-credito-grupo .cartao-movimento-btn[data-tipo="abatimento"]').disabled, true);
+    igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-btn[data-tipo="divida"]') !== null, true);
+    igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-btn[data-tipo="abatimento"]').disabled, true);
+    fixture.remove();
+  });
+  teste('Interface — Empréstimo fica visível mesmo sem movimentos', () => {
+    const fixture = document.createElement('ul');
+    fixture.innerHTML = renderizarEmprestimo([], 0);
+    igual(fixture.querySelector('.emprestimo-grupo .divida-movimento-btn[data-tipo="divida"]') !== null, true);
+    igual(fixture.querySelector('.emprestimo-grupo .divida-movimento-btn[data-tipo="abatimento"]').disabled, true);
     fixture.remove();
   });
   teste('Interface — conta pessoal tem respiro após a descrição', () => {
@@ -2513,31 +2415,6 @@ function executarTestes() {
   });
   teste('Interface — PWA declara ícone para instalação', () => {
     igual(Boolean(document.querySelector('link[rel="apple-touch-icon"][href="pwa-icon-192.png"]')), true);
-  });
-  teste('Interface — valor e ícones do Empréstimo seguem a mesma linha', () => {
-    const fixture = document.createElement('div');
-    fixture.className = 'emprestimo-grupo';
-    fixture.style.cssText = 'position:absolute;left:-10000px;top:0;width:400px';
-    fixture.innerHTML = '<div class="lancamento-item"><label class="lancamento-checkbox">'
-      + '<input type="checkbox" disabled><div class="lancamento-info">'
-      + '<span class="lancamento-desc">Empréstimo</span>'
-      + '<span class="lancamento-data">18/11/2026</span></div></label>'
-      + '<span class="lancamento-valor negativo">R$ 500,00</span>'
-      + '<button class="btn-icon btn-aporte">+</button><button class="btn-icon">Editar</button>'
-      + '<button class="btn-icon">Pular</button></div>';
-    document.body.appendChild(fixture);
-    try {
-      const item = fixture.querySelector('.lancamento-item');
-      const label = fixture.querySelector('.lancamento-checkbox').getBoundingClientRect();
-      const valor = fixture.querySelector('.lancamento-valor').getBoundingClientRect();
-      const aporte = fixture.querySelector('.btn-aporte').getBoundingClientRect();
-      igual(valor.left >= label.right, true);
-      igual(valor.top < label.bottom && valor.bottom > label.top, true);
-      igual(aporte.left >= valor.right, true);
-      igual(getComputedStyle(item).flexWrap, 'nowrap');
-    } finally {
-      fixture.remove();
-    }
   });
   teste('Parcelas — quantidade é limitada a 24', () => igual(limitarQuantidadeParcelas('99'), 24));
 
