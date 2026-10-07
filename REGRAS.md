@@ -83,6 +83,10 @@ A sessão é limitada a **9 horas** (configurado no painel do Supabase, em
 *Authentication → Sessions → Time-box user sessions*). Sem esse ajuste, o
 Supabase renovaria o token indefinidamente e a sessão nunca expiraria.
 
+No mobile, após entrar ou restaurar uma sessão, a tela inicial é o formulário
+**Pagamento** do Salário, já na aba de saque. No desktop, a tela inicial
+continua sendo a Home com os quatro módulos.
+
 ### Aplicação instalável
 
 O sistema pode ser instalado pelo Chrome como aplicativo. A instalação usa o
@@ -192,6 +196,7 @@ não é usado para reduzir nenhum Empréstimo. Para reduzir o saldo do Emprésti
 
 Um pagamento é dinheiro entregue à gerente, que **abate** o saldo devido.
 Descrição tem default `Saque` e é obrigatória (se esvaziada, volta a `Saque`).
+No mobile, esta é a aba aberta automaticamente ao entrar no sistema.
 
 ### Saldo
 
@@ -826,7 +831,9 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
 - alinhamento do valor e dos ícones do Empréstimo como nas demais ocorrências;
 - saldo, limite de pagamento e proteção ao remover vendas do Fiado;
-- repetição, divisão, centavos e limite de 24 parcelas;
+- repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
+  de quantidade após salvar uma conta parcelada;
+- destino inicial no mobile para a aba Pagamento do Salário;
 - datas, meses sem dia 31 e ano bissexto;
 - semanas iniciadas no domingo e corte na virada do mês;
 - abertura inicial por pendência e preservação do estado das semanas e do

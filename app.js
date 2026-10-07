@@ -370,6 +370,23 @@ const views = {
 
 const desktopGridEl = document.getElementById('desktop-grid');
 
+function selecionarAbaSalario(aba) {
+  document.getElementById(`sal-tab-${aba}`).checked = true;
+  views.salario.querySelectorAll('.tab-panel').forEach((panel) => {
+    panel.classList.toggle('tab-panel-active', panel.dataset.panel === aba);
+  });
+}
+
+function telaInicialAposLogin(ehMobile = window.matchMedia('(max-width: 899px)').matches) {
+  return ehMobile ? 'salario' : 'home';
+}
+
+function abrirTelaInicialAposLogin() {
+  const tela = telaInicialAposLogin();
+  if (tela === 'salario') selecionarAbaSalario('pagamento');
+  showView(tela);
+}
+
 function showView(name) {
   Object.entries(views).forEach(([key, el]) => {
     el.hidden = key !== name;
@@ -398,7 +415,8 @@ document.getElementById('logout-btn-desktop').addEventListener('click', async ()
 
 async function checkSession() {
   const { data: { session } } = await supabase.auth.getSession();
-  showView(session ? 'home' : 'login');
+  if (session) abrirTelaInicialAposLogin();
+  else showView('login');
 }
 
 supabase.auth.onAuthStateChange((_event, session) => {
@@ -424,7 +442,7 @@ bloquearDuranteSubmit(loginForm, async (e) => {
   }
 
   loginForm.reset();
-  showView('home');
+  abrirTelaInicialAposLogin();
 });
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -963,13 +981,17 @@ const cpDatasParcelasEl = document.getElementById('cp-datas-parcelas');
 const cpValorModoEl = document.getElementById('cp-valor-modo');
 aplicarMascaraMoney(cpValorInput);
 
+function atualizarCamposTipoContaPagar() {
+  const parcelado = document.querySelector('input[name="cp-tipo"]:checked').value === 'parcelado';
+  cpCampoDataUnicaEl.hidden = parcelado;
+  cpCampoParcelasEl.hidden = !parcelado;
+  cpDataInicioInput.required = !parcelado;
+  cpValorModoEl.hidden = !parcelado;
+}
+
 document.querySelectorAll('input[name="cp-tipo"]').forEach((el) => {
   el.addEventListener('change', () => {
-    const parcelado = el.value === 'parcelado';
-    cpCampoDataUnicaEl.hidden = parcelado;
-    cpCampoParcelasEl.hidden = !parcelado;
-    cpDataInicioInput.required = !parcelado;
-    cpValorModoEl.hidden = !parcelado;
+    atualizarCamposTipoContaPagar();
   });
 });
 
@@ -1704,9 +1726,8 @@ bloquearDuranteSubmit(cpForm, async (e) => {
 
   cpForm.reset();
   cpDataInicioInput.value = hojeISO();
-  cpCampoDataUnicaEl.hidden = false;
-  cpCampoParcelasEl.hidden = true;
-  cpValorModoEl.hidden = true;
+  document.getElementById('cp-tipo-recorrente').checked = true;
+  atualizarCamposTipoContaPagar();
   cpDatasParcelasEl.innerHTML = '';
   await carregarContasPagar();
 });
@@ -2189,6 +2210,16 @@ function executarTestes() {
   teste('Parcelas — divisão não cria nem perde centavos', () => {
     igual(round2(calcularValoresParcelas(10, 6, 'dividir').reduce((soma, valor) => soma + valor, 0)), 10);
   });
+  teste('Parcelas — seletor de quantidade reaparece ao escolher Parcelado após salvar', () => {
+    document.getElementById('cp-tipo-recorrente').checked = true;
+    atualizarCamposTipoContaPagar();
+    document.getElementById('cp-tipo-parcelado').checked = true;
+    atualizarCamposTipoContaPagar();
+    igual(cpCampoParcelasEl.hidden, false);
+    igual(cpQtdeParcelasInput.hidden, false);
+    document.getElementById('cp-tipo-recorrente').checked = true;
+    atualizarCamposTipoContaPagar();
+  });
 
   teste('Datas — formata YYYY-MM-DD como DD/MM/AAAA', () => igual(formatDataBR('2026-09-14'), '14/09/2026'));
   teste('Contas pessoais — mostra a data de cadastro no fuso de São Paulo', () => {
@@ -2292,6 +2323,13 @@ function executarTestes() {
   });
   teste('Interface — descrição de Contas a Pagar é obrigatória', () => {
     igual(document.getElementById('cp-descricao').required, true);
+  });
+  teste('Interface — mobile inicia no formulário de Pagamento do Salário', () => {
+    igual(telaInicialAposLogin(true), 'salario');
+    igual(telaInicialAposLogin(false), 'home');
+    selecionarAbaSalario('pagamento');
+    igual(document.getElementById('sal-pagamento-form').classList.contains('tab-panel-active'), true);
+    selecionarAbaSalario('venda');
   });
   teste('Interface — Contas a Pagar permite marcar conta pessoal', () => {
     igual(Boolean(document.getElementById('cp-pessoal')), true);
