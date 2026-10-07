@@ -16,8 +16,7 @@ const CP_PAGAMENTOS_TABLE = 'contas_pagar_pagamentos';
 const CP_AJUSTES_TABLE = 'contas_pagar_ajustes';
 const EMPRESTIMO_TABLE = 'emprestimo_lancamentos';
 const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
-const FI_VENDAS_TABLE = 'fiado_vendas';
-const FI_PAGAMENTOS_TABLE = 'fiado_pagamentos';
+const FI_TABLE = 'fiado_lancamentos';
 const PERCENTUAL_COMISSAO = 0.25;
 const modoTestes = new URLSearchParams(window.location.search).has('testes');
 
@@ -196,28 +195,27 @@ function datasSemVendaEmDiasUteis(vendas, hoje) {
   return faltantes;
 }
 
-function calcularSaldoFiado(vendas, pagamentos) {
-  const totalVendas = vendas.reduce((acc, item) => acc + Number(item.valor), 0);
-  const totalPagamentos = pagamentos.reduce((acc, item) => acc + Number(item.valor), 0);
-  return round2(totalVendas - totalPagamentos);
+function calcularSaldoFiado(lancamentos) {
+  return round2(lancamentos.reduce((saldo, item) => {
+    return saldo + (item.tipo === 'venda' ? Number(item.valor) : -Number(item.valor));
+  }, 0));
 }
 
 function podeRegistrarPagamentoFiado(valor, saldo) {
   return valor > 0 && valor <= saldo;
 }
 
-function podeRemoverVendaFiado(vendas, pagamentos, vendaRemovida) {
-  const vendasRestantes = vendas.filter((venda) => venda.id !== vendaRemovida.id);
-  return calcularSaldoFiado(vendasRestantes, pagamentos) >= 0;
+function podeRemoverVendaFiado(lancamentos, vendaRemovida) {
+  return calcularSaldoFiado(lancamentos.filter((item) => item.id !== vendaRemovida.id)) >= 0;
 }
 
 function chavePessoaFiado(nome) {
   return nome.trim().toLocaleLowerCase('pt-BR');
 }
 
-function nomesDistintosFiado(vendas, pagamentos) {
+function nomesDistintosFiado(lancamentos) {
   const nomes = new Map();
-  [...vendas, ...pagamentos].forEach((lancamento) => {
+  lancamentos.forEach((lancamento) => {
     const chave = chavePessoaFiado(lancamento.pessoa_nome);
     if (!nomes.has(chave)) nomes.set(chave, lancamento.pessoa_nome);
   });
@@ -1814,20 +1812,15 @@ async function carregarFiado() {
   fiDataInput.value = fiDataInput.value || hojeISO();
   fiPagamentoDataInput.value = fiPagamentoDataInput.value || hojeISO();
 
-  const [
-    { data: vendas, error: errVendas },
-    { data: pagamentos, error: errPagamentos },
-  ] = await Promise.all([
-    supabase.from(FI_VENDAS_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
-    supabase.from(FI_PAGAMENTOS_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
-  ]);
+  const { data: lancamentos, error } = await supabase
+    .from(FI_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false });
 
-  if (errVendas || errPagamentos) {
+  if (error) {
     fiListEl.innerHTML = `<li class="empty-state">Erro ao carregar fiado.</li>`;
     return;
   }
 
-  const pessoas = nomesDistintosFiado(vendas, pagamentos);
+  const pessoas = nomesDistintosFiado(lancamentos);
   fiPessoasDatalistEl.innerHTML = pessoas.map((nome) => `<option value="${nome}">`).join('');
 
   if (pessoas.length === 0) {
@@ -1839,9 +1832,8 @@ async function carregarFiado() {
 
   const saldosPorPessoa = new Map(pessoas.map((nome) => {
     const chave = chavePessoaFiado(nome);
-    const vendasDaPessoa = vendas.filter((venda) => chavePessoaFiado(venda.pessoa_nome) === chave);
-    const pagamentosDaPessoa = pagamentos.filter((pagamento) => chavePessoaFiado(pagamento.pessoa_nome) === chave);
-    return [chave, calcularSaldoFiado(vendasDaPessoa, pagamentosDaPessoa)];
+    const lancamentosDaPessoa = lancamentos.filter((lancamento) => chavePessoaFiado(lancamento.pessoa_nome) === chave);
+    return [chave, calcularSaldoFiado(lancamentosDaPessoa)];
   }));
 
   const pessoaSelecionada = fiPagamentoPessoaSelect.value;
@@ -1856,23 +1848,15 @@ async function carregarFiado() {
 
   fiListEl.innerHTML = pessoas.map((nome) => {
     const chave = chavePessoaFiado(nome);
-    const vendasDaPessoa = vendas.filter((venda) => chavePessoaFiado(venda.pessoa_nome) === chave);
-    const pagamentosDaPessoa = pagamentos.filter((pagamento) => chavePessoaFiado(pagamento.pessoa_nome) === chave);
+    const lancamentosDaPessoa = lancamentos.filter((lancamento) => chavePessoaFiado(lancamento.pessoa_nome) === chave);
     const saldoPessoa = saldosPorPessoa.get(chave);
     totalGeral += saldoPessoa;
 
-    const lancamentos = [
-      ...vendasDaPessoa.map((v) => ({ ...v, tipo: 'venda' })),
-      ...pagamentosDaPessoa.map((p) => ({ ...p, tipo: 'pagamento' })),
-    ].sort((a, b) => b.data.localeCompare(a.data) || b.created_at.localeCompare(a.created_at));
-
-    const lancamentosHtml = lancamentos.length === 0
+    const lancamentosHtml = lancamentosDaPessoa.length === 0
       ? `<li class="empty-state">Nenhum lançamento ainda.</li>`
-      : lancamentos.map((lancamento) => {
+      : lancamentosDaPessoa.map((lancamento) => {
         const pagamento = lancamento.tipo === 'pagamento';
         const descricao = lancamento.descricao || (pagamento ? 'Pagamento' : 'Sem descrição');
-        const classeBotao = pagamento ? 'fi-remover-pagamento-btn' : 'fi-remover-venda-btn';
-        const atributoId = pagamento ? 'data-pagamento-id' : 'data-venda-id';
         const rotuloRemover = pagamento ? 'Remover pagamento' : 'Remover venda';
         return `
         <li class="lancamento-item">
@@ -1881,7 +1865,7 @@ async function carregarFiado() {
             <span class="lancamento-data">${formatDataBR(lancamento.data)}</span>
           </div>
           <span class="lancamento-valor ${pagamento ? 'positivo' : 'negativo'}">${pagamento ? '− ' : ''}${formatMoney(lancamento.valor)}</span>
-          <button type="button" class="btn-icon ${classeBotao}" ${atributoId}="${lancamento.id}" aria-label="${rotuloRemover}" title="${rotuloRemover}">
+          <button type="button" class="btn-icon fi-remover-lancamento-btn" data-id="${lancamento.id}" data-tipo="${lancamento.tipo}" aria-label="${rotuloRemover}" title="${rotuloRemover}">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1908,50 +1892,40 @@ async function carregarFiado() {
 }
 
 fiListEl.addEventListener('click', async (e) => {
-  const removerVendaBtn = e.target.closest('.fi-remover-venda-btn');
-  if (removerVendaBtn) {
-    const { data: venda, error: errVenda } = await supabase
-      .from(FI_VENDAS_TABLE)
-      .select('id, pessoa_nome, valor')
-      .eq('id', removerVendaBtn.dataset.vendaId)
+  const removerBtn = e.target.closest('.fi-remover-lancamento-btn');
+  if (removerBtn) {
+    const { data: lancamento, error: errLancamento } = await supabase
+      .from(FI_TABLE)
+      .select('id, pessoa_nome, valor, tipo')
+      .eq('id', removerBtn.dataset.id)
       .single();
 
-    if (errVenda) {
-      alert('Erro ao conferir a venda. Tente novamente.');
+    if (errLancamento) {
+      alert('Erro ao conferir o lançamento. Tente novamente.');
       return;
     }
 
-    const [{ data: vendas, error: errVendas }, { data: pagamentos, error: errPagamentos }] = await Promise.all([
-      supabase.from(FI_VENDAS_TABLE).select('id, valor').eq('pessoa_nome', venda.pessoa_nome),
-      supabase.from(FI_PAGAMENTOS_TABLE).select('valor').eq('pessoa_nome', venda.pessoa_nome),
-    ]);
+    const { data: lancamentos, error: errLancamentos } = await supabase
+      .from(FI_TABLE).select('id, pessoa_nome, valor, tipo');
 
-    if (errVendas || errPagamentos) {
+    if (errLancamentos) {
       alert('Erro ao conferir o saldo. Tente novamente.');
       return;
     }
 
-    if (!podeRemoverVendaFiado(vendas, pagamentos, venda)) {
+    const daPessoa = lancamentos.filter((item) => chavePessoaFiado(item.pessoa_nome) === chavePessoaFiado(lancamento.pessoa_nome));
+    if (lancamento.tipo === 'venda' && !podeRemoverVendaFiado(daPessoa, lancamento)) {
       alert('Não é possível remover esta venda porque há pagamentos vinculados ao saldo. Remova primeiro o pagamento necessário.');
       return;
     }
 
-    const { error } = await supabase.from(FI_VENDAS_TABLE).delete().eq('id', removerVendaBtn.dataset.vendaId);
+    const { error } = await supabase.from(FI_TABLE).delete().eq('id', lancamento.id);
     if (error) {
-      alert('Erro ao remover a venda. Tente novamente.');
+      alert('Erro ao remover o lançamento. Tente novamente.');
       return;
     }
     await carregarFiado();
-    return;
   }
-
-  const removerPagamentoBtn = e.target.closest('.fi-remover-pagamento-btn');
-  if (removerPagamentoBtn) {
-    await supabase.from(FI_PAGAMENTOS_TABLE).delete().eq('id', removerPagamentoBtn.dataset.pagamentoId);
-    await carregarFiado();
-    return;
-  }
-
 });
 
 bloquearDuranteSubmit(fiForm, async (e) => {
@@ -1976,7 +1950,7 @@ bloquearDuranteSubmit(fiForm, async (e) => {
   }
 
   const { data: nomesExistentes, error: errBusca } = await supabase
-    .from(FI_VENDAS_TABLE)
+    .from(FI_TABLE)
     .select('pessoa_nome');
 
   if (errBusca) {
@@ -1985,11 +1959,12 @@ bloquearDuranteSubmit(fiForm, async (e) => {
     return;
   }
 
-  const pessoaNomeExistente = nomesExistentes.find((venda) => {
-    return chavePessoaFiado(venda.pessoa_nome) === chavePessoaFiado(nomePessoa);
+  const pessoaNomeExistente = nomesExistentes.find((lancamento) => {
+    return chavePessoaFiado(lancamento.pessoa_nome) === chavePessoaFiado(nomePessoa);
   })?.pessoa_nome;
 
-  const { error } = await supabase.from(FI_VENDAS_TABLE).insert({
+  const { error } = await supabase.from(FI_TABLE).insert({
+    tipo: 'venda',
     pessoa_nome: pessoaNomeExistente || nomePessoa,
     valor,
     data,
@@ -2028,18 +2003,17 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
     return;
   }
 
-  const [{ data: vendas, error: errVendas }, { data: pagamentos, error: errPagamentos }] = await Promise.all([
-    supabase.from(FI_VENDAS_TABLE).select('valor').eq('pessoa_nome', pessoaNome),
-    supabase.from(FI_PAGAMENTOS_TABLE).select('valor').eq('pessoa_nome', pessoaNome),
-  ]);
+  const { data: lancamentos, error: errLancamentos } = await supabase
+    .from(FI_TABLE).select('valor, tipo, pessoa_nome');
 
-  if (errVendas || errPagamentos) {
+  if (errLancamentos) {
     fiPagamentoErrorEl.textContent = 'Erro ao conferir o saldo. Tente novamente.';
     fiPagamentoErrorEl.hidden = false;
     return;
   }
 
-  const saldoPessoa = calcularSaldoFiado(vendas, pagamentos);
+  const daPessoa = lancamentos.filter((lancamento) => chavePessoaFiado(lancamento.pessoa_nome) === chavePessoaFiado(pessoaNome));
+  const saldoPessoa = calcularSaldoFiado(daPessoa);
 
   if (!podeRegistrarPagamentoFiado(valor, saldoPessoa)) {
     fiPagamentoErrorEl.textContent = `O pagamento não pode ultrapassar o saldo de ${formatMoney(saldoPessoa)}.`;
@@ -2047,7 +2021,8 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
     return;
   }
 
-  const { error } = await supabase.from(FI_PAGAMENTOS_TABLE).insert({
+  const { error } = await supabase.from(FI_TABLE).insert({
+    tipo: 'pagamento',
     pessoa_nome: pessoaNome,
     valor,
     data,
@@ -2227,23 +2202,24 @@ function executarTestes() {
     ], '2026-09-07'), []);
   });
   teste('Fiado — pagamentos abatem vendas', () => {
-    igual(calcularSaldoFiado([{ valor: 100 }, { valor: 50 }], [{ valor: 40 }]), 110);
+    igual(calcularSaldoFiado([
+      { tipo: 'venda', valor: 100 }, { tipo: 'venda', valor: 50 }, { tipo: 'pagamento', valor: 40 },
+    ]), 110);
   });
   teste('Fiado — aceita pagamento até o saldo', () => igual(podeRegistrarPagamentoFiado(100, 100), true));
   teste('Fiado — bloqueia pagamento acima do saldo', () => igual(podeRegistrarPagamentoFiado(100.01, 100), false));
   teste('Fiado — bloqueia remover venda que deixaria pagamentos descobertos', () => {
-    const vendas = [{ id: 'v1', valor: 100 }, { id: 'v2', valor: 50 }];
-    igual(podeRemoverVendaFiado(vendas, [{ valor: 80 }], vendas[0]), false);
+    const lancamentos = [{ id: 'v1', tipo: 'venda', valor: 100 }, { id: 'v2', tipo: 'venda', valor: 50 }, { id: 'p1', tipo: 'pagamento', valor: 80 }];
+    igual(podeRemoverVendaFiado(lancamentos, lancamentos[0]), false);
   });
   teste('Fiado — permite remover venda mantendo saldo suficiente', () => {
-    const vendas = [{ id: 'v1', valor: 100 }, { id: 'v2', valor: 50 }];
-    igual(podeRemoverVendaFiado(vendas, [{ valor: 80 }], vendas[1]), true);
+    const lancamentos = [{ id: 'v1', tipo: 'venda', valor: 100 }, { id: 'v2', tipo: 'venda', valor: 50 }, { id: 'p1', tipo: 'pagamento', valor: 80 }];
+    igual(podeRemoverVendaFiado(lancamentos, lancamentos[1]), true);
   });
   teste('Fiado — reúne nomes distintos sem duplicar diferenças de maiúsculas', () => {
-    igualJson(nomesDistintosFiado(
-      [{ pessoa_nome: 'Darnel' }, { pessoa_nome: 'darnel' }, { pessoa_nome: 'Ana' }],
-      [{ pessoa_nome: 'ANA' }]
-    ), ['Ana', 'Darnel']);
+    igualJson(nomesDistintosFiado([
+      { pessoa_nome: 'Darnel' }, { pessoa_nome: 'darnel' }, { pessoa_nome: 'Ana' }, { pessoa_nome: 'ANA' },
+    ]), ['Ana', 'Darnel']);
   });
   teste('Fiado — normaliza a chave do nome sem alterar a grafia exibida', () => {
     igual(chavePessoaFiado('  Darnel  '), 'darnel');

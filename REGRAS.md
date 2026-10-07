@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-07 (Empréstimo como livro de movimentos).
+Última revisão: 2026-10-07 (Fiado em lançamentos únicos).
 
 ---
 
@@ -713,10 +713,11 @@ Fiado não se comunica com nenhum outro módulo. Registrar um pagamento não
 movimenta Caixa Casa nem Salário; ele apenas reduz o saldo devido pela pessoa
 dentro do próprio Fiado.
 
-### Pessoa e vendas
+### Lançamentos por pessoa
 
 Não existe tabela de cadastro de pessoas. Cada venda e pagamento guarda
-diretamente `pessoa_nome`, além de valor, descrição e data. O saldo devido é:
+diretamente `pessoa_nome`, além de tipo, valor, descrição e data, em uma única
+tabela `fiado_lancamentos`. O saldo devido é:
 
 ```
 saldo da pessoa = soma das vendas − soma dos pagamentos
@@ -733,6 +734,8 @@ Ao lançar uma venda, o campo "Pessoa" é um texto livre com autocomplete
 
 O banco exige nome não vazio e sem espaços nas pontas. Não há telefone,
 endereço ou outro cadastro separado: o modelo é deliberadamente só o nome.
+O tipo `venda` aumenta a dívida e `pagamento` a reduz; ambos mantêm valor
+positivo para o sinal vir somente do tipo.
 
 ### Pagamentos
 
