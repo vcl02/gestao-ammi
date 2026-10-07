@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-07 (Fiado em lançamentos únicos).
+Última revisão: 2026-10-07 (correção de identificação do pagamento da ocorrência).
 
 ---
 
@@ -462,8 +462,10 @@ logada e é limpa ao voltar para o login.
 ### Pagamento de ocorrências
 
 O checkbox grava/apaga uma linha em `contas_pagar_pagamentos` para aquele
-`(conta_id, data)`. A linha guarda `valor_pago`, com o acumulado quitado, e
-`valor_caixa`, com a parte desse acumulado que saiu do Caixa Casa.
+`(conta_id, data)`. A combinação desses dois campos também identifica cada
+ocorrência ao consultar o pagamento na lista. A linha guarda `valor_pago`, com
+o acumulado quitado, e `valor_caixa`, com a parte desse acumulado que saiu do
+Caixa Casa.
 
 Marcar como paga **não altera** a conta nem a parcela. Nas contas pessoais,
 o valor informado pode ser menor que o saldo e novos pagamentos acumulam até

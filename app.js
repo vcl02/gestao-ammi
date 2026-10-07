@@ -1282,6 +1282,7 @@ async function carregarContasPagar() {
 
     ocorrencias.forEach(({ data, valor }) => {
       const valorOriginal = valor;
+      const chave = `${conta.id}|${data}`;
       const pagamento = pagamentosMap.get(chave);
       const valorPago = limitarValorPagoConta(pagamento?.valor_pago, valorOriginal);
       const valorRestante = calcularSaldoConta(valorOriginal, valorPago);
@@ -2097,6 +2098,9 @@ function executarTestes() {
   });
   teste('Contas a Pagar — pagamento não ultrapassa o valor da ocorrência', () => {
     igual(limitarValorPagoConta(550, 500), 500);
+  });
+  teste('Contas a Pagar — pagamento usa a chave da ocorrência atual', () => {
+    igual(carregarContasPagar.toString().includes('const chave = `${conta.id}|${data}`;'), true);
   });
   teste('Contas a Pagar — baixa guarda acumulado pago e parte saída do Caixa', () => {
     igualJson(dadosPagamentoConta('c1', '2026-10-10', 125.5, 40), {
