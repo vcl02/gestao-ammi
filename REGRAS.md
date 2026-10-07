@@ -833,7 +833,8 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - exibição de Pessoal e Empréstimo pela data de cadastro, fora dos grupos
   semanais e sem atraso visual;
 - identificação visual de contas pessoais e destino correto da exclusão de
-  lançamentos manuais ou vinculados;
+  lançamentos manuais ou vinculados, incluindo o respiro visual após a
+  descrição no formulário;
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
 - alinhamento do valor e dos ícones do Empréstimo como nas demais ocorrências;
 - exclusão de Empréstimo e contas pessoais dos cards semanais;

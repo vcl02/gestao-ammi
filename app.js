@@ -2364,6 +2364,9 @@ function executarTestes() {
   teste('Interface — Contas a Pagar permite marcar conta pessoal', () => {
     igual(Boolean(document.getElementById('cp-pessoal')), true);
   });
+  teste('Interface — conta pessoal tem respiro após a descrição', () => {
+    igual(getComputedStyle(document.querySelector('.cp-pessoal')).marginTop, '10px');
+  });
   teste('Interface — aviso de venda esquecida possui data automática e valor', () => {
     igual(Boolean(document.getElementById('sal-aviso-dias-sem-venda-data')
       && document.getElementById('sal-aviso-dias-sem-venda-valor')), true);
