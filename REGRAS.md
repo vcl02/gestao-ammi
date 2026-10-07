@@ -590,6 +590,10 @@ Isso existe porque, quando o card avança (ver abaixo), continuar chamando
 uma semana distante de "Esta semana" seria enganoso. O rótulo sempre diz a
 verdade sobre quão longe está o que ele mostra.
 
+Pendências **atrasadas** de contas comuns são somadas ao primeiro número,
+junto com a semana encontrada. Havendo alguma, o rótulo passa a começar por
+"Atrasadas +". Contas pessoais e Empréstimo continuam fora dos dois cards.
+
 #### Os dois números avançam quando não há pendência
 
 Se a semana que contém a data de hoje **não tiver nenhuma pendência** (tudo
@@ -833,6 +837,7 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
 - alinhamento do valor e dos ícones do Empréstimo como nas demais ocorrências;
 - exclusão de Empréstimo e contas pessoais dos cards semanais;
+- soma de contas comuns atrasadas no primeiro card semanal;
 - saldo, limite de pagamento e proteção ao remover vendas do Fiado;
 - repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
   de quantidade após salvar uma conta parcelada;

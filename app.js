@@ -260,6 +260,12 @@ function entraNoResumoSemanal(ocorrencia) {
   return !ocorrencia.paga && !ocorrencia.emprestimo && !ocorrencia.conta.pessoal;
 }
 
+function totalAtrasadasNoResumoSemanal(ocorrencias, hoje) {
+  return round2(ocorrencias
+    .filter((ocorrencia) => entraNoResumoSemanal(ocorrencia) && ocorrencia.data < hoje)
+    .reduce((total, ocorrencia) => total + valorExibidoOcorrencia(ocorrencia), 0));
+}
+
 // Data de hoje (YYYY-MM-DD) no fuso America/Sao_Paulo.
 function hojeISO() {
   const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -1317,10 +1323,13 @@ async function carregarContasPagar() {
 
   const semanaAtual = acharSemanaComPendencia(hoje, 0);
   const proximaSemana = acharSemanaComPendencia(chaveSemanaSeguinte(semanaAtual.dataRef).data, semanaAtual.saltos + 1);
+  const totalAtrasadas = totalAtrasadasNoResumoSemanal(ocorrenciasParaExibir, hoje);
 
-  cpTotalSemanaAtualEl.textContent = formatMoney(semanaAtual.total);
+  cpTotalSemanaAtualEl.textContent = formatMoney(round2(semanaAtual.total + totalAtrasadas));
   cpTotalProximaSemanaEl.textContent = formatMoney(proximaSemana.total);
-  cpLabelSemanaAtualEl.textContent = rotuloDistanciaSemana(semanaAtual.saltos);
+  cpLabelSemanaAtualEl.textContent = totalAtrasadas > 0
+    ? `Atrasadas + ${rotuloDistanciaSemana(semanaAtual.saltos).toLowerCase()}`
+    : rotuloDistanciaSemana(semanaAtual.saltos);
   cpLabelProximaSemanaEl.textContent = rotuloDistanciaSemana(proximaSemana.saltos);
 
   const anoHoje = semanaAtual.ano;
@@ -2109,6 +2118,15 @@ function executarTestes() {
       { valor: 214.9, paga: false, emprestimo: false, conta: { pessoal: false } },
     ];
     igual(ocorrencias.filter(entraNoResumoSemanal).reduce((total, item) => total + item.valor, 0), 214.9);
+  });
+  teste('Resumo semanal — soma atrasadas comuns ao primeiro card', () => {
+    const ocorrencias = [
+      { data: '2026-09-23', valor: 182.93, paga: false, emprestimo: false, conta: { pessoal: false } },
+      { data: '2026-10-07', valor: 214.9, paga: false, emprestimo: false, conta: { pessoal: false } },
+      { data: '2026-10-05', valor: 467.4, paga: false, emprestimo: true, conta: { pessoal: false } },
+      { data: '2026-10-04', valor: 75, paga: false, emprestimo: false, conta: { pessoal: true } },
+    ];
+    igual(totalAtrasadasNoResumoSemanal(ocorrencias, '2026-10-06'), 182.93);
   });
   teste('Contas a Pagar — conta pessoal recebe tag na ocorrência', () => {
     igual(tagPessoalConta({ pessoal: true }).includes('Pessoal'), true);
