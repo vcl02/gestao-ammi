@@ -729,40 +729,37 @@ dentro do próprio Fiado.
 
 ### Pessoa e vendas
 
-Uma pessoa (`fiado_pessoas`: só o nome) tem zero ou mais vendas
-(`fiado_vendas`: valor, descrição dos itens, data) e pagamentos
-(`fiado_pagamentos`: valor, descrição, data). O saldo devido é:
+Não existe tabela de cadastro de pessoas. Cada venda e pagamento guarda
+diretamente `pessoa_nome`, além de valor, descrição e data. O saldo devido é:
 
 ```
 saldo da pessoa = soma das vendas − soma dos pagamentos
 ```
 
-#### Reaproveitamento de pessoa pelo nome
+#### Escolha ou criação pelo nome
 
 Ao lançar uma venda, o campo "Pessoa" é um texto livre com autocomplete
-(sugestões das pessoas já cadastradas). No momento de salvar:
+(sugestões distintas de todos os nomes já usados). No momento de salvar:
 
-- Se já existir uma pessoa com esse nome (comparação **sem diferenciar
-  maiúsculas/minúsculas**, via `ilike` sem coringas — busca exata
-  case-insensitive), a venda é associada a ela.
-- Caso contrário, uma pessoa nova é criada com esse nome.
+- Se já existir nome equivalente sem diferenciar maiúsculas/minúsculas, a
+  venda reaproveita a grafia já registrada.
+- Caso contrário, a própria venda cria o novo nome no histórico.
 
-Não há tela separada de "cadastrar pessoa" — pessoa e primeira venda nascem
-juntas, no mesmo formulário. Não há nenhum outro dado da pessoa além do
-nome (sem telefone, endereço, etc.) — o cadastro é deliberadamente mínimo.
+O banco exige nome não vazio e sem espaços nas pontas. Não há telefone,
+endereço ou outro cadastro separado: o modelo é deliberadamente só o nome.
 
 ### Pagamentos
 
 O formulário possui as abas **Venda** e **Pagamento**. Ao registrar um
-pagamento, é obrigatório selecionar uma pessoa já cadastrada. A seleção usa
-o identificador da pessoa, não apenas o nome, para que o pagamento não seja
-associado ao cadastro errado caso existam nomes repetidos. Um pagamento nunca
-cria uma pessoa nova.
+pagamento, é obrigatório escolher um nome distinto que possua saldo aberto.
+O pagamento não cria nome novo: uma pessoa passa a existir no Fiado pela sua
+primeira venda.
 
 Pagamentos podem ser parciais e ficam misturados às vendas no histórico da
 pessoa, ordenados por data. O valor do pagamento deve ser positivo e não pode
 ultrapassar o saldo atual da pessoa; portanto, o Fiado não registra crédito
-adiantado nem deixa o saldo negativo.
+adiantado nem deixa o saldo negativo. Essa proteção existe também no banco,
+inclusive contra inserções diretas por SQL.
 
 A descrição do pagamento é opcional e usa `Pagamento` como padrão.
 
@@ -778,9 +775,8 @@ soma das vendas menos soma dos pagamentos, sem filtro de data.
   bloqueada até que o pagamento necessário seja removido.
 - Remover um **pagamento** apaga só aquela linha e devolve o valor ao saldo
   devido da pessoa.
-- Remover uma **pessoa** apaga, em cascata (`on delete cascade`), todo o
-  seu histórico de vendas e pagamentos — sem confirmação extra além do
-  `confirm()` do navegador, e sem possibilidade de desfazer.
+- Não há exclusão de pessoa separada: sem tabela de cadastro, o nome deixa de
+  aparecer automaticamente quando seus últimos lançamentos forem removidos.
 
 ---
 
@@ -871,6 +867,7 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - exclusão de Empréstimo e contas pessoais dos cards semanais;
 - soma de contas comuns atrasadas no primeiro card semanal;
 - saldo, limite de pagamento e proteção ao remover vendas do Fiado;
+- nomes distintos do Fiado, reaproveitamento de grafia e criação direta pela venda;
 - repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
   de quantidade após salvar uma conta parcelada;
 - destino inicial no mobile para a aba Pagamento do Salário;

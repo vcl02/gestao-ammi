@@ -16,7 +16,6 @@ const CP_PAGAMENTOS_TABLE = 'contas_pagar_pagamentos';
 const CP_AJUSTES_TABLE = 'contas_pagar_ajustes';
 const EMPRESTIMO_APORTES_TABLE = 'emprestimo_aportes';
 const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
-const FI_PESSOAS_TABLE = 'fiado_pessoas';
 const FI_VENDAS_TABLE = 'fiado_vendas';
 const FI_PAGAMENTOS_TABLE = 'fiado_pagamentos';
 const PERCENTUAL_COMISSAO = 0.25;
@@ -210,6 +209,19 @@ function podeRegistrarPagamentoFiado(valor, saldo) {
 function podeRemoverVendaFiado(vendas, pagamentos, vendaRemovida) {
   const vendasRestantes = vendas.filter((venda) => venda.id !== vendaRemovida.id);
   return calcularSaldoFiado(vendasRestantes, pagamentos) >= 0;
+}
+
+function chavePessoaFiado(nome) {
+  return nome.trim().toLocaleLowerCase('pt-BR');
+}
+
+function nomesDistintosFiado(vendas, pagamentos) {
+  const nomes = new Map();
+  [...vendas, ...pagamentos].forEach((lancamento) => {
+    const chave = chavePessoaFiado(lancamento.pessoa_nome);
+    if (!nomes.has(chave)) nomes.set(chave, lancamento.pessoa_nome);
+  });
+  return [...nomes.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
 function calcularSaldoAposAluguel(saldoCaixa, valorAluguel) {
@@ -1876,48 +1888,50 @@ async function carregarFiado() {
   fiPagamentoDataInput.value = fiPagamentoDataInput.value || hojeISO();
 
   const [
-    { data: pessoas, error: errPessoas },
     { data: vendas, error: errVendas },
     { data: pagamentos, error: errPagamentos },
   ] = await Promise.all([
-    supabase.from(FI_PESSOAS_TABLE).select('*').order('nome', { ascending: true }),
     supabase.from(FI_VENDAS_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from(FI_PAGAMENTOS_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
   ]);
 
-  if (errPessoas || errVendas || errPagamentos) {
+  if (errVendas || errPagamentos) {
     fiListEl.innerHTML = `<li class="empty-state">Erro ao carregar fiado.</li>`;
     return;
   }
 
-  fiPessoasDatalistEl.innerHTML = pessoas.map((p) => `<option value="${p.nome}">`).join('');
+  const pessoas = nomesDistintosFiado(vendas, pagamentos);
+  fiPessoasDatalistEl.innerHTML = pessoas.map((nome) => `<option value="${nome}">`).join('');
 
   if (pessoas.length === 0) {
-    fiListEl.innerHTML = `<li class="empty-state">Nenhuma pessoa cadastrada.</li>`;
+    fiListEl.innerHTML = `<li class="empty-state">Nenhum lançamento de fiado.</li>`;
     fiTotalEl.textContent = formatMoney(0);
-    fiPagamentoPessoaSelect.innerHTML = `<option value="">Nenhuma pessoa cadastrada</option>`;
+    fiPagamentoPessoaSelect.innerHTML = `<option value="">Nenhuma pessoa com saldo</option>`;
     return;
   }
 
-  const saldosPorPessoa = new Map(pessoas.map((pessoa) => {
-    const vendasDaPessoa = vendas.filter((venda) => venda.pessoa_id === pessoa.id);
-    const pagamentosDaPessoa = pagamentos.filter((pagamento) => pagamento.pessoa_id === pessoa.id);
-    return [pessoa.id, calcularSaldoFiado(vendasDaPessoa, pagamentosDaPessoa)];
+  const saldosPorPessoa = new Map(pessoas.map((nome) => {
+    const chave = chavePessoaFiado(nome);
+    const vendasDaPessoa = vendas.filter((venda) => chavePessoaFiado(venda.pessoa_nome) === chave);
+    const pagamentosDaPessoa = pagamentos.filter((pagamento) => chavePessoaFiado(pagamento.pessoa_nome) === chave);
+    return [chave, calcularSaldoFiado(vendasDaPessoa, pagamentosDaPessoa)];
   }));
 
   const pessoaSelecionada = fiPagamentoPessoaSelect.value;
   fiPagamentoPessoaSelect.innerHTML = `
     <option value="">Escolha a pessoa</option>
-    ${pessoas.map((pessoa) => `<option value="${pessoa.id}">${pessoa.nome} — ${formatMoney(saldosPorPessoa.get(pessoa.id))}</option>`).join('')}
+    ${pessoas.filter((nome) => saldosPorPessoa.get(chavePessoaFiado(nome)) > 0)
+      .map((nome) => `<option value="${nome}">${nome} — ${formatMoney(saldosPorPessoa.get(chavePessoaFiado(nome)))}</option>`).join('')}
   `;
   fiPagamentoPessoaSelect.value = pessoaSelecionada;
 
   let totalGeral = 0;
 
-  fiListEl.innerHTML = pessoas.map((pessoa) => {
-    const vendasDaPessoa = vendas.filter((v) => v.pessoa_id === pessoa.id);
-    const pagamentosDaPessoa = pagamentos.filter((p) => p.pessoa_id === pessoa.id);
-    const saldoPessoa = saldosPorPessoa.get(pessoa.id);
+  fiListEl.innerHTML = pessoas.map((nome) => {
+    const chave = chavePessoaFiado(nome);
+    const vendasDaPessoa = vendas.filter((venda) => chavePessoaFiado(venda.pessoa_nome) === chave);
+    const pagamentosDaPessoa = pagamentos.filter((pagamento) => chavePessoaFiado(pagamento.pessoa_nome) === chave);
+    const saldoPessoa = saldosPorPessoa.get(chave);
     totalGeral += saldoPessoa;
 
     const lancamentos = [
@@ -1954,14 +1968,8 @@ async function carregarFiado() {
       <li class="semana-grupo">
         <details class="fi-pessoa-details">
           <summary class="fi-pessoa-summary">
-            <span class="fi-pessoa-nome">${pessoa.nome}</span>
+            <span class="fi-pessoa-nome">${nome}</span>
             <span class="lancamento-valor ${saldoPessoa > 0 ? 'negativo' : 'positivo'}">${formatMoney(saldoPessoa)}</span>
-            <button type="button" class="btn-icon fi-remover-pessoa-btn" data-pessoa-id="${pessoa.id}" aria-label="Remover pessoa" title="Remover pessoa">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              </svg>
-            </button>
           </summary>
           <ul class="lancamentos">${lancamentosHtml}</ul>
         </details>
@@ -1977,7 +1985,7 @@ fiListEl.addEventListener('click', async (e) => {
   if (removerVendaBtn) {
     const { data: venda, error: errVenda } = await supabase
       .from(FI_VENDAS_TABLE)
-      .select('id, pessoa_id, valor')
+      .select('id, pessoa_nome, valor')
       .eq('id', removerVendaBtn.dataset.vendaId)
       .single();
 
@@ -1987,8 +1995,8 @@ fiListEl.addEventListener('click', async (e) => {
     }
 
     const [{ data: vendas, error: errVendas }, { data: pagamentos, error: errPagamentos }] = await Promise.all([
-      supabase.from(FI_VENDAS_TABLE).select('id, valor').eq('pessoa_id', venda.pessoa_id),
-      supabase.from(FI_PAGAMENTOS_TABLE).select('valor').eq('pessoa_id', venda.pessoa_id),
+      supabase.from(FI_VENDAS_TABLE).select('id, valor').eq('pessoa_nome', venda.pessoa_nome),
+      supabase.from(FI_PAGAMENTOS_TABLE).select('valor').eq('pessoa_nome', venda.pessoa_nome),
     ]);
 
     if (errVendas || errPagamentos) {
@@ -2017,13 +2025,6 @@ fiListEl.addEventListener('click', async (e) => {
     return;
   }
 
-  const removerPessoaBtn = e.target.closest('.fi-remover-pessoa-btn');
-  if (removerPessoaBtn) {
-    e.preventDefault();
-    if (!confirm('Remover esta pessoa e todo o seu histórico de vendas e pagamentos?')) return;
-    await supabase.from(FI_PESSOAS_TABLE).delete().eq('id', removerPessoaBtn.dataset.pessoaId);
-    await carregarFiado();
-  }
 });
 
 bloquearDuranteSubmit(fiForm, async (e) => {
@@ -2047,10 +2048,9 @@ bloquearDuranteSubmit(fiForm, async (e) => {
     return;
   }
 
-  const { data: pessoasExistentes, error: errBusca } = await supabase
-    .from(FI_PESSOAS_TABLE)
-    .select('*')
-    .ilike('nome', nomePessoa);
+  const { data: nomesExistentes, error: errBusca } = await supabase
+    .from(FI_VENDAS_TABLE)
+    .select('pessoa_nome');
 
   if (errBusca) {
     fiErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
@@ -2058,25 +2058,12 @@ bloquearDuranteSubmit(fiForm, async (e) => {
     return;
   }
 
-  let pessoaId = pessoasExistentes[0]?.id;
-
-  if (!pessoaId) {
-    const { data: pessoaCriada, error: errCriar } = await supabase
-      .from(FI_PESSOAS_TABLE)
-      .insert({ nome: nomePessoa })
-      .select()
-      .single();
-
-    if (errCriar) {
-      fiErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-      fiErrorEl.hidden = false;
-      return;
-    }
-    pessoaId = pessoaCriada.id;
-  }
+  const pessoaNomeExistente = nomesExistentes.find((venda) => {
+    return chavePessoaFiado(venda.pessoa_nome) === chavePessoaFiado(nomePessoa);
+  })?.pessoa_nome;
 
   const { error } = await supabase.from(FI_VENDAS_TABLE).insert({
-    pessoa_id: pessoaId,
+    pessoa_nome: pessoaNomeExistente || nomePessoa,
     valor,
     data,
     descricao: descricao || null,
@@ -2097,12 +2084,12 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
   e.preventDefault();
   fiPagamentoErrorEl.hidden = true;
 
-  const pessoaId = fiPagamentoPessoaSelect.value;
+  const pessoaNome = fiPagamentoPessoaSelect.value;
   const valor = parseMoney(fiPagamentoValorInput.value);
   const data = fiPagamentoDataInput.value;
   const descricao = fiPagamentoDescricaoInput.value.trim() || 'Pagamento';
 
-  if (!pessoaId) {
+  if (!pessoaNome) {
     fiPagamentoErrorEl.textContent = 'Escolha a pessoa que realizou o pagamento.';
     fiPagamentoErrorEl.hidden = false;
     return;
@@ -2115,8 +2102,8 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
   }
 
   const [{ data: vendas, error: errVendas }, { data: pagamentos, error: errPagamentos }] = await Promise.all([
-    supabase.from(FI_VENDAS_TABLE).select('valor').eq('pessoa_id', pessoaId),
-    supabase.from(FI_PAGAMENTOS_TABLE).select('valor').eq('pessoa_id', pessoaId),
+    supabase.from(FI_VENDAS_TABLE).select('valor').eq('pessoa_nome', pessoaNome),
+    supabase.from(FI_PAGAMENTOS_TABLE).select('valor').eq('pessoa_nome', pessoaNome),
   ]);
 
   if (errVendas || errPagamentos) {
@@ -2134,7 +2121,7 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
   }
 
   const { error } = await supabase.from(FI_PAGAMENTOS_TABLE).insert({
-    pessoa_id: pessoaId,
+    pessoa_nome: pessoaNome,
     valor,
     data,
     descricao,
@@ -2351,6 +2338,15 @@ function executarTestes() {
     const vendas = [{ id: 'v1', valor: 100 }, { id: 'v2', valor: 50 }];
     igual(podeRemoverVendaFiado(vendas, [{ valor: 80 }], vendas[1]), true);
   });
+  teste('Fiado — reúne nomes distintos sem duplicar diferenças de maiúsculas', () => {
+    igualJson(nomesDistintosFiado(
+      [{ pessoa_nome: 'Darnel' }, { pessoa_nome: 'darnel' }, { pessoa_nome: 'Ana' }],
+      [{ pessoa_nome: 'ANA' }]
+    ), ['Ana', 'Darnel']);
+  });
+  teste('Fiado — normaliza a chave do nome sem alterar a grafia exibida', () => {
+    igual(chavePessoaFiado('  Darnel  '), 'darnel');
+  });
 
   teste('Parcelas — modo repetir mantém o valor em todas', () => {
     igualJson(calcularValoresParcelas(100, 3, 'repetir'), [100, 100, 100]);
@@ -2484,6 +2480,11 @@ function executarTestes() {
   });
   teste('Interface — Contas a Pagar permite marcar conta pessoal', () => {
     igual(Boolean(document.getElementById('cp-pessoal')), true);
+  });
+  teste('Interface — Fiado permite escolher sugestão ou digitar nome novo', () => {
+    const pessoa = document.getElementById('fi-pessoa');
+    igual(pessoa.getAttribute('list'), 'fi-pessoas-datalist');
+    igual(pessoa.placeholder.includes('nova'), true);
   });
   teste('Interface — Cartão de Crédito fica visível mesmo sem movimentos', () => {
     const fixture = document.createElement('ul');
