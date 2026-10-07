@@ -106,7 +106,22 @@ body {
   line-height: 16px;
 }
 
-.emprestimo-grupo {
+.btn-abater {
+  flex-shrink: 0;
+  color: var(--success);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.btn-abater:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.emprestimo-grupo,
+.cartao-credito-grupo {
   margin-bottom: 24px;
 }
 

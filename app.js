@@ -15,6 +15,7 @@ const CP_PARCELAS_TABLE = 'contas_pagar_parcelas';
 const CP_PAGAMENTOS_TABLE = 'contas_pagar_pagamentos';
 const CP_AJUSTES_TABLE = 'contas_pagar_ajustes';
 const EMPRESTIMO_APORTES_TABLE = 'emprestimo_aportes';
+const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
 const FI_PESSOAS_TABLE = 'fiado_pessoas';
 const FI_VENDAS_TABLE = 'fiado_vendas';
 const FI_PAGAMENTOS_TABLE = 'fiado_pagamentos';
@@ -225,6 +226,63 @@ function ehEmprestimo(conta) {
 
 function calcularSaldoEmprestimo(valorOriginal, totalAportes) {
   return Math.max(round2(Number(valorOriginal) - Number(totalAportes)), 0);
+}
+
+function calcularSaldoCartaoCredito(lancamentos) {
+  return round2(lancamentos.reduce((saldo, lancamento) => {
+    const valor = Number(lancamento.valor);
+    return lancamento.tipo === 'divida' ? saldo + valor : saldo - valor;
+  }, 0));
+}
+
+function limitarAbatimentoCartaoCredito(valor, saldoAtual) {
+  return Math.min(round2(Number(valor)), Math.max(round2(Number(saldoAtual)), 0));
+}
+
+function dadosLancamentoCartaoCredito(tipo, valor, data = hojeISO()) {
+  return { tipo, valor: round2(Number(valor)), data };
+}
+
+function renderizarCartaoCredito(lancamentos, saldo) {
+  const aberto = cpGruposAlteradosManualmente.get('cartao-credito') ?? true;
+  const movimentos = lancamentos.map((lancamento) => {
+    const divida = lancamento.tipo === 'divida';
+    return `
+      <li class="lancamento-item">
+        <div class="lancamento-info">
+          <span class="lancamento-desc">${divida ? 'Dívida adicionada' : 'Abatimento'}</span>
+          <span class="lancamento-data">${formatDataBR(lancamento.data)}</span>
+        </div>
+        <span class="lancamento-valor ${divida ? 'negativo' : 'positivo'}">${divida ? '+' : '−'} ${formatMoney(lancamento.valor)}</span>
+        <button type="button" class="btn-icon cartao-excluir-btn" data-id="${lancamento.id}" aria-label="Excluir movimento do Cartão de Crédito" title="Excluir movimento">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4h6v2"></path>
+          </svg>
+        </button>
+      </li>`;
+  }).join('') || '<li class="empty-state">Nenhum movimento registrado.</li>';
+
+  return `
+    <li class="semana-grupo cartao-credito-grupo">
+      <details class="cp-grupo-details" data-grupo="cartao-credito"${aberto ? ' open' : ''}>
+        <summary class="semana-grupo-titulo">
+          <span>Cartão de Crédito</span>
+          <span class="semana-grupo-total">${formatMoney(saldo)}</span>
+        </summary>
+        <ul class="lancamentos">
+          <li class="lancamento-item cartao-credito-resumo">
+            <div class="lancamento-info">
+              <span class="lancamento-desc">Saldo devedor</span>
+              <span class="lancamento-data">+ aumenta a dívida · − abate</span>
+            </div>
+            <span class="lancamento-valor negativo">${formatMoney(saldo)}</span>
+            <button type="button" class="btn-icon btn-aporte cartao-movimento-btn" data-tipo="divida" aria-label="Adicionar dívida no Cartão de Crédito" title="Adicionar dívida">+</button>
+            <button type="button" class="btn-icon btn-abater cartao-movimento-btn" data-tipo="abatimento" aria-label="Abater Cartão de Crédito" title="Abater dívida"${saldo <= 0 ? ' disabled' : ''}>−</button>
+          </li>
+          ${movimentos}
+        </ul>
+      </details>
+    </li>`;
 }
 
 function limitarAporteEmprestimo(valorAporte, valorRestante) {
@@ -922,6 +980,7 @@ const cpSelecaoBarEl = document.getElementById('cp-selecao-bar');
 const cpSelecaoResumoEl = document.getElementById('cp-selecao-resumo');
 const cpSelecaoLimparEl = document.getElementById('cp-selecao-limpar');
 const cpGruposAlteradosManualmente = new Map();
+let cartaoSaldoAtual = 0;
 
 function limparSelecaoContasPagar() {
   cpOcorrenciasSelecionadas.clear();
@@ -1156,6 +1215,7 @@ async function carregarContasPagar() {
     { data: ajustesRows, error: errAjustes },
     { data: caixaRows, error: errCaixa },
     { data: aportesRows, error: errAportes },
+    { data: cartaoRows, error: errCartao },
   ] = await Promise.all([
     supabase.from(CP_TABLE).select('*').order('data_inicio', { ascending: true }),
     supabase.from(CP_EXDATES_TABLE).select('*'),
@@ -1168,10 +1228,11 @@ async function carregarContasPagar() {
       .order('created_at', { ascending: false })
       .limit(50),
     supabase.from(EMPRESTIMO_APORTES_TABLE).select('*').order('data', { ascending: false }),
+    supabase.from(CARTAO_CREDITO_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
   ]);
 
-  if (errContas || errEx || errParc || errPag || errAjustes || errCaixa || errAportes) {
-    cpListEl.innerHTML = `<li class="empty-state">${errAportes ? 'Aplique a migration 006 para habilitar os aportes.' : 'Erro ao carregar contas a pagar.'}</li>`;
+  if (errContas || errEx || errParc || errPag || errAjustes || errCaixa || errAportes || errCartao) {
+    cpListEl.innerHTML = `<li class="empty-state">${errAportes ? 'Aplique a migration 006 para habilitar os aportes.' : errCartao ? 'Aplique a migration 010 para habilitar o Cartão de Crédito.' : 'Erro ao carregar contas a pagar.'}</li>`;
     cpContasListEl.innerHTML = '';
     return;
   }
@@ -1180,6 +1241,8 @@ async function carregarContasPagar() {
 
   const pagamentosMap = new Map(pagos.map((p) => [`${p.conta_id}|${p.data}`, p]));
   const aportesMap = somarAportesPorOcorrencia(aportesRows);
+  cartaoSaldoAtual = calcularSaldoCartaoCredito(cartaoRows);
+  const cartaoCreditoHtml = renderizarCartaoCredito(cartaoRows, cartaoSaldoAtual);
   const saldoCaixa = calcularSaldoCaixa(caixaRows);
   const aluguelAbertoCaixa = encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos, ajustesRows);
   const saldoAposAluguel = calcularSaldoAposAluguel(saldoCaixa, aluguelAbertoCaixa?.valor);
@@ -1188,7 +1251,7 @@ async function carregarContasPagar() {
   ccSaldoTotalEl.classList.toggle('negative', saldoCaixa < 0);
 
   if (contas.length === 0) {
-    cpListEl.innerHTML = `<li class="empty-state">Nenhuma conta cadastrada.</li>`;
+    cpListEl.innerHTML = cartaoCreditoHtml + '<li class="empty-state">Nenhuma conta cadastrada.</li>';
     cpContasListEl.innerHTML = `<li class="empty-state">Nenhuma conta cadastrada.</li>`;
     cpTotalMesPagoEl.textContent = formatMoney(0);
     cpTotalMesGeralEl.textContent = formatMoney(0);
@@ -1428,7 +1491,7 @@ async function carregarContasPagar() {
       </details>
     </li>
   `;
-  cpListEl.innerHTML = emprestimosHtml + pessoaisHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
+  cpListEl.innerHTML = emprestimosHtml + cartaoCreditoHtml + pessoaisHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
   cpListEl.querySelectorAll('.cp-pago-checkbox[data-parcial="true"]').forEach((checkbox) => {
     checkbox.indeterminate = true;
   });
@@ -1589,6 +1652,49 @@ async function alternarPagoContasPagar(e) {
 cpListEl.addEventListener('change', alternarPagoContasPagar);
 
 cpListEl.addEventListener('click', async (e) => {
+  const cartaoExcluirBtn = e.target.closest('.cartao-excluir-btn');
+  if (cartaoExcluirBtn) {
+    if (!confirm('Excluir este movimento do Cartão de Crédito?')) return;
+    const { error } = await supabase.from(CARTAO_CREDITO_TABLE).delete().eq('id', cartaoExcluirBtn.dataset.id);
+    if (error) alert('Não foi possível excluir o movimento do Cartão de Crédito.');
+    await carregarContasPagar();
+    return;
+  }
+
+  const cartaoMovimentoBtn = e.target.closest('.cartao-movimento-btn');
+  if (cartaoMovimentoBtn) {
+    const abatimento = cartaoMovimentoBtn.dataset.tipo === 'abatimento';
+    const valorTexto = prompt(
+      abatimento ? 'Valor para abater do Cartão de Crédito:' : 'Valor para adicionar ao Cartão de Crédito:',
+      abatimento ? cartaoSaldoAtual.toFixed(2).replace('.', ',') : ''
+    );
+    if (valorTexto === null) return;
+
+    const valorInformado = parseMoney(valorTexto);
+    if (!valorInformado || valorInformado <= 0) {
+      alert('Valor inválido.');
+      return;
+    }
+
+    const valor = abatimento
+      ? limitarAbatimentoCartaoCredito(valorInformado, cartaoSaldoAtual)
+      : valorInformado;
+    if (!valor) {
+      alert('Não há saldo para abater.');
+      return;
+    }
+
+    const { error } = await supabase.from(CARTAO_CREDITO_TABLE).insert(
+      dadosLancamentoCartaoCredito(cartaoMovimentoBtn.dataset.tipo, valor)
+    );
+    if (error) {
+      alert('Erro ao registrar o movimento. Confira se a migration 010 foi aplicada.');
+      return;
+    }
+    await carregarContasPagar();
+    return;
+  }
+
   const aporteBtn = e.target.closest('.cp-aporte-btn');
   if (aporteBtn) {
     const valorTexto = prompt('Valor do aporte:', aporteBtn.dataset.restante.replace('.', ','));
@@ -2187,6 +2293,21 @@ function executarTestes() {
     igual(ehEmprestimo({ descricao: ' EMPRÉSTIMO ' }), true);
     igual(ehEmprestimo({ descricao: 'Empréstimo banco' }), false);
   });
+  teste('Cartão de Crédito — dívida aumenta e abatimento reduz o saldo', () => {
+    igual(calcularSaldoCartaoCredito([
+      { tipo: 'divida', valor: 250 },
+      { tipo: 'divida', valor: 75.5 },
+      { tipo: 'abatimento', valor: 100 },
+    ]), 225.5);
+  });
+  teste('Cartão de Crédito — abatimento não ultrapassa o saldo', () => {
+    igual(limitarAbatimentoCartaoCredito(100, 62.3), 62.3);
+  });
+  teste('Cartão de Crédito — movimento grava valor positivo com tipo e data', () => {
+    igualJson(dadosLancamentoCartaoCredito('divida', 80, '2026-10-06'), {
+      tipo: 'divida', valor: 80, data: '2026-10-06',
+    });
+  });
   teste('Salário — vendas somam e pagamentos subtraem', () => {
     igual(calcularSaldoSalario([{ tipo: 'venda', valor: 80 }, { tipo: 'pagamento', valor: 30 }]), 50);
   });
@@ -2363,6 +2484,13 @@ function executarTestes() {
   });
   teste('Interface — Contas a Pagar permite marcar conta pessoal', () => {
     igual(Boolean(document.getElementById('cp-pessoal')), true);
+  });
+  teste('Interface — Cartão de Crédito fica visível mesmo sem movimentos', () => {
+    const fixture = document.createElement('ul');
+    fixture.innerHTML = renderizarCartaoCredito([], 0);
+    igual(fixture.querySelector('.cartao-credito-grupo .cartao-movimento-btn[data-tipo="divida"]') !== null, true);
+    igual(fixture.querySelector('.cartao-credito-grupo .cartao-movimento-btn[data-tipo="abatimento"]').disabled, true);
+    fixture.remove();
   });
   teste('Interface — conta pessoal tem respiro após a descrição', () => {
     igual(getComputedStyle(document.querySelector('.cp-pessoal')).marginTop, '10px');

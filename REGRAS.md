@@ -18,6 +18,7 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
   - [Conta Mensal (recorrente)](#conta-mensal-recorrente)
   - [Conta Parcelada](#conta-parcelada)
   - [Contas pessoais](#contas-pessoais)
+  - [Cartão de Crédito](#cartão-de-crédito)
   - [Seleção para soma](#seleção-para-soma)
   - [Pagamento de ocorrências](#pagamento-de-ocorrências)
   - [Pular ocorrência](#pular-ocorrência)
@@ -347,6 +348,33 @@ ocorrência aparece apenas o saldo restante.
 
 ---
 
+### Cartão de Crédito
+
+O Cartão de Crédito aparece **sempre** em um bloco próprio nas Ocorrências,
+logo após o Empréstimo. Ele é independente de Contas a Pagar: não possui
+vencimento, não atrasa, não entra nos cards semanais ou no resumo mensal e
+nasce com saldo `R$ 0,00`.
+
+Cada movimento é registrado em `cartao_credito_lancamentos`, com valor sempre
+positivo e um tipo que define o sinal:
+
+| Ação | Tipo no banco | Efeito no saldo |
+|---|---|---|
+| `+` Adicionar dívida | `divida` | aumenta o saldo devedor |
+| `−` Abater dívida | `abatimento` | reduz o saldo devedor |
+
+```
+saldo do cartão = Σ(dívidas) − Σ(abatimentos)
+```
+
+O botão `−` já traz o saldo atual como sugestão e limita o valor ao necessário
+para zerar; portanto o saldo nunca fica negativo pela interface. Cada
+movimento mostra data, tipo, valor e pode ser excluído individualmente após
+confirmação. Excluir recalcula o saldo; o histórico permanece auditado linha a
+linha como os demais lançamentos.
+
+---
+
 ### Conta Mensal (recorrente)
 
 Repete todo mês no mesmo dia, **sem data de fim**. Não existe recorrência
@@ -592,7 +620,8 @@ verdade sobre quão longe está o que ele mostra.
 
 Pendências **atrasadas** de contas comuns são somadas ao primeiro número,
 junto com a semana encontrada. Havendo alguma, o rótulo passa a começar por
-"Atrasadas +". Contas pessoais e Empréstimo continuam fora dos dois cards.
+"Atrasadas +". Contas pessoais, Empréstimo e Cartão de Crédito continuam fora
+dos dois cards.
 
 #### Os dois números avançam quando não há pendência
 
@@ -604,8 +633,8 @@ seguinte à do primeiro, buscada da mesma forma — então se o primeiro virou
 semanas", "Em 4 semanas", etc.
 
 A busca avança semana a semana até achar uma pendência entre as ocorrências
-comuns carregadas. **Empréstimo e contas pessoais nunca entram nesses dois
-cards semanais**, pois já ficam em blocos separados. Se não existir nenhuma
+comuns carregadas. **Empréstimo, Cartão de Crédito e contas pessoais nunca
+entram nesses dois cards semanais**, pois já ficam em blocos separados. Se não existir nenhuma
 pendência comum naquela semana nem depois dela, o card mostra `R$ 0,00`; isso
 também impede uma busca infinita quando existem somente contas parceladas
 antigas, pessoais ou Empréstimo.
@@ -778,8 +807,9 @@ internos das tabelas financeiras.
 
 ### Edição e exclusão de lançamentos
 
-Lançamentos de Caixa Casa e Salário não podem ser editados, mas podem ser
-excluídos pela lixeira de cada linha, após confirmação. Uma venda excluída
+Lançamentos de Caixa Casa, Salário e movimentos do Cartão de Crédito não podem
+ser editados, mas podem ser excluídos pela lixeira de cada linha, após
+confirmação. Uma venda excluída
 retira sua comissão do saldo do Salário; excluir um pagamento devolve o valor
 ao saldo; e excluir uma entrada ou saída recalcula o Caixa Casa.
 
@@ -837,6 +867,7 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
   descrição no formulário;
 - dados do aporte manual, saldo, limite e preservação de aportes antigos do Empréstimo;
 - alinhamento do valor e dos ícones do Empréstimo como nas demais ocorrências;
+- saldo, limite de abatimento, payload e presença permanente do Cartão de Crédito;
 - exclusão de Empréstimo e contas pessoais dos cards semanais;
 - soma de contas comuns atrasadas no primeiro card semanal;
 - saldo, limite de pagamento e proteção ao remover vendas do Fiado;
