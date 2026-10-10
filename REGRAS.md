@@ -318,19 +318,32 @@ vencimento, atraso, data de cadastro, cards semanais ou resumo mensal.
 Cada movimento fica em `emprestimo_lancamentos`, com valor sempre positivo e
 um tipo que define o sinal:
 
-| Ação | Tipo no banco | Efeito no saldo |
-|---|---|---|
-| `+` Adicionar dívida | `divida` | aumenta o saldo devedor |
-| `−` Abater dívida | `abatimento` | reduz o saldo devedor |
+| Tipo no banco | Efeito no saldo |
+|---|---|
+| `divida` | aumenta o saldo devedor |
+| `abatimento` | reduz o saldo devedor |
 
 ```
 saldo do empréstimo = Σ(dívidas) − Σ(abatimentos)
 ```
 
-O botão `−` sugere o saldo atual e limita o valor ao necessário para zerar,
-portanto o saldo não fica negativo pela interface. Cada movimento mostra data,
-tipo e valor; pode ser excluído individualmente após confirmação. A conversão
-do modelo antigo preservou cada dívida e aporte como movimentos equivalentes.
+**Diferente do Cartão de Crédito, o Empréstimo não pede o valor do
+movimento — pede o valor atual da dívida.** O único botão do bloco
+("Atualizar valor atual") sugere o saldo de hoje e pergunta qual é o valor
+atual do empréstimo. O app calcula a diferença entre o valor informado e o
+saldo anterior (`dadosAtualizacaoValorDivida`) e grava, sozinho, um único
+movimento equivalente:
+
+- valor informado **maior** que o saldo → grava `divida` com a diferença;
+- valor informado **menor** que o saldo → grava `abatimento` com a diferença;
+- valor informado **igual** ao saldo → nenhum movimento é gravado.
+
+Isso evita o usuário ter que calcular manualmente quanto pagou ou quanto
+contraiu a mais; ele só informa o total atual da dívida. Cada movimento
+gravado mostra data, tipo e valor no histórico, e pode ser excluído
+individualmente após confirmação — excluir não refaz o cálculo, só remove
+aquele lançamento do histórico. A conversão do modelo antigo preservou cada
+dívida e aporte como movimentos equivalentes.
 
 ---
 

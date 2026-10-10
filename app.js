@@ -245,7 +245,13 @@ function dadosLancamentoDivida(tipo, valor, data = hojeISO()) {
   return { tipo, valor: round2(Number(valor)), data };
 }
 
-function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, saldo }) {
+function dadosAtualizacaoValorDivida(valorAtualInformado, saldoAtual, data = hojeISO()) {
+  const delta = round2(Number(valorAtualInformado) - Number(saldoAtual));
+  if (delta === 0) return null;
+  return dadosLancamentoDivida(delta > 0 ? 'divida' : 'abatimento', Math.abs(delta), data);
+}
+
+function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, saldo, valorAtualUnico }) {
   const aberto = cpGruposAlteradosManualmente.get(grupo) ?? true;
   const movimentos = lancamentos.map((lancamento) => {
     const divida = lancamento.tipo === 'divida';
@@ -264,6 +270,16 @@ function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, 
       </li>`;
   }).join('') || '<li class="empty-state">Nenhum movimento registrado.</li>';
 
+  const botoes = valorAtualUnico
+    ? `<button type="button" class="btn-icon btn-icon-neutro divida-valor-atual-btn" data-tabela="${tabela}" data-nome="${titulo}" aria-label="Atualizar valor atual do ${titulo}" title="Atualizar valor atual">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>`
+    : `<button type="button" class="btn-icon btn-aporte divida-movimento-btn" data-tabela="${tabela}" data-tipo="divida" data-nome="${titulo}" aria-label="Adicionar dívida no ${titulo}" title="Adicionar dívida">+</button>
+          <button type="button" class="btn-icon btn-abater divida-movimento-btn" data-tabela="${tabela}" data-tipo="abatimento" data-nome="${titulo}" aria-label="Abater ${titulo}" title="Abater dívida"${saldo <= 0 ? ' disabled' : ''}>−</button>`;
+
   return `
     <li class="semana-grupo ${classe}">
       <details class="cp-grupo-details" data-grupo="${grupo}"${aberto ? ' open' : ''}>
@@ -275,11 +291,10 @@ function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, 
           <li class="lancamento-item cartao-credito-resumo">
             <div class="lancamento-info">
               <span class="lancamento-desc">Saldo devedor</span>
-              <span class="lancamento-data">+ aumenta a dívida · − abate</span>
+              <span class="lancamento-data">${valorAtualUnico ? 'informe o valor atual' : '+ aumenta a dívida · − abate'}</span>
             </div>
             <span class="lancamento-valor negativo">${formatMoney(saldo)}</span>
-            <button type="button" class="btn-icon btn-aporte divida-movimento-btn" data-tabela="${tabela}" data-tipo="divida" data-nome="${titulo}" aria-label="Adicionar dívida no ${titulo}" title="Adicionar dívida">+</button>
-            <button type="button" class="btn-icon btn-abater divida-movimento-btn" data-tabela="${tabela}" data-tipo="abatimento" data-nome="${titulo}" aria-label="Abater ${titulo}" title="Abater dívida"${saldo <= 0 ? ' disabled' : ''}>−</button>
+            ${botoes}
           </li>
           ${movimentos}
         </ul>
@@ -297,7 +312,7 @@ function renderizarCartaoCredito(lancamentos, saldo) {
 function renderizarEmprestimo(lancamentos, saldo) {
   return renderizarDividaEspecial({
     grupo: 'emprestimo', classe: 'emprestimo-grupo', titulo: 'Empréstimo',
-    tabela: EMPRESTIMO_TABLE, lancamentos, saldo,
+    tabela: EMPRESTIMO_TABLE, lancamentos, saldo, valorAtualUnico: true,
   });
 }
 
@@ -1628,13 +1643,36 @@ cpListEl.addEventListener('click', async (e) => {
     return;
   }
 
+  const dividaValorAtualBtn = e.target.closest('.divida-valor-atual-btn');
+  if (dividaValorAtualBtn) {
+    const nome = dividaValorAtualBtn.dataset.nome;
+    const saldoAtual = emprestimoSaldoAtual;
+    const valorTexto = prompt(`Valor atual do ${nome}:`, saldoAtual.toFixed(2).replace('.', ','));
+    if (valorTexto === null) return;
+
+    const valorInformado = parseMoney(valorTexto);
+    if (Number.isNaN(valorInformado) || valorInformado < 0) {
+      alert('Valor inválido.');
+      return;
+    }
+
+    const dados = dadosAtualizacaoValorDivida(valorInformado, saldoAtual);
+    if (!dados) return;
+
+    const { error } = await supabase.from(dividaValorAtualBtn.dataset.tabela).insert(dados);
+    if (error) {
+      alert('Erro ao registrar o movimento. Confira se a migration 012 foi aplicada.');
+      return;
+    }
+    await carregarContasPagar();
+    return;
+  }
+
   const dividaMovimentoBtn = e.target.closest('.divida-movimento-btn');
   if (dividaMovimentoBtn) {
     const abatimento = dividaMovimentoBtn.dataset.tipo === 'abatimento';
     const nome = dividaMovimentoBtn.dataset.nome;
-    const saldoAtual = dividaMovimentoBtn.dataset.tabela === EMPRESTIMO_TABLE
-      ? emprestimoSaldoAtual
-      : cartaoSaldoAtual;
+    const saldoAtual = cartaoSaldoAtual;
     const valorTexto = prompt(
       abatimento ? `Valor para abater do ${nome}:` : `Valor para adicionar ao ${nome}:`,
       abatimento ? saldoAtual.toFixed(2).replace('.', ',') : ''
@@ -1659,7 +1697,7 @@ cpListEl.addEventListener('click', async (e) => {
       dadosLancamentoDivida(dividaMovimentoBtn.dataset.tipo, valor)
     );
     if (error) {
-      alert(`Erro ao registrar o movimento. Confira se a migration ${nome === 'Empréstimo' ? '012' : '010'} foi aplicada.`);
+      alert('Erro ao registrar o movimento. Confira se a migration 010 foi aplicada.');
       return;
     }
     await carregarContasPagar();
@@ -2175,6 +2213,24 @@ function executarTestes() {
       tipo: 'divida', valor: 80, data: '2026-10-06',
     });
   });
+  teste('Empréstimo — valor atual maior que o saldo grava dívida com a diferença', () => {
+    igualJson(dadosAtualizacaoValorDivida(300, 225.5, '2026-10-06'), {
+      tipo: 'divida', valor: 74.5, data: '2026-10-06',
+    });
+  });
+  teste('Empréstimo — valor atual menor que o saldo grava abatimento com a diferença', () => {
+    igualJson(dadosAtualizacaoValorDivida(100, 225.5, '2026-10-06'), {
+      tipo: 'abatimento', valor: 125.5, data: '2026-10-06',
+    });
+  });
+  teste('Empréstimo — valor atual igual ao saldo não gera movimento', () => {
+    igual(dadosAtualizacaoValorDivida(225.5, 225.5), null);
+  });
+  teste('Empréstimo — valor atual zero abate o saldo inteiro', () => {
+    igualJson(dadosAtualizacaoValorDivida(0, 225.5, '2026-10-06'), {
+      tipo: 'abatimento', valor: 225.5, data: '2026-10-06',
+    });
+  });
   teste('Salário — vendas somam e pagamentos subtraem', () => {
     igual(calcularSaldoSalario([{ tipo: 'venda', valor: 80 }, { tipo: 'pagamento', valor: 30 }]), 50);
   });
@@ -2371,8 +2427,8 @@ function executarTestes() {
   teste('Interface — Empréstimo fica visível mesmo sem movimentos', () => {
     const fixture = document.createElement('ul');
     fixture.innerHTML = renderizarEmprestimo([], 0);
-    igual(fixture.querySelector('.emprestimo-grupo .divida-movimento-btn[data-tipo="divida"]') !== null, true);
-    igual(fixture.querySelector('.emprestimo-grupo .divida-movimento-btn[data-tipo="abatimento"]').disabled, true);
+    igual(fixture.querySelector('.emprestimo-grupo .divida-valor-atual-btn') !== null, true);
+    igual(fixture.querySelector('.emprestimo-grupo .divida-movimento-btn'), null);
     fixture.remove();
   });
   teste('Interface — conta pessoal tem respiro após a descrição', () => {
