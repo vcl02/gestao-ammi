@@ -81,7 +81,8 @@
     <main id="view-caixa-casa" class="page view panel" hidden>
       <header class="topbar">
         <button class="btn-icon btn-inicio" data-nav="home" aria-label="Início" title="Início">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 11l9-8 9 8"></path>
             <path d="M5 10v10h14V10"></path>
             <path d="M9 20v-6h6v6"></path>
@@ -120,7 +121,7 @@
         <input type="date" id="cc-data" required>
 
         <label for="cc-descricao">Descrição <span id="cc-descricao-req" class="req" hidden>*</span></label>
-        <input type="text" id="cc-descricao" placeholder="Ex: aluguel de setembro">
+        <input type="text" id="cc-descricao" placeholder="Aluguel">
 
         <button type="submit">Salvar</button>
         <p id="cc-form-error" class="error" hidden></p>
@@ -136,7 +137,8 @@
     <main id="view-salario" class="page view panel" hidden>
       <header class="topbar">
         <button class="btn-icon btn-inicio" data-nav="home" aria-label="Início" title="Início">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 11l9-8 9 8"></path>
             <path d="M5 10v10h14V10"></path>
             <path d="M9 20v-6h6v6"></path>
@@ -168,7 +170,7 @@
           <input type="date" id="sal-venda-data" required>
 
           <label for="sal-venda-descricao">Descrição</label>
-          <input type="text" id="sal-venda-descricao" placeholder="Ex: Almoço">
+          <input type="text" id="sal-venda-descricao">
 
           <button type="submit" id="sal-venda-submit">Salvar</button>
           <p id="sal-venda-error" class="error" hidden></p>
@@ -199,7 +201,8 @@
     <main id="view-contas-pagar" class="page view panel" hidden>
       <header class="topbar">
         <button class="btn-icon btn-inicio" data-nav="home" aria-label="Início" title="Início">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 11l9-8 9 8"></path>
             <path d="M5 10v10h14V10"></path>
             <path d="M9 20v-6h6v6"></path>
@@ -253,13 +256,13 @@
 
         <div id="cp-campo-parcelas" hidden>
           <label for="cp-qtde-parcelas">Parcelas</label>
-          <input type="text" id="cp-qtde-parcelas" inputmode="numeric" maxlength="2" placeholder="Ex: 3">
+          <input type="text" id="cp-qtde-parcelas" inputmode="numeric" maxlength="2" placeholder="3">
 
           <div id="cp-datas-parcelas"></div>
         </div>
 
         <label for="cp-descricao">Descrição</label>
-        <input type="text" id="cp-descricao" placeholder="Ex: Aluguel" required>
+        <input type="text" id="cp-descricao" placeholder="Luz" required>
 
         <label class="cp-pessoal" for="cp-pessoal">
           <input type="checkbox" id="cp-pessoal">
@@ -287,7 +290,8 @@
     <main id="view-fiado" class="page view panel" hidden>
       <header class="topbar">
         <button class="btn-icon btn-inicio" data-nav="home" aria-label="Início" title="Início">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 11l9-8 9 8"></path>
             <path d="M5 10v10h14V10"></path>
             <path d="M9 20v-6h6v6"></path>
@@ -319,10 +323,10 @@
           <input type="date" id="fi-data" required>
 
           <label for="fi-descricao">Descrição</label>
-          <input type="text" id="fi-descricao" placeholder="Ex: 2 papéis higiênicos">
+          <input type="text" id="fi-descricao" placeholder="2 papéis higiênicos">
 
           <label for="fi-pessoa">Pessoa</label>
-          <input type="text" id="fi-pessoa" list="fi-pessoas-datalist" placeholder="Escolha ou digite uma pessoa nova" required
+          <input type="text" id="fi-pessoa" list="fi-pessoas-datalist" placeholder="Bruna Frameschi" required
             autocomplete="off">
 
           <button type="submit">Salvar</button>
@@ -363,7 +367,8 @@
   </aside>
 
   <dialog id="sal-aviso-dias-sem-venda" class="modal-aviso" aria-labelledby="sal-aviso-dias-sem-venda-titulo">
-    <button type="button" id="sal-aviso-dias-sem-venda-fechar" class="btn-icon modal-aviso-fechar" aria-label="Fechar aviso">×</button>
+    <button type="button" id="sal-aviso-dias-sem-venda-fechar" class="btn-icon modal-aviso-fechar"
+      aria-label="Fechar aviso">×</button>
     <h2 id="sal-aviso-dias-sem-venda-titulo">Vendas faltando</h2>
     <p id="sal-aviso-dias-sem-venda-progresso" class="modal-venda-progresso"></p>
     <form id="sal-aviso-dias-sem-venda-form" class="modal-venda-form">
