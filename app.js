@@ -541,7 +541,7 @@ aplicarMascaraMoney(document.getElementById('cc-valor'));
 
 const CC_DESCRICAO_PADRAO = {
   entrada: 'Suprimento',
-  saida: 'Aluguel',
+  saida: null,
 };
 
 function updateCcDescricaoRequirement() {
