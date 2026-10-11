@@ -948,7 +948,7 @@ bloquearDuranteSubmit(salPagamentoForm, async (e) => {
 
   const valor = parseMoney(salPagamentoValorInput.value);
   const data = salPagamentoDataInput.value;
-  const descricao = salPagamentoDescricaoInput.value.trim() || 'Saque';
+  const descricao = salPagamentoDescricaoInput.value.trim() || 'Café Manhã';
 
   if (!valor || valor <= 0) {
     salPagamentoErrorEl.textContent = 'Informe um valor válido.';
@@ -971,7 +971,7 @@ bloquearDuranteSubmit(salPagamentoForm, async (e) => {
 
   salPagamentoForm.reset();
   salPagamentoDataInput.value = hojeISO();
-  salPagamentoDescricaoInput.value = 'Saque';
+  salPagamentoDescricaoInput.value = 'Café Manhã';
   await carregarSalario();
 });
 

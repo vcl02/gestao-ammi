@@ -196,7 +196,7 @@ registrados manualmente em seu bloco próprio.
 ### Pagamento
 
 Um pagamento é dinheiro entregue à gerente, que **abate** o saldo devido.
-Descrição tem default `Saque` e é obrigatória (se esvaziada, volta a `Saque`).
+Descrição tem default `Café Manhã` e é obrigatória (se esvaziada, volta a `Café Manhã`).
 No mobile, esta é a aba aberta automaticamente ao entrar no sistema.
 
 ### Saldo
