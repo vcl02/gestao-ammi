@@ -307,6 +307,16 @@ Se não for possível criar algum lançamento automático, o sistema tenta
 desfazer a marcação de pago; a cascata também desfaz outro lançamento
 automático que já tenha sido criado para aquela ocorrência.
 
+Em "Contas cadastradas", toda conta pessoal com alguma ocorrência em aberto
+(não paga) ganha um botão **+** ao lado da lixeira, para somar um valor novo à
+dívida — ex.: deve 10, soma 10, passa a dever 20. O valor digitado é somado ao
+valor **total** da ocorrência aberta mais antiga daquela conta (ajuste pontual
+em conta Mensal, valor da parcela em conta Parcelada); o saldo restante sobe
+na mesma proporção, mesmo que já exista pagamento parcial. Em conta Mensal, a
+soma não altera `contas_pagar.valor` nem os meses seguintes — só a ocorrência
+em aberto agora. Conta pessoal sem nenhuma ocorrência em aberto (tudo pago)
+não mostra o botão; para uma dívida nova, cadastra-se outra conta.
+
 ---
 
 ### Empréstimo
@@ -860,6 +870,7 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - comissão e saldo do Salário, inclusive o payload de uma venda esquecida;
 - criação vinculada e reversão por cascata do pagamento de uma conta pessoal;
 - limite, saldo restante e payload acumulado dos pagamentos parciais;
+- escolha da ocorrência aberta mais antiga ao somar valor numa conta pessoal;
 - exibição de contas Pessoais pela data de cadastro, fora dos grupos semanais
   e sem atraso visual;
 - identificação visual de contas pessoais e destino correto da exclusão de

@@ -109,6 +109,12 @@ function calcularSaldoConta(valorTotal, valorPago) {
   return Math.max(round2(Number(valorTotal) - limitarValorPagoConta(valorPago, valorTotal)), 0);
 }
 
+// Ocorrência que recebe o valor somado pelo botão "+" de uma conta pessoal:
+// a mais antiga ainda não paga. `ocorrencias` já vem ordenada por data.
+function encontrarOcorrenciaAbertaPessoal(contaId, ocorrencias) {
+  return ocorrencias.find((o) => o.conta.id === contaId && !o.paga) || null;
+}
+
 function dadosPagamentoConta(contaId, data, valorPago, valorCaixa = 0) {
   return {
     conta_id: contaId,
@@ -1486,13 +1492,24 @@ async function carregarContasPagar() {
       ? parcelasRows.filter((p) => p.conta_id === conta.id).reduce((acc, p) => acc + Number(p.valor), 0)
       : Number(conta.valor);
 
+    const ocorrenciaAberta = conta.pessoal
+      ? encontrarOcorrenciaAbertaPessoal(conta.id, ocorrenciasParaExibir)
+      : null;
+    const botaoAdicionarValor = ocorrenciaAberta ? `
+      <button type="button" class="btn-icon btn-icon-neutro cp-adicionar-valor-btn" data-conta-id="${conta.id}" data-data="${ocorrenciaAberta.data}" data-tipo="${conta.tipo}" data-valor="${ocorrenciaAberta.valorOriginal}" aria-label="Somar valor" title="Somar valor">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>` : '';
+
     return `
     <li class="lancamento-item">
       <div class="lancamento-info">
         <span class="lancamento-desc">${conta.descricao}</span>
         <span class="lancamento-data">${conta.tipo === 'parcelado' ? 'parcelado' : `mensal — dia ${conta.dia_vencimento}`}${conta.pessoal ? ' · pessoal' : ''}</span>
       </div>
-      <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>
+      <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>${botaoAdicionarValor}
       <button type="button" class="btn-icon cp-remover-btn" data-conta-id="${conta.id}" aria-label="Remover conta" title="Remover conta">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"></polyline>
@@ -1737,6 +1754,28 @@ cpListEl.addEventListener('click', async (e) => {
 });
 
 cpContasListEl.addEventListener('click', async (e) => {
+  const adicionarBtn = e.target.closest('.cp-adicionar-valor-btn');
+  if (adicionarBtn) {
+    const { contaId, data, tipo, valor } = adicionarBtn.dataset;
+    const valorASomarTexto = prompt('Valor a somar:');
+    if (valorASomarTexto === null) return;
+
+    const valorASomar = parseMoney(valorASomarTexto);
+    if (!valorASomar || valorASomar <= 0) {
+      alert('Valor inválido.');
+      return;
+    }
+
+    const novoValor = round2(Number(valor) + valorASomar);
+    if (tipo === 'parcelado') {
+      await supabase.from(CP_PARCELAS_TABLE).update({ valor: novoValor }).eq('conta_id', contaId).eq('data', data);
+    } else {
+      await supabase.from(CP_AJUSTES_TABLE).upsert({ conta_id: contaId, data, valor: novoValor });
+    }
+    await carregarContasPagar();
+    return;
+  }
+
   const btn = e.target.closest('.cp-remover-btn');
   if (!btn) return;
   if (!confirm('Remover esta conta e todo o seu histórico de pagamentos/parcelas/exceções?')) return;
@@ -2133,6 +2172,19 @@ function executarTestes() {
   });
   teste('Contas a Pagar — pagamento parcial reduz somente o saldo restante', () => {
     igual(calcularSaldoConta(500, 125.5), 374.5);
+  });
+  teste('Contas a Pagar — botão de somar valor da conta pessoal pega a ocorrência aberta mais antiga', () => {
+    const ocorrencias = [
+      { conta: { id: 'c1' }, data: '2026-09-10', paga: true },
+      { conta: { id: 'c1' }, data: '2026-10-10', paga: false },
+      { conta: { id: 'c1' }, data: '2026-11-10', paga: false },
+      { conta: { id: 'c2' }, data: '2026-10-05', paga: false },
+    ];
+    igual(encontrarOcorrenciaAbertaPessoal('c1', ocorrencias).data, '2026-10-10');
+  });
+  teste('Contas a Pagar — conta pessoal totalmente paga não tem ocorrência aberta para somar valor', () => {
+    const ocorrencias = [{ conta: { id: 'c1' }, data: '2026-10-10', paga: true }];
+    igual(encontrarOcorrenciaAbertaPessoal('c1', ocorrencias), null);
   });
   teste('Contas a Pagar — pagamento não ultrapassa o valor da ocorrência', () => {
     igual(limitarValorPagoConta(550, 500), 500);
