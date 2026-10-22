@@ -121,8 +121,42 @@ body {
 }
 
 .emprestimo-grupo,
-.cartao-credito-grupo {
+.cartao-credito-grupo,
+.roberta-grupo {
   margin-bottom: 24px;
+}
+
+.cp-pagamento-origens {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  border: none;
+}
+
+.cp-pagamento-origens legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.cp-pagamento-origens label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.cp-pagamento-origens input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
 }
 
 .card {

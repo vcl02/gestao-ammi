@@ -16,6 +16,7 @@ const CP_PAGAMENTOS_TABLE = 'contas_pagar_pagamentos';
 const CP_AJUSTES_TABLE = 'contas_pagar_ajustes';
 const EMPRESTIMO_TABLE = 'emprestimo_lancamentos';
 const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
+const ROBERTA_TABLE = 'roberta_lancamentos';
 const FI_TABLE = 'fiado_lancamentos';
 const PERCENTUAL_COMISSAO = 0.25;
 const modoTestes = new URLSearchParams(window.location.search).has('testes');
@@ -115,12 +116,33 @@ function encontrarOcorrenciaAbertaPessoal(contaId, ocorrencias) {
   return ocorrencias.find((o) => o.conta.id === contaId && !o.paga) || null;
 }
 
-function dadosPagamentoConta(contaId, data, valorPago, valorCaixa = 0) {
+function dadosPagamentoConta(contaId, data, valorPago, valorCaixa = 0, valorRoberta = 0) {
   return {
     conta_id: contaId,
     data,
     valor_pago: valorPago,
     valor_caixa: valorCaixa,
+    valor_roberta: valorRoberta,
+  };
+}
+
+// origem: 'proprio' | 'caixa' | 'roberta'. Cada parte acumula só o que saiu dela.
+function calcularNovoPagamentoConta(anterior, valor, origem) {
+  return {
+    valorPago: round2(anterior.valorPago + valor),
+    valorCaixa: round2(anterior.valorCaixa + (origem === 'caixa' ? valor : 0)),
+    valorRoberta: round2(anterior.valorRoberta + (origem === 'roberta' ? valor : 0)),
+  };
+}
+
+function dadosDividaRobertaDaConta(contaId, valor, data, descricao) {
+  return {
+    tipo: 'divida',
+    valor,
+    data,
+    descricao,
+    conta_pagar_id: contaId,
+    data_ocorrencia: data,
   };
 }
 
@@ -261,14 +283,15 @@ function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, 
   const aberto = cpGruposAlteradosManualmente.get(grupo) ?? true;
   const movimentos = lancamentos.map((lancamento) => {
     const divida = lancamento.tipo === 'divida';
+    const rotulo = divida ? 'Dívida adicionada' : 'Abatimento';
     return `
       <li class="lancamento-item">
         <div class="lancamento-info">
-          <span class="lancamento-desc">${divida ? 'Dívida adicionada' : 'Abatimento'}</span>
+          <span class="lancamento-desc">${lancamento.descricao ? `${rotulo} · ${lancamento.descricao}` : rotulo}</span>
           <span class="lancamento-data">${formatDataBR(lancamento.data)}</span>
         </div>
         <span class="lancamento-valor ${divida ? 'negativo' : 'positivo'}">${divida ? '+' : '−'} ${formatMoney(lancamento.valor)}</span>
-        <button type="button" class="btn-icon cartao-excluir-btn" data-id="${lancamento.id}" data-tabela="${tabela}" data-nome="${titulo}" aria-label="Excluir movimento do ${titulo}" title="Excluir movimento">
+        <button type="button" class="btn-icon cartao-excluir-btn" data-id="${lancamento.id}" data-tabela="${tabela}" data-nome="${titulo}" data-conta-id="${lancamento.conta_pagar_id || ''}" data-data-ocorrencia="${lancamento.data_ocorrencia || ''}" aria-label="Excluir movimento do ${titulo}" title="Excluir movimento">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4h6v2"></path>
           </svg>
@@ -319,6 +342,13 @@ function renderizarEmprestimo(lancamentos, saldo) {
   return renderizarDividaEspecial({
     grupo: 'emprestimo', classe: 'emprestimo-grupo', titulo: 'Empréstimo',
     tabela: EMPRESTIMO_TABLE, lancamentos, saldo, valorAtualUnico: true,
+  });
+}
+
+function renderizarRoberta(lancamentos, saldo) {
+  return renderizarDividaEspecial({
+    grupo: 'roberta', classe: 'roberta-grupo', titulo: 'Roberta',
+    tabela: ROBERTA_TABLE, lancamentos, saldo,
   });
 }
 
@@ -995,8 +1025,56 @@ const cpSelecaoBarEl = document.getElementById('cp-selecao-bar');
 const cpSelecaoResumoEl = document.getElementById('cp-selecao-resumo');
 const cpSelecaoLimparEl = document.getElementById('cp-selecao-limpar');
 const cpGruposAlteradosManualmente = new Map();
+const cpPagamentoEl = document.getElementById('cp-pagamento');
+const cpPagamentoTituloEl = document.getElementById('cp-pagamento-titulo');
+const cpPagamentoResumoEl = document.getElementById('cp-pagamento-resumo');
+const cpPagamentoForm = document.getElementById('cp-pagamento-form');
+const cpPagamentoValorInput = document.getElementById('cp-pagamento-valor');
+const cpPagamentoErrorEl = document.getElementById('cp-pagamento-error');
 let cartaoSaldoAtual = 0;
 let emprestimoSaldoAtual = 0;
+let robertaSaldoAtual = 0;
+let cpPagamentoPendente = null;
+
+aplicarMascaraMoney(cpPagamentoValorInput);
+
+function valorPagamentoContaValido(valor, valorRestante) {
+  return Number.isFinite(valor) && valor > 0 && round2(valor) <= round2(valorRestante);
+}
+
+// Resolve com { valor, origem } ou null se o usuário cancelar.
+function pedirPagamentoConta({ descricao, valorRestante, origemPadrao }) {
+  cpPagamentoTituloEl.textContent = descricao;
+  cpPagamentoResumoEl.textContent = `Falta pagar ${formatMoney(valorRestante)}`;
+  cpPagamentoValorInput.value = valorRestante.toFixed(2).replace('.', ',');
+  cpPagamentoForm.elements['cp-pagamento-origem'].value = origemPadrao;
+  cpPagamentoErrorEl.hidden = true;
+  cpPagamentoEl.showModal();
+  return new Promise((resolve) => {
+    cpPagamentoPendente = { resolve, valorRestante };
+  });
+}
+
+function concluirPagamentoConta(resultado) {
+  const pendente = cpPagamentoPendente;
+  cpPagamentoPendente = null;
+  if (cpPagamentoEl.open) cpPagamentoEl.close();
+  pendente?.resolve(resultado);
+}
+
+cpPagamentoForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!cpPagamentoPendente) return;
+  const valor = parseMoney(cpPagamentoValorInput.value);
+  if (!valorPagamentoContaValido(valor, cpPagamentoPendente.valorRestante)) {
+    cpPagamentoErrorEl.textContent = `Informe um valor entre R$ 0,01 e ${formatMoney(cpPagamentoPendente.valorRestante)}.`;
+    cpPagamentoErrorEl.hidden = false;
+    return;
+  }
+  concluirPagamentoConta({ valor: round2(valor), origem: cpPagamentoForm.elements['cp-pagamento-origem'].value });
+});
+document.getElementById('cp-pagamento-fechar').addEventListener('click', () => concluirPagamentoConta(null));
+cpPagamentoEl.addEventListener('close', () => concluirPagamentoConta(null));
 
 function limparSelecaoContasPagar() {
   cpOcorrenciasSelecionadas.clear();
@@ -1232,6 +1310,7 @@ async function carregarContasPagar() {
     { data: caixaRows, error: errCaixa },
     { data: emprestimoRows, error: errEmprestimo },
     { data: cartaoRows, error: errCartao },
+    { data: robertaRows, error: errRoberta },
   ] = await Promise.all([
     supabase.from(CP_TABLE).select('*').order('data_inicio', { ascending: true }),
     supabase.from(CP_EXDATES_TABLE).select('*'),
@@ -1245,10 +1324,11 @@ async function carregarContasPagar() {
       .limit(50),
     supabase.from(EMPRESTIMO_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from(CARTAO_CREDITO_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
+    supabase.from(ROBERTA_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false }),
   ]);
 
-  if (errContas || errEx || errParc || errPag || errAjustes || errCaixa || errEmprestimo || errCartao) {
-    cpListEl.innerHTML = `<li class="empty-state">${errEmprestimo ? 'Aplique a migration 012 para habilitar o Empréstimo.' : errCartao ? 'Aplique a migration 010 para habilitar o Cartão de Crédito.' : 'Erro ao carregar contas a pagar.'}</li>`;
+  if (errContas || errEx || errParc || errPag || errAjustes || errCaixa || errEmprestimo || errCartao || errRoberta) {
+    cpListEl.innerHTML = `<li class="empty-state">${errEmprestimo ? 'Aplique a migration 012 para habilitar o Empréstimo.' : errCartao ? 'Aplique a migration 010 para habilitar o Cartão de Crédito.' : errRoberta ? 'Aplique a migration 014 para habilitar o Dinheiro Roberta.' : 'Erro ao carregar contas a pagar.'}</li>`;
     cpContasListEl.innerHTML = '';
     return;
   }
@@ -1258,8 +1338,10 @@ async function carregarContasPagar() {
   const pagamentosMap = new Map(pagos.map((p) => [`${p.conta_id}|${p.data}`, p]));
   emprestimoSaldoAtual = calcularSaldoDivida(emprestimoRows);
   cartaoSaldoAtual = calcularSaldoDivida(cartaoRows);
+  robertaSaldoAtual = calcularSaldoDivida(robertaRows);
   const emprestimoHtml = renderizarEmprestimo(emprestimoRows, emprestimoSaldoAtual);
   const cartaoCreditoHtml = renderizarCartaoCredito(cartaoRows, cartaoSaldoAtual);
+  const robertaHtml = renderizarRoberta(robertaRows, robertaSaldoAtual);
   const saldoCaixa = calcularSaldoCaixa(caixaRows);
   const aluguelAbertoCaixa = encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos, ajustesRows);
   const saldoAposAluguel = calcularSaldoAposAluguel(saldoCaixa, aluguelAbertoCaixa?.valor);
@@ -1268,7 +1350,7 @@ async function carregarContasPagar() {
   ccSaldoTotalEl.classList.toggle('negative', saldoCaixa < 0);
 
   if (contas.length === 0) {
-    cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + '<li class="empty-state">Nenhuma conta cadastrada.</li>';
+    cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + '<li class="empty-state">Nenhuma conta cadastrada.</li>';
     cpContasListEl.innerHTML = `<li class="empty-state">Nenhuma conta cadastrada.</li>`;
     cpTotalMesPagoEl.textContent = formatMoney(0);
     cpTotalMesGeralEl.textContent = formatMoney(0);
@@ -1316,6 +1398,7 @@ async function carregarContasPagar() {
         valorOriginal,
         valorPago,
         valorCaixaPago: Number(pagamento?.valor_caixa || 0),
+        valorRobertaPago: Number(pagamento?.valor_roberta || 0),
         paga,
         atrasada,
       });
@@ -1406,7 +1489,7 @@ async function carregarContasPagar() {
   }
 
   function renderizarItemOcorrencia(ocorrencia) {
-    const { conta, data, valor, valorOriginal, valorPago, valorCaixaPago, paga, atrasada } = ocorrencia;
+    const { conta, data, valor, valorOriginal, valorPago, valorCaixaPago, valorRobertaPago, paga, atrasada } = ocorrencia;
     const valorExibido = valorExibidoOcorrencia(ocorrencia);
     const parcial = valorPago > 0 && !paga;
     const botoesAcao = (paga || valorPago > 0) ? '' : `
@@ -1429,7 +1512,7 @@ async function carregarContasPagar() {
     return `
       <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}${selecionada ? ' cp-ocorrencia-selecionada' : ''}">
         <div class="lancamento-checkbox">
-          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
+          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-valor-roberta="${valorRobertaPago}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
           <div class="lancamento-info">
             <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${tagPessoalConta(conta)}${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
             <span class="lancamento-data">${formatDataBR(dataExibicaoOcorrencia(ocorrencia))}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
@@ -1477,7 +1560,7 @@ async function carregarContasPagar() {
       </details>
     </li>
   `;
-  cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + pessoaisHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
+  cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + pessoaisHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
   cpListEl.querySelectorAll('.cp-pago-checkbox[data-parcial="true"]').forEach((checkbox) => {
     checkbox.indeterminate = true;
   });
@@ -1529,109 +1612,102 @@ async function alternarPagoContasPagar(e) {
   const pessoal = checkbox.dataset.pessoal === 'true';
   const aluguel = checkbox.dataset.aluguel === 'true';
   const valor = Number(checkbox.dataset.valor);
-  const valorPagoAnterior = Number(checkbox.dataset.valorPago || 0);
-  const valorCaixaAnterior = Number(checkbox.dataset.valorCaixa || 0);
+  const anterior = {
+    valorPago: Number(checkbox.dataset.valorPago || 0),
+    valorCaixa: Number(checkbox.dataset.valorCaixa || 0),
+    valorRoberta: Number(checkbox.dataset.valorRoberta || 0),
+  };
   const descricao = checkbox.dataset.descricao;
 
   checkbox.disabled = true;
 
   if (checkbox.checked) {
-    const valorRestante = calcularSaldoConta(valor, valorPagoAnterior);
-    let valorDestePagamento = valorRestante;
-
-    if (pessoal) {
-      const valorTexto = prompt('Valor deste pagamento:', valorRestante.toFixed(2).replace('.', ','));
-      if (valorTexto === null) {
-        await carregarContasPagar();
-        return;
-      }
-
-      valorDestePagamento = parseMoney(valorTexto);
-      if (!valorDestePagamento || valorDestePagamento <= 0 || valorDestePagamento > valorRestante) {
-        alert(`Informe um valor entre R$ 0,01 e ${formatMoney(valorRestante)}.`);
-        await carregarContasPagar();
-        return;
-      }
+    const valorRestante = calcularSaldoConta(valor, anterior.valorPago);
+    const escolha = await pedirPagamentoConta({
+      descricao,
+      valorRestante,
+      origemPadrao: aluguel ? 'caixa' : 'proprio',
+    });
+    if (!escolha) {
+      await carregarContasPagar();
+      return;
     }
 
-    const usarCaixa = aluguel || confirm('Esta conta foi paga com dinheiro do Caixa Casa?');
-    const novoValorPago = round2(valorPagoAnterior + valorDestePagamento);
-    const novoValorCaixa = round2(valorCaixaAnterior + (usarCaixa ? valorDestePagamento : 0));
-    const pagamentoAnterior = valorPagoAnterior > 0
-      ? dadosPagamentoConta(contaId, data, valorPagoAnterior, valorCaixaAnterior)
-      : null;
+    const { origem } = escolha;
+    const novo = calcularNovoPagamentoConta(anterior, escolha.valor, origem);
+    const vinculoOrigem = {
+      caixa: { tabela: CC_TABLE, nome: 'o Caixa Casa', dados: (v) => dadosSaidaCaixaDaConta(contaId, v, data, descricao) },
+      roberta: { tabela: ROBERTA_TABLE, nome: 'a dívida da Roberta', dados: (v) => dadosDividaRobertaDaConta(contaId, v, data, descricao) },
+    }[origem];
+    const valorAnteriorOrigem = origem === 'caixa' ? anterior.valorCaixa : anterior.valorRoberta;
+    const valorNovoOrigem = origem === 'caixa' ? novo.valorCaixa : novo.valorRoberta;
 
     const restaurarPagamentoAnterior = async () => {
-      if (!pagamentoAnterior) {
+      if (anterior.valorPago === 0) {
         return supabase.from(CP_PAGAMENTOS_TABLE).delete().eq('conta_id', contaId).eq('data', data);
       }
 
-      const { error: erroPagamento } = await supabase.from(CP_PAGAMENTOS_TABLE).upsert(pagamentoAnterior);
+      const { error: erroPagamento } = await supabase.from(CP_PAGAMENTOS_TABLE).upsert(
+        dadosPagamentoConta(contaId, data, anterior.valorPago, anterior.valorCaixa, anterior.valorRoberta)
+      );
       if (erroPagamento) return { error: erroPagamento };
 
       if (pessoal) {
         const { error: erroSalario } = await supabase.from(SAL_TABLE).upsert(
-          dadosPagamentoSalarioDaContaPessoal(contaId, valorPagoAnterior, data, descricao),
+          dadosPagamentoSalarioDaContaPessoal(contaId, anterior.valorPago, data, descricao),
           { onConflict: 'conta_pagar_id,data_ocorrencia' }
         );
         if (erroSalario) return { error: erroSalario };
       }
 
-      if (valorCaixaAnterior > 0) {
-        return supabase.from(CC_TABLE).upsert(
-          dadosSaidaCaixaDaConta(contaId, valorCaixaAnterior, data, descricao),
+      if (!vinculoOrigem) return { error: null };
+      if (valorAnteriorOrigem > 0) {
+        return supabase.from(vinculoOrigem.tabela).upsert(
+          vinculoOrigem.dados(valorAnteriorOrigem),
           { onConflict: 'conta_pagar_id,data_ocorrencia' }
         );
       }
-
-      return supabase.from(CC_TABLE)
+      return supabase.from(vinculoOrigem.tabela)
         .delete()
         .eq('conta_pagar_id', contaId)
         .eq('data_ocorrencia', data);
     };
 
+    const falharEDesfazer = async (mensagem) => {
+      const { error: erroDesfazerPagamento } = await restaurarPagamentoAnterior();
+      alert(erroDesfazerPagamento
+        ? 'O pagamento ficou incompleto. Ajuste os registros no banco.'
+        : mensagem);
+      await carregarContasPagar();
+    };
+
     const { error: erroPagamento } = await supabase.from(CP_PAGAMENTOS_TABLE).upsert(
-      dadosPagamentoConta(contaId, data, novoValorPago, novoValorCaixa)
+      dadosPagamentoConta(contaId, data, novo.valorPago, novo.valorCaixa, novo.valorRoberta)
     );
     if (erroPagamento) {
-      alert('Não foi possível registrar o pagamento. Confira se a migration 009 foi aplicada.');
+      alert('Não foi possível registrar o pagamento. Confira se a migration 014 foi aplicada.');
       await carregarContasPagar();
       return;
     }
 
     if (pessoal) {
       const { error: erroSalario } = await supabase.from(SAL_TABLE).upsert(
-        dadosPagamentoSalarioDaContaPessoal(
-          contaId,
-          novoValorPago,
-          data,
-          descricao
-        ),
+        dadosPagamentoSalarioDaContaPessoal(contaId, novo.valorPago, data, descricao),
         { onConflict: 'conta_pagar_id,data_ocorrencia' }
       );
-
       if (erroSalario) {
-        const { error: erroDesfazerPagamento } = await restaurarPagamentoAnterior();
-        alert(erroDesfazerPagamento
-          ? 'O pagamento ficou incompleto. Ajuste os registros no banco.'
-          : 'Não foi possível atualizar o Salário. O pagamento anterior foi preservado.');
-        await carregarContasPagar();
+        await falharEDesfazer('Não foi possível atualizar o Salário. O pagamento anterior foi preservado.');
         return;
       }
     }
 
-    if (usarCaixa) {
-      const { error: erroCaixa } = await supabase.from(CC_TABLE).upsert(
-        dadosSaidaCaixaDaConta(contaId, novoValorCaixa, data, descricao),
+    if (vinculoOrigem) {
+      const { error: erroOrigem } = await supabase.from(vinculoOrigem.tabela).upsert(
+        vinculoOrigem.dados(valorNovoOrigem),
         { onConflict: 'conta_pagar_id,data_ocorrencia' }
       );
-
-      if (erroCaixa) {
-        const { error: erroDesfazerPagamento } = await restaurarPagamentoAnterior();
-        alert(erroDesfazerPagamento
-          ? 'O pagamento ficou incompleto. Ajuste os registros no banco.'
-          : 'Não foi possível atualizar o Caixa Casa. O pagamento anterior foi preservado.');
-        await carregarContasPagar();
+      if (erroOrigem) {
+        await falharEDesfazer(`Não foi possível atualizar ${vinculoOrigem.nome}. O pagamento anterior foi preservado.`);
         return;
       }
     }
@@ -1651,12 +1727,20 @@ cpListEl.addEventListener('change', alternarPagoContasPagar);
 cpListEl.addEventListener('click', async (e) => {
   const dividaExcluirBtn = e.target.closest('.cartao-excluir-btn');
   if (dividaExcluirBtn) {
-    const tabela = dividaExcluirBtn.dataset.tabela;
     const nome = dividaExcluirBtn.dataset.nome;
-    if (!confirm(`Excluir este movimento do ${nome}?`)) return;
-    const { error } = await supabase.from(tabela).delete().eq('id', dividaExcluirBtn.dataset.id);
+    const lancamento = {
+      id: dividaExcluirBtn.dataset.id,
+      conta_pagar_id: dividaExcluirBtn.dataset.contaId || null,
+      data_ocorrencia: dividaExcluirBtn.dataset.dataOcorrencia || null,
+    };
+    const vinculado = Boolean(lancamento.conta_pagar_id && lancamento.data_ocorrencia);
+    const mensagem = vinculado
+      ? 'Excluir este movimento e desfazer o pagamento da conta vinculada?'
+      : `Excluir este movimento do ${nome}?`;
+    if (!confirm(mensagem)) return;
+    const { error } = await excluirLancamentoFinanceiro(dividaExcluirBtn.dataset.tabela, lancamento);
     if (error) alert(`Não foi possível excluir o movimento do ${nome}.`);
-    await carregarContasPagar();
+    await Promise.all([carregarContasPagar(), carregarSalario(), carregarCaixaCasa()]);
     return;
   }
 
@@ -1689,7 +1773,8 @@ cpListEl.addEventListener('click', async (e) => {
   if (dividaMovimentoBtn) {
     const abatimento = dividaMovimentoBtn.dataset.tipo === 'abatimento';
     const nome = dividaMovimentoBtn.dataset.nome;
-    const saldoAtual = cartaoSaldoAtual;
+    const roberta = dividaMovimentoBtn.dataset.tabela === ROBERTA_TABLE;
+    const saldoAtual = roberta ? robertaSaldoAtual : cartaoSaldoAtual;
     const valorTexto = prompt(
       abatimento ? `Valor para abater do ${nome}:` : `Valor para adicionar ao ${nome}:`,
       abatimento ? saldoAtual.toFixed(2).replace('.', ',') : ''
@@ -1714,7 +1799,7 @@ cpListEl.addEventListener('click', async (e) => {
       dadosLancamentoDivida(dividaMovimentoBtn.dataset.tipo, valor)
     );
     if (error) {
-      alert('Erro ao registrar o movimento. Confira se a migration 010 foi aplicada.');
+      alert(`Erro ao registrar o movimento. Confira se a migration ${roberta ? '014' : '010'} foi aplicada.`);
       return;
     }
     await carregarContasPagar();
@@ -2192,9 +2277,50 @@ function executarTestes() {
   teste('Contas a Pagar — pagamento usa a chave da ocorrência atual', () => {
     igual(carregarContasPagar.toString().includes('const chave = `${conta.id}|${data}`;'), true);
   });
-  teste('Contas a Pagar — baixa guarda acumulado pago e parte saída do Caixa', () => {
-    igualJson(dadosPagamentoConta('c1', '2026-10-10', 125.5, 40), {
-      conta_id: 'c1', data: '2026-10-10', valor_pago: 125.5, valor_caixa: 40,
+  teste('Contas a Pagar — baixa guarda acumulado pago e partes do Caixa e da Roberta', () => {
+    igualJson(dadosPagamentoConta('c1', '2026-10-10', 125.5, 40, 30), {
+      conta_id: 'c1', data: '2026-10-10', valor_pago: 125.5, valor_caixa: 40, valor_roberta: 30,
+    });
+  });
+  teste('Contas a Pagar — pagamento com meu dinheiro só aumenta o acumulado pago', () => {
+    igualJson(calcularNovoPagamentoConta({ valorPago: 50, valorCaixa: 20, valorRoberta: 10 }, 30, 'proprio'), {
+      valorPago: 80, valorCaixa: 20, valorRoberta: 10,
+    });
+  });
+  teste('Contas a Pagar — pagamento com Caixa acumula também a parte do Caixa', () => {
+    igualJson(calcularNovoPagamentoConta({ valorPago: 50, valorCaixa: 20, valorRoberta: 0 }, 25.5, 'caixa'), {
+      valorPago: 75.5, valorCaixa: 45.5, valorRoberta: 0,
+    });
+  });
+  teste('Contas a Pagar — pagamento com dinheiro da Roberta acumula a parte da Roberta', () => {
+    igualJson(calcularNovoPagamentoConta({ valorPago: 0, valorCaixa: 0, valorRoberta: 0 }, 120, 'roberta'), {
+      valorPago: 120, valorCaixa: 0, valorRoberta: 120,
+    });
+  });
+  teste('Contas a Pagar — valor do pagamento fica entre R$ 0,01 e o restante', () => {
+    igual(valorPagamentoContaValido(40, 100), true);
+    igual(valorPagamentoContaValido(100, 100), true);
+    igual(valorPagamentoContaValido(100.01, 100), false);
+    igual(valorPagamentoContaValido(0, 100), false);
+    igual(valorPagamentoContaValido(NaN, 100), false);
+  });
+  teste('Roberta — pagamento com o dinheiro dela vira dívida vinculada', () => {
+    igualJson(dadosDividaRobertaDaConta('c1', 120, '2026-10-10', 'Internet'), {
+      tipo: 'divida',
+      valor: 120,
+      data: '2026-10-10',
+      descricao: 'Internet',
+      conta_pagar_id: 'c1',
+      data_ocorrencia: '2026-10-10',
+    });
+  });
+  teste('Roberta — excluir dívida vinculada desfaz o pagamento da conta', () => {
+    igualJson(alvoExclusaoLancamento(ROBERTA_TABLE, {
+      id: 'r1', conta_pagar_id: 'c1', data_ocorrencia: '2026-10-10',
+    }), {
+      tabela: CP_PAGAMENTOS_TABLE,
+      filtros: { conta_id: 'c1', data: '2026-10-10' },
+      vinculado: true,
     });
   });
   teste('Contas a Pagar — ocorrência quitada continua exibindo o valor original', () => {
@@ -2240,7 +2366,7 @@ function executarTestes() {
   teste('Aluguel — valor líquido alimenta linha, semana e resumo mensal', () => {
     igual(valorExibidoOcorrencia({ valor: 1000, abatimentoCaixa: 300 }), 700);
   });
-  teste('Aluguel — só o nome exato usa o Caixa automaticamente', () => {
+  teste('Aluguel — só o nome exato vem com o Caixa pré-selecionado', () => {
     igual(ehAluguel({ descricao: ' ALUGUEL ' }), true);
     igual(ehAluguel({ descricao: 'Aluguel casa' }), false);
   });
@@ -2475,6 +2601,28 @@ function executarTestes() {
     igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-btn[data-tipo="divida"]') !== null, true);
     igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-btn[data-tipo="abatimento"]').disabled, true);
     fixture.remove();
+  });
+  teste('Interface — Roberta fica visível mesmo sem movimentos', () => {
+    const fixture = document.createElement('ul');
+    fixture.innerHTML = renderizarRoberta([], 0);
+    igual(fixture.querySelector('.roberta-grupo .divida-movimento-btn[data-tipo="divida"]') !== null, true);
+    igual(fixture.querySelector('.roberta-grupo .divida-movimento-btn[data-tipo="abatimento"]').disabled, true);
+    fixture.remove();
+  });
+  teste('Interface — dívida vinculada da Roberta mostra a conta paga', () => {
+    const fixture = document.createElement('ul');
+    fixture.innerHTML = renderizarRoberta([{
+      id: 'r1', tipo: 'divida', valor: 120, data: '2026-10-10', descricao: 'Internet',
+      conta_pagar_id: 'c1', data_ocorrencia: '2026-10-10',
+    }], 120);
+    igual(fixture.textContent.includes('Dívida adicionada · Internet'), true);
+    igual(fixture.querySelector('.cartao-excluir-btn').dataset.contaId, 'c1');
+    fixture.remove();
+  });
+  teste('Interface — pagamento de conta oferece as três origens do dinheiro', () => {
+    const origens = [...document.querySelectorAll('#cp-pagamento input[name="cp-pagamento-origem"]')]
+      .map((input) => input.value);
+    igualJson(origens, ['proprio', 'caixa', 'roberta']);
   });
   teste('Interface — Empréstimo fica visível mesmo sem movimentos', () => {
     const fixture = document.createElement('ul');
