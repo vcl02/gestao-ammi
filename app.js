@@ -1728,6 +1728,7 @@ cpListEl.addEventListener('click', async (e) => {
   const dividaExcluirBtn = e.target.closest('.cartao-excluir-btn');
   if (dividaExcluirBtn) {
     const nome = dividaExcluirBtn.dataset.nome;
+    const doNome = nome === 'Roberta' ? 'da Roberta' : `do ${nome}`;
     const lancamento = {
       id: dividaExcluirBtn.dataset.id,
       conta_pagar_id: dividaExcluirBtn.dataset.contaId || null,
@@ -1736,10 +1737,10 @@ cpListEl.addEventListener('click', async (e) => {
     const vinculado = Boolean(lancamento.conta_pagar_id && lancamento.data_ocorrencia);
     const mensagem = vinculado
       ? 'Excluir este movimento e desfazer o pagamento da conta vinculada?'
-      : `Excluir este movimento do ${nome}?`;
+      : `Excluir este movimento ${doNome}?`;
     if (!confirm(mensagem)) return;
     const { error } = await excluirLancamentoFinanceiro(dividaExcluirBtn.dataset.tabela, lancamento);
-    if (error) alert(`Não foi possível excluir o movimento do ${nome}.`);
+    if (error) alert(`Não foi possível excluir o movimento ${doNome}.`);
     await Promise.all([carregarContasPagar(), carregarSalario(), carregarCaixaCasa()]);
     return;
   }
@@ -1776,7 +1777,9 @@ cpListEl.addEventListener('click', async (e) => {
     const roberta = dividaMovimentoBtn.dataset.tabela === ROBERTA_TABLE;
     const saldoAtual = roberta ? robertaSaldoAtual : cartaoSaldoAtual;
     const valorTexto = prompt(
-      abatimento ? `Valor para abater do ${nome}:` : `Valor para adicionar ao ${nome}:`,
+      abatimento
+        ? `Valor para abater ${roberta ? 'da Roberta' : `do ${nome}`}:`
+        : `Valor para adicionar ${roberta ? 'à Roberta' : `ao ${nome}`}:`,
       abatimento ? saldoAtual.toFixed(2).replace('.', ',') : ''
     );
     if (valorTexto === null) return;
@@ -2593,7 +2596,9 @@ function executarTestes() {
   teste('Interface — Fiado permite escolher sugestão ou digitar nome novo', () => {
     const pessoa = document.getElementById('fi-pessoa');
     igual(pessoa.getAttribute('list'), 'fi-pessoas-datalist');
-    igual(pessoa.placeholder.includes('nova'), true);
+    igual(Boolean(document.getElementById('fi-pessoas-datalist')), true);
+    igual(pessoa.type, 'text');
+    igual(pessoa.readOnly, false);
   });
   teste('Interface — Cartão de Crédito fica visível mesmo sem movimentos', () => {
     const fixture = document.createElement('ul');
