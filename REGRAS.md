@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-22 (pagamento parcial em todas as contas e Dinheiro Roberta).
+Última revisão: 2026-10-22 (pagamento acima do valor atualiza a ocorrência).
 
 ---
 
@@ -523,17 +523,37 @@ ocorrência ao consultar o pagamento na lista. A linha guarda:
 `valor_caixa + valor_roberta` nunca passa de `valor_pago`; o restante foi
 pago com o próprio dinheiro.
 
-Marcar como paga **não altera** a conta nem a parcela. Ao clicar no checkbox de
+Marcar como paga **não altera** a conta nem a parcela, exceto quando o pagamento
+passa do valor da ocorrência (veja abaixo). Ao clicar no checkbox de
 qualquer ocorrência aberta — Mensal ou Parcelada, pessoal ou não — abre uma
 janela que pede:
 
-1. **Valor deste pagamento** — começa preenchido com todo o saldo restante,
-   mas aceita um valor menor. Fora do intervalo R$ 0,01 até o restante, a
-   janela mostra o erro e não grava nada.
+1. **Valor deste pagamento** — começa preenchido com todo o saldo restante e
+   aceita um valor menor ou **maior**. Abaixo de R$ 0,01, a janela mostra o
+   erro e não grava nada.
 2. **Dinheiro usado** — Meu dinheiro, Caixa Casa ou Dinheiro Roberta. Vem
    marcado Meu dinheiro, exceto no **Aluguel** (descrição exatamente
    "Aluguel", ignorando maiúsculas, minúsculas e espaços nas pontas), que vem
    com Caixa Casa marcado, mas pode ser trocado como em qualquer conta.
+
+#### Pagamento acima do valor
+
+Juros, multa ou um valor anotado errado fazem a conta custar mais do que o
+cadastrado. Se o total pago (o já pago mais este pagamento) passar do valor da
+ocorrência, a janela avisa enquanto se digita — "ela passa de R$ X para R$ Y e
+fica quitada" — e, ao pagar, a ocorrência é atualizada para esse total antes de
+registrar o pagamento, usando a mesma gravação do
+[Ajuste de valor](#ajuste-de-valor):
+
+- Mensal: ajuste pontual em `contas_pagar_ajustes`, só naquela data; o valor
+  padrão da conta e os meses seguintes não mudam;
+- Parcelada: `UPDATE` do valor daquela parcela.
+
+A ocorrência fica quitada com o novo valor, e os lançamentos vinculados
+(Salário, Caixa, Roberta) usam o valor efetivamente pago. Se o pagamento
+falhar, o valor anterior da ocorrência é restaurado. Desmarcar depois apaga só
+o pagamento: a ocorrência mantém o valor atualizado, que pode ser corrigido
+pelo lápis.
 
 Fechar a janela (×, Esc) cancela sem gravar. Cada novo pagamento se acumula no
 mesmo registro até atingir o valor real da ocorrência, e cada parte pode usar
@@ -927,6 +947,7 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - limite, saldo restante e payload acumulado dos pagamentos parciais, com a
   parte de cada origem (próprio, Caixa Casa e Roberta) e a validação do valor
   digitado na janela de pagamento;
+- atualização do valor da ocorrência quando o pagamento passa do restante;
 - dívida vinculada da Roberta, sua exclusão desfazendo o pagamento e a
   presença permanente do bloco Roberta;
 - escolha da ocorrência aberta mais antiga ao somar valor numa conta pessoal;

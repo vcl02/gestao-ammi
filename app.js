@@ -135,6 +135,19 @@ function calcularNovoPagamentoConta(anterior, valor, origem) {
   };
 }
 
+// Pagamento acima do restante (juros, valor anotado errado) atualiza a
+// ocorrência para o total pago. Retorna null quando o valor cabe no restante.
+function calcularValorOcorrenciaAposPagamento(valorOcorrencia, valorPagoAnterior, valorPagamento) {
+  const totalPago = round2(Number(valorPagoAnterior) + Number(valorPagamento));
+  return totalPago > round2(Number(valorOcorrencia)) ? totalPago : null;
+}
+
+function gravarValorOcorrencia(contaId, data, tipo, valor) {
+  return tipo === 'parcelado'
+    ? supabase.from(CP_PARCELAS_TABLE).update({ valor }).eq('conta_id', contaId).eq('data', data)
+    : supabase.from(CP_AJUSTES_TABLE).upsert({ conta_id: contaId, data, valor });
+}
+
 function dadosDividaRobertaDaConta(contaId, valor, data, descricao) {
   return {
     tipo: 'divida',
@@ -1031,27 +1044,41 @@ const cpPagamentoResumoEl = document.getElementById('cp-pagamento-resumo');
 const cpPagamentoForm = document.getElementById('cp-pagamento-form');
 const cpPagamentoValorInput = document.getElementById('cp-pagamento-valor');
 const cpPagamentoErrorEl = document.getElementById('cp-pagamento-error');
+const cpPagamentoAvisoEl = document.getElementById('cp-pagamento-aviso');
 let cartaoSaldoAtual = 0;
 let emprestimoSaldoAtual = 0;
 let robertaSaldoAtual = 0;
 let cpPagamentoPendente = null;
 
 aplicarMascaraMoney(cpPagamentoValorInput);
+cpPagamentoValorInput.addEventListener('input', () => atualizarAvisoPagamentoConta());
 
-function valorPagamentoContaValido(valor, valorRestante) {
-  return Number.isFinite(valor) && valor > 0 && round2(valor) <= round2(valorRestante);
+function valorPagamentoContaValido(valor) {
+  return Number.isFinite(valor) && round2(valor) > 0;
+}
+
+function atualizarAvisoPagamentoConta() {
+  if (!cpPagamentoPendente) return;
+  const { valorTotal, valorJaPago } = cpPagamentoPendente;
+  const novoValor = calcularValorOcorrenciaAposPagamento(valorTotal, valorJaPago, parseMoney(cpPagamentoValorInput.value) || 0);
+  cpPagamentoAvisoEl.hidden = novoValor === null;
+  if (novoValor !== null) {
+    cpPagamentoAvisoEl.textContent = `Acima do valor da conta: ela passa de ${formatMoney(valorTotal)} para ${formatMoney(novoValor)} e fica quitada.`;
+  }
 }
 
 // Resolve com { valor, origem } ou null se o usuário cancelar.
-function pedirPagamentoConta({ descricao, valorRestante, origemPadrao }) {
+function pedirPagamentoConta({ descricao, valorTotal, valorJaPago, origemPadrao }) {
+  const valorRestante = calcularSaldoConta(valorTotal, valorJaPago);
   cpPagamentoTituloEl.textContent = descricao;
   cpPagamentoResumoEl.textContent = `Falta pagar ${formatMoney(valorRestante)}`;
   cpPagamentoValorInput.value = valorRestante.toFixed(2).replace('.', ',');
   cpPagamentoForm.elements['cp-pagamento-origem'].value = origemPadrao;
   cpPagamentoErrorEl.hidden = true;
+  cpPagamentoAvisoEl.hidden = true;
   cpPagamentoEl.showModal();
   return new Promise((resolve) => {
-    cpPagamentoPendente = { resolve, valorRestante };
+    cpPagamentoPendente = { resolve, valorTotal, valorJaPago };
   });
 }
 
@@ -1066,8 +1093,8 @@ cpPagamentoForm.addEventListener('submit', (e) => {
   e.preventDefault();
   if (!cpPagamentoPendente) return;
   const valor = parseMoney(cpPagamentoValorInput.value);
-  if (!valorPagamentoContaValido(valor, cpPagamentoPendente.valorRestante)) {
-    cpPagamentoErrorEl.textContent = `Informe um valor entre R$ 0,01 e ${formatMoney(cpPagamentoPendente.valorRestante)}.`;
+  if (!valorPagamentoContaValido(valor)) {
+    cpPagamentoErrorEl.textContent = 'Informe um valor a partir de R$ 0,01.';
     cpPagamentoErrorEl.hidden = false;
     return;
   }
@@ -1512,7 +1539,7 @@ async function carregarContasPagar() {
     return `
       <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}${selecionada ? ' cp-ocorrencia-selecionada' : ''}">
         <div class="lancamento-checkbox">
-          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-valor-roberta="${valorRobertaPago}" data-descricao="${conta.descricao}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
+          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-valor-roberta="${valorRobertaPago}" data-descricao="${conta.descricao}" data-tipo="${conta.tipo}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
           <div class="lancamento-info">
             <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${tagPessoalConta(conta)}${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
             <span class="lancamento-data">${formatDataBR(dataExibicaoOcorrencia(ocorrencia))}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
@@ -1618,20 +1645,34 @@ async function alternarPagoContasPagar(e) {
     valorRoberta: Number(checkbox.dataset.valorRoberta || 0),
   };
   const descricao = checkbox.dataset.descricao;
+  const tipoConta = checkbox.dataset.tipo;
 
   checkbox.disabled = true;
 
   if (checkbox.checked) {
-    const valorRestante = calcularSaldoConta(valor, anterior.valorPago);
     const escolha = await pedirPagamentoConta({
       descricao,
-      valorRestante,
+      valorTotal: valor,
+      valorJaPago: anterior.valorPago,
       origemPadrao: aluguel ? 'caixa' : 'proprio',
     });
     if (!escolha) {
       await carregarContasPagar();
       return;
     }
+
+    const novoValorOcorrencia = calcularValorOcorrenciaAposPagamento(valor, anterior.valorPago, escolha.valor);
+    if (novoValorOcorrencia !== null) {
+      const { error: erroValor } = await gravarValorOcorrencia(contaId, data, tipoConta, novoValorOcorrencia);
+      if (erroValor) {
+        alert('Não foi possível atualizar o valor da conta. Nada foi pago.');
+        await carregarContasPagar();
+        return;
+      }
+    }
+    const restaurarValorOcorrencia = () => (novoValorOcorrencia === null
+      ? Promise.resolve({ error: null })
+      : gravarValorOcorrencia(contaId, data, tipoConta, valor));
 
     const { origem } = escolha;
     const novo = calcularNovoPagamentoConta(anterior, escolha.valor, origem);
@@ -1643,6 +1684,9 @@ async function alternarPagoContasPagar(e) {
     const valorNovoOrigem = origem === 'caixa' ? novo.valorCaixa : novo.valorRoberta;
 
     const restaurarPagamentoAnterior = async () => {
+      const { error: erroValor } = await restaurarValorOcorrencia();
+      if (erroValor) return { error: erroValor };
+
       if (anterior.valorPago === 0) {
         return supabase.from(CP_PAGAMENTOS_TABLE).delete().eq('conta_id', contaId).eq('data', data);
       }
@@ -1685,7 +1729,10 @@ async function alternarPagoContasPagar(e) {
       dadosPagamentoConta(contaId, data, novo.valorPago, novo.valorCaixa, novo.valorRoberta)
     );
     if (erroPagamento) {
-      alert('Não foi possível registrar o pagamento. Confira se a migration 014 foi aplicada.');
+      const { error: erroDesfazerValor } = await restaurarValorOcorrencia();
+      alert(erroDesfazerValor
+        ? 'O pagamento falhou e o valor da conta ficou alterado. Ajuste o valor pelo lápis.'
+        : 'Não foi possível registrar o pagamento.');
       await carregarContasPagar();
       return;
     }
@@ -1832,11 +1879,7 @@ cpListEl.addEventListener('click', async (e) => {
       return;
     }
 
-    if (tipo === 'parcelado') {
-      await supabase.from(CP_PARCELAS_TABLE).update({ valor: novoValor }).eq('conta_id', contaId).eq('data', data);
-    } else {
-      await supabase.from(CP_AJUSTES_TABLE).upsert({ conta_id: contaId, data, valor: novoValor });
-    }
+    await gravarValorOcorrencia(contaId, data, tipo, novoValor);
     await carregarContasPagar();
   }
 });
@@ -1855,11 +1898,7 @@ cpContasListEl.addEventListener('click', async (e) => {
     }
 
     const novoValor = round2(Number(valor) + valorASomar);
-    if (tipo === 'parcelado') {
-      await supabase.from(CP_PARCELAS_TABLE).update({ valor: novoValor }).eq('conta_id', contaId).eq('data', data);
-    } else {
-      await supabase.from(CP_AJUSTES_TABLE).upsert({ conta_id: contaId, data, valor: novoValor });
-    }
+    await gravarValorOcorrencia(contaId, data, tipo, novoValor);
     await carregarContasPagar();
     return;
   }
@@ -2300,12 +2339,19 @@ function executarTestes() {
       valorPago: 120, valorCaixa: 0, valorRoberta: 120,
     });
   });
-  teste('Contas a Pagar — valor do pagamento fica entre R$ 0,01 e o restante', () => {
-    igual(valorPagamentoContaValido(40, 100), true);
-    igual(valorPagamentoContaValido(100, 100), true);
-    igual(valorPagamentoContaValido(100.01, 100), false);
-    igual(valorPagamentoContaValido(0, 100), false);
-    igual(valorPagamentoContaValido(NaN, 100), false);
+  teste('Contas a Pagar — valor do pagamento aceita qualquer valor a partir de R$ 0,01', () => {
+    igual(valorPagamentoContaValido(40), true);
+    igual(valorPagamentoContaValido(150), true);
+    igual(valorPagamentoContaValido(0), false);
+    igual(valorPagamentoContaValido(NaN), false);
+  });
+  teste('Contas a Pagar — pagamento dentro do restante não altera o valor da conta', () => {
+    igual(calcularValorOcorrenciaAposPagamento(100, 30, 70), null);
+    igual(calcularValorOcorrenciaAposPagamento(100, 0, 40), null);
+  });
+  teste('Contas a Pagar — pagamento acima do restante atualiza a conta para o total pago', () => {
+    igual(calcularValorOcorrenciaAposPagamento(100, 0, 112.35), 112.35);
+    igual(calcularValorOcorrenciaAposPagamento(100, 30, 75.5), 105.5);
   });
   teste('Roberta — pagamento com o dinheiro dela vira dívida vinculada', () => {
     igualJson(dadosDividaRobertaDaConta('c1', 120, '2026-10-10', 'Internet'), {
@@ -2623,6 +2669,12 @@ function executarTestes() {
     igual(fixture.textContent.includes('Dívida adicionada · Internet'), true);
     igual(fixture.querySelector('.cartao-excluir-btn').dataset.contaId, 'c1');
     fixture.remove();
+  });
+  teste('Interface — janela de pagamento tem aviso para valor acima da conta', () => {
+    igual(document.getElementById('cp-pagamento-aviso').hidden, true);
+  });
+  teste('Interface — ocorrência informa o tipo da conta para atualizar o valor certo', () => {
+    igual(carregarContasPagar.toString().includes('data-tipo="${conta.tipo}" data-pessoal='), true);
   });
   teste('Interface — pagamento de conta oferece as três origens do dinheiro', () => {
     const origens = [...document.querySelectorAll('#cp-pagamento input[name="cp-pagamento-origem"]')]

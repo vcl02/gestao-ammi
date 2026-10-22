@@ -126,6 +126,11 @@ body {
   margin-bottom: 24px;
 }
 
+.modal-aviso .cp-pagamento-aviso {
+  font-size: 13px;
+  color: var(--text);
+}
+
 .cp-pagamento-origens {
   display: flex;
   flex-direction: column;
