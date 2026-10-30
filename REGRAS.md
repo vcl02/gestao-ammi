@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-22 (pagamento acima do valor atualiza a ocorrência).
+Última revisão: 2026-10-30 (remoção das contas pessoais).
 
 ---
 
@@ -17,7 +17,6 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 - [Módulo: Contas a Pagar](#módulo-contas-a-pagar)
   - [Conta Mensal (recorrente)](#conta-mensal-recorrente)
   - [Conta Parcelada](#conta-parcelada)
-  - [Contas pessoais](#contas-pessoais)
   - [Cartão de Crédito](#cartão-de-crédito)
   - [Roberta](#roberta)
   - [Seleção para soma](#seleção-para-soma)
@@ -46,10 +45,10 @@ aluguel](#abatimento-do-caixa-casa-no-aluguel).
 Uma venda lançada no módulo Salário cria apenas a comissão salarial. Ela não
 movimenta o Empréstimo, que é controlado manualmente em seu próprio bloco.
 
-Pagar uma conta em Contas a Pagar pode criar lançamentos automáticos: contas
-pessoais geram pagamento no Salário; pagar com o Caixa Casa gera saída no
-Caixa; e pagar com o Dinheiro Roberta gera dívida no bloco Roberta. A origem
-do dinheiro é escolhida em cada pagamento.
+Pagar uma conta em Contas a Pagar pode criar lançamentos automáticos: pagar
+com o Caixa Casa gera saída no Caixa, e pagar com o Dinheiro Roberta gera
+dívida no bloco Roberta. A origem do dinheiro é escolhida em cada pagamento.
+Contas a Pagar não cria lançamentos no Salário.
 
 ### Dinheiro
 
@@ -139,8 +138,7 @@ Atenção: alternar o tipo sobrescreve o que já estava digitado no campo.
 ### Sem duplicação para o Salário neste formulário
 
 O formulário do Caixa Casa grava apenas no próprio Caixa. A antiga opção
-"Duplicar no Salário" foi removida: despesas pessoais agora são identificadas
-no cadastro de Contas a Pagar e integradas ao Salário quando são pagas.
+"Duplicar no Salário" foi removida.
 
 ### Saldo
 
@@ -272,48 +270,18 @@ São mutuamente exclusivos e o banco garante isso por constraint:
 
 ---
 
-### Contas pessoais
+### Contas pessoais (removidas)
 
-Ao cadastrar uma conta Mensal ou Parcelada, a opção **Conta pessoal** grava
-`contas_pagar.pessoal = true`. A marcação aparece em "Contas cadastradas" e
-cada ocorrência dessa conta exibe a tag **Pessoal** junto ao nome.
+Existiu uma marcação **Conta pessoal**, com bloco próprio, pagamento automático
+no Salário e botão para somar valor. Ela foi removida em 2026-10-30 (migration
+016): as contas pessoais foram apagadas e a coluna `contas_pagar.pessoal` deixou
+de existir. Os lançamentos que os pagamentos dessas contas tinham criado no
+Salário e no Caixa Casa foram mantidos como lançamentos manuais, sem vínculo,
+para não alterar saldos. Toda conta agora é comum: fica nos grupos semanais,
+pode atrasar e entra nos cards do topo.
 
-Contas pessoais não ficam nos grupos semanais nem recebem atraso visual. Elas
-aparecem em um bloco próprio, como Empréstimo, e mostram somente a **data de
-cadastro** no fuso America/Sao_Paulo — não há vencimento visível. A data
-interna da parcela ou recorrência continua existindo somente para preservar os
-vínculos de pagamento e os cálculos já registrados.
-
-O pagamento de uma ocorrência pessoal segue a regra geral de
-[Pagamento de ocorrências](#pagamento-de-ocorrências), inclusive o pagamento
-parcial. O abatimento do Caixa Casa no Aluguel é apenas visual e não reduz o
-pagamento criado no Salário.
-
-O total acumulado pago também é o valor do `pagamento` automático no Salário,
-qualquer que seja a origem do dinheiro de cada parte.
-
-O pagamento do Salário fica vinculado a `(conta_id, data)` da ocorrência e
-existe no máximo uma vez. Desmarcar o pagamento em Contas a Pagar apaga por
-cascata somente esse lançamento automático. Excluir a conta também o apaga;
-pagamentos manuais do Salário, sem esse vínculo, nunca são afetados.
-
-Uma conta pessoal também pode ser paga com dinheiro do Caixa Casa ou da
-Roberta. Nesse caso, a mesma baixa cria o pagamento no Salário e também a
-saída no Caixa ou a dívida da Roberta, pois são efeitos independentes.
-
-Se não for possível criar algum lançamento automático, o sistema tenta
-desfazer a marcação de pago; a cascata também desfaz outro lançamento
-automático que já tenha sido criado para aquela ocorrência.
-
-Em "Contas cadastradas", toda conta pessoal com alguma ocorrência em aberto
-(não paga) ganha um botão **+** ao lado da lixeira, para somar um valor novo à
-dívida — ex.: deve 10, soma 10, passa a dever 20. O valor digitado é somado ao
-valor **total** da ocorrência aberta mais antiga daquela conta (ajuste pontual
-em conta Mensal, valor da parcela em conta Parcelada); o saldo restante sobe
-na mesma proporção, mesmo que já exista pagamento parcial. Em conta Mensal, a
-soma não altera `contas_pagar.valor` nem os meses seguintes — só a ocorrência
-em aberto agora. Conta pessoal sem nenhuma ocorrência em aberto (tudo pago)
-não mostra o botão; para uma dívida nova, cadastra-se outra conta.
+As colunas de vínculo `conta_pagar_id`/`data_ocorrencia` de
+`salario_lancamentos` continuam no banco, sem uso pelo aplicativo.
 
 ---
 
@@ -525,7 +493,7 @@ pago com o próprio dinheiro.
 
 Marcar como paga **não altera** a conta nem a parcela, exceto quando o pagamento
 passa do valor da ocorrência (veja abaixo). Ao clicar no checkbox de
-qualquer ocorrência aberta — Mensal ou Parcelada, pessoal ou não — abre uma
+qualquer ocorrência aberta — Mensal ou Parcelada — abre uma
 janela que pede:
 
 1. **Valor deste pagamento** — começa preenchido com todo o saldo restante e
@@ -550,7 +518,7 @@ registrar o pagamento, usando a mesma gravação do
 - Parcelada: `UPDATE` do valor daquela parcela.
 
 A ocorrência fica quitada com o novo valor, e os lançamentos vinculados
-(Salário, Caixa, Roberta) usam o valor efetivamente pago. Se o pagamento
+(Caixa, Roberta) usam o valor efetivamente pago. Se o pagamento
 falhar, o valor anterior da ocorrência é restaurado. Desmarcar depois apaga só
 o pagamento: a ocorrência mantém o valor atualizado, que pode ser corrigido
 pelo lápis.
@@ -574,17 +542,13 @@ Efeitos de cada pagamento, conforme a origem escolhida:
 | Caixa Casa | saída no Caixa Casa com o acumulado pago pelo Caixa |
 | Dinheiro Roberta | dívida no bloco [Roberta](#roberta) com o acumulado pago com o dinheiro dela |
 
-Em contas pessoais, a baixa também cria ou atualiza o pagamento vinculado no
-Salário, conforme [Contas pessoais](#contas-pessoais), qualquer que seja a
-origem.
-
 Desmarcar uma ocorrência quitada apaga o registro, ela volta a contar como
 totalmente pendente e a cascata remove os lançamentos automáticos vinculados
-no Salário, no Caixa Casa e na Roberta. Lançamentos manuais desses módulos não
+no Caixa Casa e na Roberta. Lançamentos manuais desses módulos não
 possuem o vínculo e não são afetados. Um pagamento parcial é desfeito pela
-lixeira de um lançamento vinculado a ele (Salário, Caixa ou Roberta), que
+lixeira de um lançamento vinculado a ele (Caixa ou Roberta), que
 desmarca a ocorrência inteira; se o pagamento parcial não tiver nenhum
-lançamento vinculado (pago só com o próprio dinheiro numa conta não pessoal),
+lançamento vinculado (pago só com o próprio dinheiro),
 não há como desfazê-lo pela interface sem antes quitar e desmarcar.
 
 Ocorrências pagas ficam misturadas no mesmo bloco de semana das não pagas,
@@ -705,8 +669,8 @@ verdade sobre quão longe está o que ele mostra.
 
 Pendências **atrasadas** de contas comuns são somadas ao primeiro número,
 junto com a semana encontrada. Havendo alguma, o rótulo passa a começar por
-"Atrasadas +". Contas pessoais, Empréstimo, Cartão de Crédito e Roberta
-continuam fora dos dois cards.
+"Atrasadas +". Empréstimo, Cartão de Crédito e Roberta continuam fora dos
+dois cards.
 
 #### Os dois números avançam quando não há pendência
 
@@ -718,11 +682,11 @@ seguinte à do primeiro, buscada da mesma forma — então se o primeiro virou
 semanas", "Em 4 semanas", etc.
 
 A busca avança semana a semana até achar uma pendência entre as ocorrências
-comuns carregadas. **Empréstimo, Cartão de Crédito, Roberta e contas pessoais
-nunca entram nesses dois cards semanais**, pois já ficam em blocos separados. Se não existir nenhuma
+carregadas. **Empréstimo, Cartão de Crédito e Roberta nunca entram nesses
+dois cards semanais**, pois já ficam em blocos separados. Se não existir nenhuma
 pendência comum naquela semana nem depois dela, o card mostra `R$ 0,00`; isso
 também impede uma busca infinita quando existem somente contas parceladas
-antigas, pessoais ou Empréstimo.
+antigas ou Empréstimo.
 
 Enquanto houver pendências futuras carregadas, o card continua respondendo
 "o que eu preciso resolver agora" e avança até a primeira delas.
@@ -899,7 +863,7 @@ ao saldo; e excluir uma entrada ou saída recalcula o Caixa Casa.
 
 Se a linha foi criada automaticamente ao pagar uma conta, a lixeira desmarca
 a ocorrência em Contas a Pagar. A cascata remove todos os efeitos automáticos
-daquela baixa, inclusive Salário, Caixa Casa e a dívida da Roberta quando
+daquela baixa, inclusive Caixa Casa e a dívida da Roberta quando
 existirem. Isso
 evita deixar uma conta marcada como paga sem os lançamentos que a representam.
 
@@ -943,21 +907,16 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - saldo do Caixa, abatimento do aluguel, limite em zero e saída vinculada de
   conta paga com seu dinheiro;
 - comissão e saldo do Salário, inclusive o payload de uma venda esquecida;
-- criação vinculada e reversão por cascata do pagamento de uma conta pessoal;
 - limite, saldo restante e payload acumulado dos pagamentos parciais, com a
   parte de cada origem (próprio, Caixa Casa e Roberta) e a validação do valor
   digitado na janela de pagamento;
 - atualização do valor da ocorrência quando o pagamento passa do restante;
 - dívida vinculada da Roberta, sua exclusão desfazendo o pagamento e a
   presença permanente do bloco Roberta;
-- escolha da ocorrência aberta mais antiga ao somar valor numa conta pessoal;
-- exibição de contas Pessoais pela data de cadastro, fora dos grupos semanais
-  e sem atraso visual;
-- identificação visual de contas pessoais e destino correto da exclusão de
-  lançamentos manuais ou vinculados, incluindo o respiro visual após a
-  descrição no formulário;
+- ausência da opção de conta pessoal no cadastro e destino correto da
+  exclusão de lançamentos manuais ou vinculados;
 - saldo, limite de abatimento, payload e presença permanente de Empréstimo e Cartão de Crédito;
-- exclusão de contas pessoais dos cards semanais;
+- ocorrências pagas fora dos cards semanais;
 - soma de contas comuns atrasadas no primeiro card semanal;
 - saldo, limite de pagamento e proteção ao remover vendas do Fiado;
 - nomes distintos do Fiado, reaproveitamento de grafia e criação direta pela venda;

@@ -110,12 +110,6 @@ function calcularSaldoConta(valorTotal, valorPago) {
   return Math.max(round2(Number(valorTotal) - limitarValorPagoConta(valorPago, valorTotal)), 0);
 }
 
-// Ocorrência que recebe o valor somado pelo botão "+" de uma conta pessoal:
-// a mais antiga ainda não paga. `ocorrencias` já vem ordenada por data.
-function encontrarOcorrenciaAbertaPessoal(contaId, ocorrencias) {
-  return ocorrencias.find((o) => o.conta.id === contaId && !o.paga) || null;
-}
-
 function dadosPagamentoConta(contaId, data, valorPago, valorCaixa = 0, valorRoberta = 0) {
   return {
     conta_id: contaId,
@@ -170,23 +164,8 @@ function dadosSaidaCaixaDaConta(contaId, valor, data, descricao) {
   };
 }
 
-function dadosPagamentoSalarioDaContaPessoal(contaId, valor, data, descricao) {
-  return {
-    tipo: 'pagamento',
-    valor,
-    data,
-    descricao,
-    conta_pagar_id: contaId,
-    data_ocorrencia: data,
-  };
-}
-
 function ehAluguel(conta) {
   return conta.descricao.trim().toLocaleLowerCase('pt-BR') === 'aluguel';
-}
-
-function tagPessoalConta(conta) {
-  return conta.pessoal ? ' <span class="tag-pessoal">Pessoal</span>' : '';
 }
 
 function alvoExclusaoLancamento(tabela, lancamento) {
@@ -373,7 +352,7 @@ function valorExibidoOcorrencia(ocorrencia) {
 }
 
 function entraNoResumoSemanal(ocorrencia) {
-  return !ocorrencia.paga && !ocorrencia.conta.pessoal;
+  return !ocorrencia.paga;
 }
 
 function totalAtrasadasNoResumoSemanal(ocorrencias, hoje) {
@@ -402,23 +381,6 @@ function dataAnteriorISO(isoDate) {
 function formatDataBR(isoDate) {
   const [year, month, day] = isoDate.split('-');
   return `${day}/${month}/${year}`;
-}
-
-function dataCadastroConta(conta) {
-  if (!conta.created_at) return conta.data_inicio;
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  return formatter.format(new Date(conta.created_at));
-}
-
-function dataExibicaoOcorrencia(ocorrencia) {
-  return ocorrencia.conta.pessoal
-    ? dataCadastroConta(ocorrencia.conta)
-    : ocorrencia.data;
 }
 
 // Quantos dias antes do dia 1 do mês a semana (domingo) já tinha começado.
@@ -1161,7 +1123,6 @@ cpSelecaoLimparEl.addEventListener('click', () => {
 const cpForm = document.getElementById('cp-form');
 const cpErrorEl = document.getElementById('cp-form-error');
 const cpDescricaoInput = document.getElementById('cp-descricao');
-const cpPessoalInput = document.getElementById('cp-pessoal');
 const cpValorInput = document.getElementById('cp-valor');
 const cpDataInicioInput = document.getElementById('cp-data-inicio');
 const cpCampoDataUnicaEl = document.getElementById('cp-campo-data-unica');
@@ -1417,7 +1378,7 @@ async function carregarContasPagar() {
       const valorPago = limitarValorPagoConta(pagamento?.valor_pago, valorOriginal);
       const valorRestante = calcularSaldoConta(valorOriginal, valorPago);
       const paga = valorRestante === 0;
-      const atrasada = !conta.pessoal && data < hoje && !paga;
+      const atrasada = data < hoje && !paga;
       ocorrenciasParaExibir.push({
         conta,
         data,
@@ -1539,10 +1500,10 @@ async function carregarContasPagar() {
     return `
       <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}${selecionada ? ' cp-ocorrencia-selecionada' : ''}">
         <div class="lancamento-checkbox">
-          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-valor-roberta="${valorRobertaPago}" data-descricao="${conta.descricao}" data-tipo="${conta.tipo}" data-pessoal="${conta.pessoal ? 'true' : 'false'}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
+          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-valor-roberta="${valorRobertaPago}" data-descricao="${conta.descricao}" data-tipo="${conta.tipo}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
           <div class="lancamento-info">
-            <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${tagPessoalConta(conta)}${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
-            <span class="lancamento-data">${formatDataBR(dataExibicaoOcorrencia(ocorrencia))}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
+            <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
+            <span class="lancamento-data">${formatDataBR(data)}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
           </div>
         </div>
         <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>${botoesAcao}
@@ -1573,21 +1534,7 @@ async function carregarContasPagar() {
     }).join('');
   }
 
-  const ocorrenciasPessoais = ocorrenciasParaExibir.filter((ocorrencia) => ocorrencia.conta.pessoal);
-  const demaisOcorrencias = ocorrenciasParaExibir.filter((ocorrencia) => !ocorrencia.conta.pessoal);
-  const pessoaisAbertas = cpGruposAlteradosManualmente.get('pessoal') ?? abrirGrupoPorPadrao(ocorrenciasPessoais);
-  const pessoaisHtml = ocorrenciasPessoais.length === 0 ? '' : `
-    <li class="semana-grupo pessoal-grupo">
-      <details class="cp-grupo-details" data-grupo="pessoal"${pessoaisAbertas ? ' open' : ''}>
-        <summary class="semana-grupo-titulo">
-          <span>Pessoal</span>
-          <span class="semana-grupo-total">${formatMoney(ocorrenciasPessoais.reduce((acc, item) => acc + valorExibidoOcorrencia(item), 0))}</span>
-        </summary>
-        <ul class="lancamentos">${ocorrenciasPessoais.map(renderizarItemOcorrencia).join('')}</ul>
-      </details>
-    </li>
-  `;
-  cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + pessoaisHtml + renderizarGruposSemana(agruparPorSemana(demaisOcorrencias));
+  cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + renderizarGruposSemana(agruparPorSemana(ocorrenciasParaExibir));
   cpListEl.querySelectorAll('.cp-pago-checkbox[data-parcial="true"]').forEach((checkbox) => {
     checkbox.indeterminate = true;
   });
@@ -1602,24 +1549,13 @@ async function carregarContasPagar() {
       ? parcelasRows.filter((p) => p.conta_id === conta.id).reduce((acc, p) => acc + Number(p.valor), 0)
       : Number(conta.valor);
 
-    const ocorrenciaAberta = conta.pessoal
-      ? encontrarOcorrenciaAbertaPessoal(conta.id, ocorrenciasParaExibir)
-      : null;
-    const botaoAdicionarValor = ocorrenciaAberta ? `
-      <button type="button" class="btn-icon btn-icon-neutro cp-adicionar-valor-btn" data-conta-id="${conta.id}" data-data="${ocorrenciaAberta.data}" data-tipo="${conta.tipo}" data-valor="${ocorrenciaAberta.valorOriginal}" aria-label="Somar valor" title="Somar valor">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </button>` : '';
-
     return `
     <li class="lancamento-item">
       <div class="lancamento-info">
         <span class="lancamento-desc">${conta.descricao}</span>
-        <span class="lancamento-data">${conta.tipo === 'parcelado' ? 'parcelado' : `mensal — dia ${conta.dia_vencimento}`}${conta.pessoal ? ' · pessoal' : ''}</span>
+        <span class="lancamento-data">${conta.tipo === 'parcelado' ? 'parcelado' : `mensal — dia ${conta.dia_vencimento}`}</span>
       </div>
-      <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>${botaoAdicionarValor}
+      <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>
       <button type="button" class="btn-icon cp-remover-btn" data-conta-id="${conta.id}" aria-label="Remover conta" title="Remover conta">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"></polyline>
@@ -1636,7 +1572,6 @@ async function alternarPagoContasPagar(e) {
   const checkbox = e.target;
   const contaId = checkbox.dataset.contaId;
   const data = checkbox.dataset.data;
-  const pessoal = checkbox.dataset.pessoal === 'true';
   const aluguel = checkbox.dataset.aluguel === 'true';
   const valor = Number(checkbox.dataset.valor);
   const anterior = {
@@ -1696,14 +1631,6 @@ async function alternarPagoContasPagar(e) {
       );
       if (erroPagamento) return { error: erroPagamento };
 
-      if (pessoal) {
-        const { error: erroSalario } = await supabase.from(SAL_TABLE).upsert(
-          dadosPagamentoSalarioDaContaPessoal(contaId, anterior.valorPago, data, descricao),
-          { onConflict: 'conta_pagar_id,data_ocorrencia' }
-        );
-        if (erroSalario) return { error: erroSalario };
-      }
-
       if (!vinculoOrigem) return { error: null };
       if (valorAnteriorOrigem > 0) {
         return supabase.from(vinculoOrigem.tabela).upsert(
@@ -1735,17 +1662,6 @@ async function alternarPagoContasPagar(e) {
         : 'Não foi possível registrar o pagamento.');
       await carregarContasPagar();
       return;
-    }
-
-    if (pessoal) {
-      const { error: erroSalario } = await supabase.from(SAL_TABLE).upsert(
-        dadosPagamentoSalarioDaContaPessoal(contaId, novo.valorPago, data, descricao),
-        { onConflict: 'conta_pagar_id,data_ocorrencia' }
-      );
-      if (erroSalario) {
-        await falharEDesfazer('Não foi possível atualizar o Salário. O pagamento anterior foi preservado.');
-        return;
-      }
     }
 
     if (vinculoOrigem) {
@@ -1885,24 +1801,6 @@ cpListEl.addEventListener('click', async (e) => {
 });
 
 cpContasListEl.addEventListener('click', async (e) => {
-  const adicionarBtn = e.target.closest('.cp-adicionar-valor-btn');
-  if (adicionarBtn) {
-    const { contaId, data, tipo, valor } = adicionarBtn.dataset;
-    const valorASomarTexto = prompt('Valor a somar:');
-    if (valorASomarTexto === null) return;
-
-    const valorASomar = parseMoney(valorASomarTexto);
-    if (!valorASomar || valorASomar <= 0) {
-      alert('Valor inválido.');
-      return;
-    }
-
-    const novoValor = round2(Number(valor) + valorASomar);
-    await gravarValorOcorrencia(contaId, data, tipo, novoValor);
-    await carregarContasPagar();
-    return;
-  }
-
   const btn = e.target.closest('.cp-remover-btn');
   if (!btn) return;
   if (!confirm('Remover esta conta e todo o seu histórico de pagamentos/parcelas/exceções?')) return;
@@ -1917,7 +1815,6 @@ bloquearDuranteSubmit(cpForm, async (e) => {
   const descricao = cpDescricaoInput.value.trim();
   const valor = parseMoney(cpValorInput.value);
   const tipo = document.querySelector('input[name="cp-tipo"]:checked').value;
-  const pessoal = cpPessoalInput.checked;
 
   if (!valor || valor <= 0) {
     cpErrorEl.textContent = 'Informe um valor válido.';
@@ -1940,7 +1837,6 @@ bloquearDuranteSubmit(cpForm, async (e) => {
       tipo: 'recorrente',
       dia_vencimento: dia,
       data_inicio: dataInicio,
-      pessoal,
     });
 
     if (error) {
@@ -1965,7 +1861,6 @@ bloquearDuranteSubmit(cpForm, async (e) => {
       descricao,
       tipo: 'parcelado',
       data_inicio: dataInicio,
-      pessoal,
     }).select().single();
 
     if (error) {
@@ -2287,31 +2182,8 @@ function executarTestes() {
       data_ocorrencia: '2026-10-06',
     });
   });
-  teste('Contas a Pagar — conta pessoal vira pagamento vinculado no Salário', () => {
-    igualJson(dadosPagamentoSalarioDaContaPessoal('c1', 89.9, '2026-10-10', 'Internet'), {
-      tipo: 'pagamento',
-      valor: 89.9,
-      data: '2026-10-10',
-      descricao: 'Internet',
-      conta_pagar_id: 'c1',
-      data_ocorrencia: '2026-10-10',
-    });
-  });
   teste('Contas a Pagar — pagamento parcial reduz somente o saldo restante', () => {
     igual(calcularSaldoConta(500, 125.5), 374.5);
-  });
-  teste('Contas a Pagar — botão de somar valor da conta pessoal pega a ocorrência aberta mais antiga', () => {
-    const ocorrencias = [
-      { conta: { id: 'c1' }, data: '2026-09-10', paga: true },
-      { conta: { id: 'c1' }, data: '2026-10-10', paga: false },
-      { conta: { id: 'c1' }, data: '2026-11-10', paga: false },
-      { conta: { id: 'c2' }, data: '2026-10-05', paga: false },
-    ];
-    igual(encontrarOcorrenciaAbertaPessoal('c1', ocorrencias).data, '2026-10-10');
-  });
-  teste('Contas a Pagar — conta pessoal totalmente paga não tem ocorrência aberta para somar valor', () => {
-    const ocorrencias = [{ conta: { id: 'c1' }, data: '2026-10-10', paga: true }];
-    igual(encontrarOcorrenciaAbertaPessoal('c1', ocorrencias), null);
   });
   teste('Contas a Pagar — pagamento não ultrapassa o valor da ocorrência', () => {
     igual(limitarValorPagoConta(550, 500), 500);
@@ -2375,24 +2247,20 @@ function executarTestes() {
   teste('Contas a Pagar — ocorrência quitada continua exibindo o valor original', () => {
     igual(valorExibidoOcorrencia({ valor: 0, valorOriginal: 500, paga: true }), 500);
   });
-  teste('Resumo semanal — ignora contas pessoais', () => {
+  teste('Resumo semanal — ignora ocorrências pagas', () => {
     const ocorrencias = [
-      { valor: 20, paga: false, conta: { pessoal: true } },
-      { valor: 214.9, paga: false, conta: { pessoal: false } },
+      { valor: 20, paga: true, conta: {} },
+      { valor: 214.9, paga: false, conta: {} },
     ];
     igual(ocorrencias.filter(entraNoResumoSemanal).reduce((total, item) => total + item.valor, 0), 214.9);
   });
   teste('Resumo semanal — soma atrasadas comuns ao primeiro card', () => {
     const ocorrencias = [
-      { data: '2026-09-23', valor: 182.93, paga: false, conta: { pessoal: false } },
-      { data: '2026-10-07', valor: 214.9, paga: false, conta: { pessoal: false } },
-      { data: '2026-10-04', valor: 75, paga: false, conta: { pessoal: true } },
+      { data: '2026-09-23', valor: 182.93, paga: false, conta: {} },
+      { data: '2026-10-07', valor: 214.9, paga: false, conta: {} },
+      { data: '2026-10-04', valor: 75, paga: true, conta: {} },
     ];
     igual(totalAtrasadasNoResumoSemanal(ocorrencias, '2026-10-06'), 182.93);
-  });
-  teste('Contas a Pagar — conta pessoal recebe tag na ocorrência', () => {
-    igual(tagPessoalConta({ pessoal: true }).includes('Pessoal'), true);
-    igual(tagPessoalConta({ pessoal: false }), '');
   });
   teste('Exclusão — lançamento vinculado desfaz o pagamento da conta', () => {
     igualJson(alvoExclusaoLancamento(SAL_TABLE, {
@@ -2533,18 +2401,6 @@ function executarTestes() {
   });
 
   teste('Datas — formata YYYY-MM-DD como DD/MM/AAAA', () => igual(formatDataBR('2026-09-14'), '14/09/2026'));
-  teste('Contas pessoais — mostra a data de cadastro no fuso de São Paulo', () => {
-    igual(dataExibicaoOcorrencia({
-      data: '2026-10-07',
-      conta: { pessoal: true, data_inicio: '2026-10-07', created_at: '2026-10-07T01:30:00Z' },
-    }), '2026-10-06');
-  });
-  teste('Contas comuns — mantém a data da ocorrência', () => {
-    igual(dataExibicaoOcorrencia({
-      data: '2026-10-07',
-      conta: { descricao: 'Conta comum', pessoal: false, data_inicio: '2026-10-06', created_at: '2026-10-06T21:00:00Z' },
-    }), '2026-10-07');
-  });
   teste('Datas — dia 31 ancora no último dia de fevereiro bissexto', () => {
     igual(montarDataOcorrencia(2024, 1, 31), '2024-02-29');
   });
@@ -2570,13 +2426,11 @@ function executarTestes() {
   teste('Ocorrências — preserva o estado escolhido por semana e Empréstimo', () => {
     cpListEl.innerHTML = '<li><details class="cp-grupo-details" data-grupo="2026-9-1" open><summary>Semana 1</summary></details></li>'
       + '<li><details class="cp-grupo-details" data-grupo="2026-9-2"><summary>Semana 2</summary></details></li>'
-      + '<li><details class="cp-grupo-details" data-grupo="emprestimo" open><summary>Empréstimo</summary></details></li>'
-      + '<li><details class="cp-grupo-details" data-grupo="pessoal" open><summary>Pessoal</summary></details></li>';
+      + '<li><details class="cp-grupo-details" data-grupo="emprestimo" open><summary>Empréstimo</summary></details></li>';
     cpListEl.querySelectorAll('.cp-grupo-details > summary').forEach((summary) => summary.click());
     igual(cpGruposAlteradosManualmente.get('2026-9-1'), false);
     igual(cpGruposAlteradosManualmente.get('2026-9-2'), true);
     igual(cpGruposAlteradosManualmente.get('emprestimo'), false);
-    igual(cpGruposAlteradosManualmente.get('pessoal'), false);
     cpGruposAlteradosManualmente.clear();
     cpListEl.innerHTML = '';
   });
@@ -2636,8 +2490,8 @@ function executarTestes() {
     igual(document.getElementById('sal-pagamento-form').classList.contains('tab-panel-active'), true);
     selecionarAbaSalario('venda');
   });
-  teste('Interface — Contas a Pagar permite marcar conta pessoal', () => {
-    igual(Boolean(document.getElementById('cp-pessoal')), true);
+  teste('Interface — Contas a Pagar não tem mais a opção de conta pessoal', () => {
+    igual(Boolean(document.getElementById('cp-pessoal')), false);
   });
   teste('Interface — Fiado permite escolher sugestão ou digitar nome novo', () => {
     const pessoa = document.getElementById('fi-pessoa');
@@ -2674,7 +2528,7 @@ function executarTestes() {
     igual(document.getElementById('cp-pagamento-aviso').hidden, true);
   });
   teste('Interface — ocorrência informa o tipo da conta para atualizar o valor certo', () => {
-    igual(carregarContasPagar.toString().includes('data-tipo="${conta.tipo}" data-pessoal='), true);
+    igual(carregarContasPagar.toString().includes('data-tipo="${conta.tipo}" data-aluguel='), true);
   });
   teste('Interface — pagamento de conta oferece as três origens do dinheiro', () => {
     const origens = [...document.querySelectorAll('#cp-pagamento input[name="cp-pagamento-origem"]')]
@@ -2687,9 +2541,6 @@ function executarTestes() {
     igual(fixture.querySelector('.emprestimo-grupo .divida-valor-atual-btn') !== null, true);
     igual(fixture.querySelector('.emprestimo-grupo .divida-movimento-btn'), null);
     fixture.remove();
-  });
-  teste('Interface — conta pessoal tem respiro após a descrição', () => {
-    igual(getComputedStyle(document.querySelector('.cp-pessoal')).marginTop, '10px');
   });
   teste('Interface — aviso de venda esquecida possui data automática e valor', () => {
     igual(Boolean(document.getElementById('sal-aviso-dias-sem-venda-data')
