@@ -96,6 +96,17 @@ function dadosVendaSalario(vendaBase, data, descricao = null) {
   };
 }
 
+// Venda esquecida com valor 0 sinaliza que a loja não abriu naquele dia.
+function dadosVendaEsquecida(vendaBase, data) {
+  return vendaBase === 0
+    ? dadosVendaSalario(0, data, 'Loja fechada')
+    : dadosVendaSalario(vendaBase, data);
+}
+
+function valorVendaEsquecidaValido(vendaBase) {
+  return Number.isFinite(vendaBase) && vendaBase >= 0;
+}
+
 function calcularSaldoSalario(lancamentos) {
   return round2(lancamentos.reduce((acc, item) => {
     return acc + (item.tipo === 'venda' ? Number(item.valor) : -Number(item.valor));
@@ -789,9 +800,11 @@ function atualizarVendaEsquecidaAtual() {
 
 function updateVendaEsquecidaSubmitLabel() {
   const valor = parseMoney(salAvisoDiasSemVendaValorInput.value);
-  salAvisoDiasSemVendaSalvarEl.textContent = valor > 0
-    ? `Salvar — ${formatMoney(calcularComissao(valor))}`
-    : 'Salvar';
+  if (valor > 0) {
+    salAvisoDiasSemVendaSalvarEl.textContent = `Salvar — ${formatMoney(calcularComissao(valor))}`;
+  } else {
+    salAvisoDiasSemVendaSalvarEl.textContent = valor === 0 ? 'Salvar — loja fechada' : 'Salvar';
+  }
 }
 
 salAvisoDiasSemVendaValorInput.addEventListener('input', updateVendaEsquecidaSubmitLabel);
@@ -816,15 +829,13 @@ bloquearDuranteSubmit(salAvisoDiasSemVendaForm, async (e) => {
 
   const vendaBase = parseMoney(salAvisoDiasSemVendaValorInput.value);
   const data = diasSemVendaPendentes[0];
-  if (!vendaBase || vendaBase <= 0) {
-    salAvisoDiasSemVendaErrorEl.textContent = 'Informe um valor de venda válido.';
+  if (!valorVendaEsquecidaValido(vendaBase)) {
+    salAvisoDiasSemVendaErrorEl.textContent = 'Informe o valor vendido, ou 0 se a loja não abriu.';
     salAvisoDiasSemVendaErrorEl.hidden = false;
     return;
   }
 
-  const { error } = await supabase.from(SAL_TABLE).insert(
-    dadosVendaSalario(vendaBase, data)
-  );
+  const { error } = await supabase.from(SAL_TABLE).insert(dadosVendaEsquecida(vendaBase, data));
   if (error) {
     salAvisoDiasSemVendaErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
     salAvisoDiasSemVendaErrorEl.hidden = false;
@@ -2507,6 +2518,17 @@ function executarTestes() {
     selecionarAbaSalario('pagamento');
     igual(document.getElementById('sal-pagamento-form').classList.contains('tab-panel-active'), true);
     selecionarAbaSalario('venda');
+  });
+  teste('Salário — venda esquecida de R$ 0 marca o dia como loja fechada', () => {
+    igualJson(dadosVendaEsquecida(0, '2026-11-02'), {
+      tipo: 'venda', valor: 0, venda_base: 0, descricao: 'Loja fechada', data: '2026-11-02',
+    });
+    igual(valorVendaEsquecidaValido(0), true);
+    igual(valorVendaEsquecidaValido(NaN), false);
+    igual(valorVendaEsquecidaValido(-1), false);
+  });
+  teste('Salário — dia com venda de R$ 0 deixa de ser cobrado como dia sem venda', () => {
+    igualJson(datasSemVendaEmDiasUteis([{ data: '2026-11-02' }, { data: '2026-11-04' }], '2026-11-04'), ['2026-11-03']);
   });
   teste('Salário — pagar tudo preenche o campo com o saldo no formato digitado', () => {
     igual(formatarValorCampo(1234.5), '1.234,50');

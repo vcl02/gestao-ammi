@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-03 (Pagar tudo no Salário, descrição padrão Pagamento e CNPJ).
+Última revisão: 2026-11-03 (venda esquecida de R$ 0 para loja fechada).
 
 ---
 
@@ -59,6 +59,7 @@ Contas a Pagar não cria lançamentos no Salário.
 ### Dinheiro
 
 - Todo valor é `numeric(12,2)` no banco e sempre **positivo** (`check (valor > 0)`).
+  Única exceção: venda do Salário com valor `0`, que marca dia de loja fechada.
 - O sinal (entrada/saída) vem do campo `tipo`, nunca do sinal do número.
 - Arredondamento sempre a 2 casas, via `Math.round(n * 100) / 100`.
 - Entrada do usuário aceita o formato brasileiro (`1.234,56`): o ponto é
@@ -238,6 +239,12 @@ exibida automaticamente; o usuário informa apenas o valor bruto vendido. Ao
 salvar, o sistema registra uma venda naquela data, acrescenta sua comissão de
 25% ao Salário e avança para o próximo dia faltante, em ordem cronológica, até
 chegar ao mais recente.
+
+Se a loja **não abriu** naquele dia, informa-se `0`. O botão passa a dizer
+"Salvar — loja fechada" e grava uma venda de valor e comissão `R$ 0,00`, com a
+descrição `Loja fechada`. Ela não muda o saldo, mas registra o dia: ele deixa de
+ser cobrado pelo aviso nas próximas sessões. O banco aceita valor `0` somente em
+vendas (migration 017); pagamentos continuam exigindo valor positivo.
 
 O botão de salvar mostra previamente o valor da comissão. O modal pode ser
 fechado sem preencher todos os dias e aparece no máximo uma vez por sessão.
@@ -919,7 +926,8 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - saldo do Caixa, abatimento do aluguel, limite em zero e saída vinculada de
   conta paga com seu dinheiro;
 - comissão e saldo do Salário, inclusive o payload de uma venda esquecida, o
-  valor preenchido pelo Pagar tudo e a descrição padrão `Pagamento`;
+  valor preenchido pelo Pagar tudo, a descrição padrão `Pagamento` e a venda
+  esquecida de `R$ 0` marcando loja fechada;
 - limite, saldo restante e payload acumulado dos pagamentos parciais, com a
   parte de cada origem (próprio, Caixa Casa e Roberta) e a validação do valor
   digitado na janela de pagamento;

@@ -99,7 +99,7 @@ Antes de editar qualquer arquivo em `migrations/`:
 2. Se sim, crie uma nova numerada (`004_...`) com o incremento
 3. Se não, pode editar no lugar
 
-Estado atual confirmado: **001 a 016 já foram aplicadas.** O usuário avisa
+Estado atual confirmado: **001 a 017 já foram aplicadas.** O usuário avisa
 quando roda uma nova — atualize esta linha quando isso acontecer.
 
 Toda tabela nova precisa de RLS habilitado e a policy `auth_all`, seguindo
@@ -117,7 +117,8 @@ e removem as permissões de escrita dos usuários do aplicativo.
   para `Date` sem necessidade; várias regras dependem dessa comparação.
 - **"Hoje" é sempre America/Sao_Paulo**, via `hojeISO()`. Nunca use
   `new Date()` direto para obter a data corrente.
-- **Valores no banco são sempre positivos.** O sinal vem do campo `tipo`.
+- **Valores no banco são sempre positivos.** O sinal vem do campo `tipo`. Única
+  exceção: venda do Salário com valor 0, que marca dia de loja fechada.
 - **Mobile e desktop compartilham o mesmo HTML.** As seções vivem dentro de
   `#desktop-grid`, que usa `display: contents` no mobile e vira grid de 4
   colunas acima de 900px. Cuidado ao mexer nisso — já causou tela em branco
