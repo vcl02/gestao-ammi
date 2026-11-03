@@ -39,7 +39,8 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 ### Identificação da empresa
 
 O CNPJ da empresa, `47.154.673/0001-60`, aparece em texto discreto: no desktop,
-numa linha no topo acima dos quatro painéis, alinhada ao botão Sair; no
+numa linha no topo acima dos quatro painéis, alinhada ao botão Sair, em
+tamanho do título dos painéis; no
 mobile, abaixo do menu da tela inicial. É só exibição, sem uso em cálculos.
 
 ### Integrações entre os módulos
@@ -208,8 +209,7 @@ Descrição tem default `Pagamento` e é obrigatória (se esvaziada, volta a `Pa
 O link **Pagar tudo**, ao lado do campo Valor, preenche o valor com o saldo
 atual do Salário, já no formato digitado (ex.: `1.234,50`). Ele não grava nada:
 data e descrição continuam editáveis e o pagamento só é registrado ao clicar em
-Salvar. Com saldo zerado ou negativo, mostra "Não há saldo a pagar." e deixa o
-campo como estava.
+Salvar. Com saldo zerado ou negativo, o link não aparece.
 No mobile, esta é a aba aberta automaticamente ao entrar no sistema.
 
 ### Saldo

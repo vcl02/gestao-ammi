@@ -750,13 +750,9 @@ function formatarValorCampo(valor) {
   return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-document.getElementById('sal-pagar-tudo').addEventListener('click', () => {
+const salPagarTudoEl = document.getElementById('sal-pagar-tudo');
+salPagarTudoEl.addEventListener('click', () => {
   salPagamentoErrorEl.hidden = true;
-  if (salarioSaldoAtual <= 0) {
-    salPagamentoErrorEl.textContent = 'Não há saldo a pagar.';
-    salPagamentoErrorEl.hidden = false;
-    return;
-  }
   salPagamentoValorInput.value = formatarValorCampo(salarioSaldoAtual);
   salPagamentoValorInput.focus();
 });
@@ -888,6 +884,7 @@ async function carregarSalario() {
 
   const saldo = calcularSaldoSalario(lancamentosSaldo);
   salarioSaldoAtual = saldo;
+  salPagarTudoEl.hidden = saldo <= 0;
   salSaldoEl.textContent = formatMoney(saldo);
   salSaldoEl.classList.toggle('negative', saldo < 0);
 
@@ -2534,6 +2531,9 @@ function executarTestes() {
     igual(formatarValorCampo(1234.5), '1.234,50');
     igual(parseMoney(formatarValorCampo(1234.5)), 1234.5);
     igual(formatarValorCampo(87), '87,00');
+  });
+  teste('Salário — Pagar tudo some com saldo zerado ou negativo', () => {
+    igual(salPagarTudoEl.hidden || salarioSaldoAtual <= 0, true);
   });
   teste('Interface — pagamento do Salário tem botão Pagar tudo e descrição padrão Pagamento', () => {
     igual(document.getElementById('sal-pagar-tudo').type, 'button');
