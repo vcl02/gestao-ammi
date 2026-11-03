@@ -232,12 +232,9 @@ function calcularSaldoFiado(lancamentos) {
   }, 0));
 }
 
-function podeRegistrarPagamentoFiado(valor, saldo) {
-  return valor > 0 && valor <= saldo;
-}
-
-function podeRemoverVendaFiado(lancamentos, vendaRemovida) {
-  return calcularSaldoFiado(lancamentos.filter((item) => item.id !== vendaRemovida.id)) >= 0;
+// Saldo negativo é crédito do cliente com a loja.
+function rotuloSaldoFiado(saldo) {
+  return saldo < 0 ? `Crédito ${formatMoney(-saldo)}` : formatMoney(saldo);
 }
 
 function chavePessoaFiado(nome) {
@@ -1952,7 +1949,7 @@ async function carregarFiado() {
   if (pessoas.length === 0) {
     fiListEl.innerHTML = `<li class="empty-state">Nenhum lançamento de fiado.</li>`;
     fiTotalEl.textContent = formatMoney(0);
-    fiPagamentoPessoaSelect.innerHTML = `<option value="">Nenhuma pessoa com saldo</option>`;
+    fiPagamentoPessoaSelect.innerHTML = `<option value="">Nenhuma pessoa cadastrada</option>`;
     return;
   }
 
@@ -1965,8 +1962,7 @@ async function carregarFiado() {
   const pessoaSelecionada = fiPagamentoPessoaSelect.value;
   fiPagamentoPessoaSelect.innerHTML = `
     <option value="">Escolha a pessoa</option>
-    ${pessoas.filter((nome) => saldosPorPessoa.get(chavePessoaFiado(nome)) > 0)
-      .map((nome) => `<option value="${nome}">${nome} — ${formatMoney(saldosPorPessoa.get(chavePessoaFiado(nome)))}</option>`).join('')}
+    ${pessoas.map((nome) => `<option value="${nome}">${nome} — ${rotuloSaldoFiado(saldosPorPessoa.get(chavePessoaFiado(nome)))}</option>`).join('')}
   `;
   fiPagamentoPessoaSelect.value = pessoaSelecionada;
 
@@ -2006,7 +2002,7 @@ async function carregarFiado() {
         <details class="fi-pessoa-details">
           <summary class="fi-pessoa-summary">
             <span class="fi-pessoa-nome">${nome}</span>
-            <span class="lancamento-valor ${saldoPessoa > 0 ? 'negativo' : 'positivo'}">${formatMoney(saldoPessoa)}</span>
+            <span class="lancamento-valor ${saldoPessoa > 0 ? 'negativo' : 'positivo'}">${rotuloSaldoFiado(saldoPessoa)}</span>
           </summary>
           <ul class="lancamentos">${lancamentosHtml}</ul>
         </details>
@@ -2020,32 +2016,7 @@ async function carregarFiado() {
 fiListEl.addEventListener('click', async (e) => {
   const removerBtn = e.target.closest('.fi-remover-lancamento-btn');
   if (removerBtn) {
-    const { data: lancamento, error: errLancamento } = await supabase
-      .from(FI_TABLE)
-      .select('id, pessoa_nome, valor, tipo')
-      .eq('id', removerBtn.dataset.id)
-      .single();
-
-    if (errLancamento) {
-      alert('Erro ao conferir o lançamento. Tente novamente.');
-      return;
-    }
-
-    const { data: lancamentos, error: errLancamentos } = await supabase
-      .from(FI_TABLE).select('id, pessoa_nome, valor, tipo');
-
-    if (errLancamentos) {
-      alert('Erro ao conferir o saldo. Tente novamente.');
-      return;
-    }
-
-    const daPessoa = lancamentos.filter((item) => chavePessoaFiado(item.pessoa_nome) === chavePessoaFiado(lancamento.pessoa_nome));
-    if (lancamento.tipo === 'venda' && !podeRemoverVendaFiado(daPessoa, lancamento)) {
-      alert('Não é possível remover esta venda porque há pagamentos vinculados ao saldo. Remova primeiro o pagamento necessário.');
-      return;
-    }
-
-    const { error } = await supabase.from(FI_TABLE).delete().eq('id', lancamento.id);
+    const { error } = await supabase.from(FI_TABLE).delete().eq('id', removerBtn.dataset.id);
     if (error) {
       alert('Erro ao remover o lançamento. Tente novamente.');
       return;
@@ -2125,24 +2096,6 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
 
   if (!valor || valor <= 0) {
     fiPagamentoErrorEl.textContent = 'Informe um valor válido.';
-    fiPagamentoErrorEl.hidden = false;
-    return;
-  }
-
-  const { data: lancamentos, error: errLancamentos } = await supabase
-    .from(FI_TABLE).select('valor, tipo, pessoa_nome');
-
-  if (errLancamentos) {
-    fiPagamentoErrorEl.textContent = 'Erro ao conferir o saldo. Tente novamente.';
-    fiPagamentoErrorEl.hidden = false;
-    return;
-  }
-
-  const daPessoa = lancamentos.filter((lancamento) => chavePessoaFiado(lancamento.pessoa_nome) === chavePessoaFiado(pessoaNome));
-  const saldoPessoa = calcularSaldoFiado(daPessoa);
-
-  if (!podeRegistrarPagamentoFiado(valor, saldoPessoa)) {
-    fiPagamentoErrorEl.textContent = `O pagamento não pode ultrapassar o saldo de ${formatMoney(saldoPessoa)}.`;
     fiPagamentoErrorEl.hidden = false;
     return;
   }
@@ -2387,15 +2340,16 @@ function executarTestes() {
       { tipo: 'venda', valor: 100 }, { tipo: 'venda', valor: 50 }, { tipo: 'pagamento', valor: 40 },
     ]), 110);
   });
-  teste('Fiado — aceita pagamento até o saldo', () => igual(podeRegistrarPagamentoFiado(100, 100), true));
-  teste('Fiado — bloqueia pagamento acima do saldo', () => igual(podeRegistrarPagamentoFiado(100.01, 100), false));
-  teste('Fiado — bloqueia remover venda que deixaria pagamentos descobertos', () => {
-    const lancamentos = [{ id: 'v1', tipo: 'venda', valor: 100 }, { id: 'v2', tipo: 'venda', valor: 50 }, { id: 'p1', tipo: 'pagamento', valor: 80 }];
-    igual(podeRemoverVendaFiado(lancamentos, lancamentos[0]), false);
+  teste('Fiado — pagamento acima da dívida vira crédito do cliente', () => {
+    igual(calcularSaldoFiado([{ tipo: 'venda', valor: 50 }, { tipo: 'pagamento', valor: 80 }]), -30);
+    igual(rotuloSaldoFiado(-30), `Crédito ${formatMoney(30)}`);
+    igual(rotuloSaldoFiado(30), formatMoney(30));
+    igual(rotuloSaldoFiado(0), formatMoney(0));
   });
-  teste('Fiado — permite remover venda mantendo saldo suficiente', () => {
-    const lancamentos = [{ id: 'v1', tipo: 'venda', valor: 100 }, { id: 'v2', tipo: 'venda', valor: 50 }, { id: 'p1', tipo: 'pagamento', valor: 80 }];
-    igual(podeRemoverVendaFiado(lancamentos, lancamentos[1]), true);
+  teste('Fiado — crédito abate a próxima venda', () => {
+    igual(calcularSaldoFiado([
+      { tipo: 'venda', valor: 50 }, { tipo: 'pagamento', valor: 80 }, { tipo: 'venda', valor: 45 },
+    ]), 15);
   });
   teste('Fiado — reúne nomes distintos sem duplicar diferenças de maiúsculas', () => {
     igualJson(nomesDistintosFiado([

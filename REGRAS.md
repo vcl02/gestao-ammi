@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-03 (venda esquecida de R$ 0 para loja fechada).
+Última revisão: 2026-11-03 (Fiado aceita crédito do cliente).
 
 ---
 
@@ -799,11 +799,16 @@ dentro do próprio Fiado.
 
 Não existe tabela de cadastro de pessoas. Cada venda e pagamento guarda
 diretamente `pessoa_nome`, além de tipo, valor, descrição e data, em uma única
-tabela `fiado_lancamentos`. O saldo devido é:
+tabela `fiado_lancamentos`. O saldo é:
 
 ```
 saldo da pessoa = soma das vendas − soma dos pagamentos
 ```
+
+Saldo positivo é dívida da pessoa. Saldo **negativo é crédito** dela com a loja
+e aparece como `Crédito R$ X` no nome da pessoa e na lista do pagamento; a
+próxima venda abate esse crédito automaticamente (crédito de 30, venda de 45,
+passa a dever 15).
 
 #### Escolha ou criação pelo nome
 
@@ -822,28 +827,30 @@ positivo para o sinal vir somente do tipo.
 ### Pagamentos
 
 O formulário possui as abas **Venda** e **Pagamento**. Ao registrar um
-pagamento, é obrigatório escolher um nome distinto que possua saldo aberto.
+pagamento, é obrigatório escolher um dos nomes já existentes, devendo ou não:
+quem está zerado ou com crédito também aparece, para permitir pagamento
+adiantado.
 O pagamento não cria nome novo: uma pessoa passa a existir no Fiado pela sua
 primeira venda.
 
 Pagamentos podem ser parciais e ficam misturados às vendas no histórico da
-pessoa, ordenados por data. O valor do pagamento deve ser positivo e não pode
-ultrapassar o saldo atual da pessoa; portanto, o Fiado não registra crédito
-adiantado nem deixa o saldo negativo. Essa proteção existe também no banco,
-inclusive contra inserções diretas por SQL.
+pessoa, ordenados por data. O valor do pagamento deve ser positivo e **pode
+passar da dívida**: o excedente vira crédito da pessoa. Até a migration 018
+havia um trigger no banco impedindo saldo negativo; ele foi removido.
 
 A descrição do pagamento é opcional e usa `Pagamento` como padrão.
 
 ### Total geral
 
-O card do topo (`Total fiado`) soma o saldo devido de **todas** as pessoas:
-soma das vendas menos soma dos pagamentos, sem filtro de data.
+O card do topo (`Total fiado`) é o saldo **líquido** de todas as pessoas: soma
+das vendas menos soma dos pagamentos, sem filtro de data. O crédito de uma
+pessoa reduz o total, que pode ficar negativo se os créditos superarem as
+dívidas.
 
 ### Exclusão
 
-- Remover uma **venda** apaga só aquela linha, desde que as vendas restantes
-  ainda cubram todos os pagamentos registrados. Caso contrário, a remoção é
-  bloqueada até que o pagamento necessário seja removido.
+- Remover uma **venda** apaga só aquela linha e reduz o saldo da pessoa,
+  podendo deixá-la com crédito.
 - Remover um **pagamento** apaga só aquela linha e devolve o valor ao saldo
   devido da pessoa.
 - Não há exclusão de pessoa separada: sem tabela de cadastro, o nome deixa de
@@ -939,7 +946,8 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - saldo, limite de abatimento, payload e presença permanente de Empréstimo e Cartão de Crédito;
 - ocorrências pagas fora dos cards semanais;
 - soma de contas comuns atrasadas no primeiro card semanal;
-- saldo, limite de pagamento e proteção ao remover vendas do Fiado;
+- saldo do Fiado, pagamento acima da dívida virando crédito e crédito abatido
+  pela próxima venda;
 - nomes distintos do Fiado, reaproveitamento de grafia e criação direta pela venda;
 - repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
   de quantidade após salvar uma conta parcelada;
