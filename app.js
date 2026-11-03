@@ -234,7 +234,7 @@ function calcularSaldoFiado(lancamentos) {
 
 // Saldo negativo é crédito do cliente com a loja.
 function rotuloSaldoFiado(saldo) {
-  return saldo < 0 ? `Crédito ${formatMoney(-saldo)}` : formatMoney(saldo);
+  return formatMoney(Math.abs(saldo));
 }
 
 function chavePessoaFiado(nome) {
@@ -2342,7 +2342,7 @@ function executarTestes() {
   });
   teste('Fiado — pagamento acima da dívida vira crédito do cliente', () => {
     igual(calcularSaldoFiado([{ tipo: 'venda', valor: 50 }, { tipo: 'pagamento', valor: 80 }]), -30);
-    igual(rotuloSaldoFiado(-30), `Crédito ${formatMoney(30)}`);
+    igual(rotuloSaldoFiado(-30), formatMoney(30));
     igual(rotuloSaldoFiado(30), formatMoney(30));
     igual(rotuloSaldoFiado(0), formatMoney(0));
   });

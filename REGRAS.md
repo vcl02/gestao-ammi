@@ -806,7 +806,8 @@ saldo da pessoa = soma das vendas − soma dos pagamentos
 ```
 
 Saldo positivo é dívida da pessoa. Saldo **negativo é crédito** dela com a loja
-e aparece como `Crédito R$ X` no nome da pessoa e na lista do pagamento; a
+e aparece como valor positivo, sem sinal nem rótulo, em verde ao lado do nome
+(dívida fica em vermelho) e na lista do pagamento; a
 próxima venda abate esse crédito automaticamente (crédito de 30, venda de 45,
 passa a dever 15).
 
