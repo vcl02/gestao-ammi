@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-10-30 (remoção das contas pessoais).
+Última revisão: 2026-11-03 (Pagar tudo no Salário, descrição padrão Pagamento e CNPJ).
 
 ---
 
@@ -35,6 +35,12 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 ---
 
 ## Conceitos gerais
+
+### Identificação da empresa
+
+O CNPJ da empresa, `47.154.673/0001-60`, aparece em texto discreto: no desktop,
+numa linha no topo acima dos quatro painéis, alinhada ao botão Sair; no
+mobile, abaixo do menu da tela inicial. É só exibição, sem uso em cálculos.
 
 ### Integrações entre os módulos
 
@@ -196,7 +202,13 @@ registrados manualmente em seu bloco próprio.
 ### Pagamento
 
 Um pagamento é dinheiro entregue à gerente, que **abate** o saldo devido.
-Descrição tem default `Café Manhã` e é obrigatória (se esvaziada, volta a `Café Manhã`).
+Descrição tem default `Pagamento` e é obrigatória (se esvaziada, volta a `Pagamento`).
+
+O link **Pagar tudo**, ao lado do campo Valor, preenche o valor com o saldo
+atual do Salário, já no formato digitado (ex.: `1.234,50`). Ele não grava nada:
+data e descrição continuam editáveis e o pagamento só é registrado ao clicar em
+Salvar. Com saldo zerado ou negativo, mostra "Não há saldo a pagar." e deixa o
+campo como estava.
 No mobile, esta é a aba aberta automaticamente ao entrar no sistema.
 
 ### Saldo
@@ -906,7 +918,8 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - leitura e arredondamento de dinheiro;
 - saldo do Caixa, abatimento do aluguel, limite em zero e saída vinculada de
   conta paga com seu dinheiro;
-- comissão e saldo do Salário, inclusive o payload de uma venda esquecida;
+- comissão e saldo do Salário, inclusive o payload de uma venda esquecida, o
+  valor preenchido pelo Pagar tudo e a descrição padrão `Pagamento`;
 - limite, saldo restante e payload acumulado dos pagamentos parciais, com a
   parte de cada origem (próprio, Caixa Casa e Roberta) e a validação do valor
   digitado na janela de pagamento;

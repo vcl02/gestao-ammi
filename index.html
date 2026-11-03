@@ -64,6 +64,8 @@
         <span class="menu-sub">Vendas e pagamentos por pessoa</span>
       </button>
     </nav>
+
+    <p class="empresa-cnpj">CNPJ 47.154.673/0001-60</p>
   </main>
 
   <!-- ===================== DESKTOP: as duas lado a lado ===================== -->
@@ -76,6 +78,8 @@
         <line x1="21" y1="12" x2="9" y2="12"></line>
       </svg>
     </button>
+
+    <p class="empresa-cnpj desktop-empresa">CNPJ 47.154.673/0001-60</p>
 
     <!-- ===================== CAIXA CASA ===================== -->
     <main id="view-caixa-casa" class="page view panel" hidden>
@@ -177,14 +181,17 @@
         </form>
 
         <form id="sal-pagamento-form" class="card tab-panel" data-panel="pagamento">
-          <label for="sal-pagamento-valor">Valor</label>
+          <div class="rotulo-com-acao">
+            <label for="sal-pagamento-valor">Valor</label>
+            <button type="button" id="sal-pagar-tudo" class="btn-link">Pagar tudo</button>
+          </div>
           <input type="text" id="sal-pagamento-valor" inputmode="decimal" placeholder="0,00" required>
 
           <label for="sal-pagamento-data">Data</label>
           <input type="date" id="sal-pagamento-data" required>
 
           <label for="sal-pagamento-descricao">Descrição</label>
-          <input type="text" id="sal-pagamento-descricao" value="Café Manhã" required>
+          <input type="text" id="sal-pagamento-descricao" value="Pagamento" required>
 
           <button type="submit">Salvar</button>
           <p id="sal-pagamento-error" class="error" hidden></p>

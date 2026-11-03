@@ -731,7 +731,24 @@ const salPagamentoValorInput = document.getElementById('sal-pagamento-valor');
 const salPagamentoDataInput = document.getElementById('sal-pagamento-data');
 const salPagamentoDescricaoInput = document.getElementById('sal-pagamento-descricao');
 const salPagamentoErrorEl = document.getElementById('sal-pagamento-error');
+const DESCRICAO_PADRAO_PAGAMENTO_SALARIO = 'Pagamento';
+let salarioSaldoAtual = 0;
 aplicarMascaraMoney(salPagamentoValorInput);
+
+function formatarValorCampo(valor) {
+  return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+document.getElementById('sal-pagar-tudo').addEventListener('click', () => {
+  salPagamentoErrorEl.hidden = true;
+  if (salarioSaldoAtual <= 0) {
+    salPagamentoErrorEl.textContent = 'Não há saldo a pagar.';
+    salPagamentoErrorEl.hidden = false;
+    return;
+  }
+  salPagamentoValorInput.value = formatarValorCampo(salarioSaldoAtual);
+  salPagamentoValorInput.focus();
+});
 
 document.querySelectorAll('.tab-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -859,6 +876,7 @@ async function carregarSalario() {
   }
 
   const saldo = calcularSaldoSalario(lancamentosSaldo);
+  salarioSaldoAtual = saldo;
   salSaldoEl.textContent = formatMoney(saldo);
   salSaldoEl.classList.toggle('negative', saldo < 0);
 
@@ -959,7 +977,7 @@ bloquearDuranteSubmit(salPagamentoForm, async (e) => {
 
   const valor = parseMoney(salPagamentoValorInput.value);
   const data = salPagamentoDataInput.value;
-  const descricao = salPagamentoDescricaoInput.value.trim() || 'Café Manhã';
+  const descricao = salPagamentoDescricaoInput.value.trim() || DESCRICAO_PADRAO_PAGAMENTO_SALARIO;
 
   if (!valor || valor <= 0) {
     salPagamentoErrorEl.textContent = 'Informe um valor válido.';
@@ -982,7 +1000,7 @@ bloquearDuranteSubmit(salPagamentoForm, async (e) => {
 
   salPagamentoForm.reset();
   salPagamentoDataInput.value = hojeISO();
-  salPagamentoDescricaoInput.value = 'Café Manhã';
+  salPagamentoDescricaoInput.value = DESCRICAO_PADRAO_PAGAMENTO_SALARIO;
   await carregarSalario();
 });
 
@@ -2489,6 +2507,20 @@ function executarTestes() {
     selecionarAbaSalario('pagamento');
     igual(document.getElementById('sal-pagamento-form').classList.contains('tab-panel-active'), true);
     selecionarAbaSalario('venda');
+  });
+  teste('Salário — pagar tudo preenche o campo com o saldo no formato digitado', () => {
+    igual(formatarValorCampo(1234.5), '1.234,50');
+    igual(parseMoney(formatarValorCampo(1234.5)), 1234.5);
+    igual(formatarValorCampo(87), '87,00');
+  });
+  teste('Interface — pagamento do Salário tem botão Pagar tudo e descrição padrão Pagamento', () => {
+    igual(document.getElementById('sal-pagar-tudo').type, 'button');
+    igual(document.getElementById('sal-pagamento-descricao').defaultValue, 'Pagamento');
+    igual(DESCRICAO_PADRAO_PAGAMENTO_SALARIO, 'Pagamento');
+  });
+  teste('Interface — CNPJ aparece no início do mobile e no topo do desktop', () => {
+    igual(document.querySelector('#view-home .empresa-cnpj').textContent, 'CNPJ 47.154.673/0001-60');
+    igual(document.querySelector('#desktop-grid > .desktop-empresa').textContent, 'CNPJ 47.154.673/0001-60');
   });
   teste('Interface — Contas a Pagar não tem mais a opção de conta pessoal', () => {
     igual(Boolean(document.getElementById('cp-pessoal')), false);
