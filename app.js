@@ -2176,7 +2176,6 @@ function resumirHistoricoCustos({ vendas, contas, parcelas, hoje, diasHistorico 
     vendasMes: round2(porMes(totalVendas)),
     fixasMes: round2(mensal.fixa + porMes(parcelado.fixa)),
     impostosMes: round2(mensal.imposto + porMes(parcelado.imposto)),
-    comprasMes: round2(mensal.mercadoria + porMes(parcelado.mercadoria)),
   };
 }
 
@@ -2212,13 +2211,8 @@ const calcCustoInput = document.getElementById('calc-custo');
 const calcCategoriaSelect = document.getElementById('calc-categoria');
 const calcPrecoEl = document.getElementById('calc-preco');
 const calcMarkupEl = document.getElementById('calc-markup');
-const calcPrecoMinimoEl = document.getElementById('calc-preco-minimo');
-const calcMarkupMinimoEl = document.getElementById('calc-markup-minimo');
 const calcErroEl = document.getElementById('calc-erro');
 const calcDetalheEl = document.getElementById('calc-detalhe');
-const calcDiagnosticoEl = document.getElementById('calc-diagnostico');
-const calcVendasMesInput = document.getElementById('calc-vendas-mes');
-const calcComissaoInput = document.getElementById('calc-comissao');
 const calcConfigForm = document.getElementById('calc-config-form');
 const calcTaxaCreditoInput = document.getElementById('calc-taxa-credito');
 const calcTaxaDebitoInput = document.getElementById('calc-taxa-debito');
@@ -2229,7 +2223,6 @@ const calcConfigErroEl = document.getElementById('calc-config-erro');
 let calcDados = null;
 
 aplicarMascaraMoney(calcCustoInput);
-aplicarMascaraMoney(calcVendasMesInput);
 
 function preencherCategoriasCalculadora(categorias) {
   const selecionada = calcCategoriaSelect.value;
@@ -2277,20 +2270,18 @@ function atualizarCalculadora() {
   if (!calcDados) return;
   const { resumo, config } = calcDados;
   const custo = parseMoney(calcCustoInput.value);
-  const vendasMes = parseMoney(calcVendasMesInput.value);
-  const comissao = parseMoney(calcComissaoInput.value);
+  const { vendasMes } = resumo;
+  const comissao = PERCENTUAL_COMISSAO * 100;
   const categoria = config.categorias[Number(calcCategoriaSelect.value)];
   const lucro = categoria ? Number(categoria.lucro) : 0;
 
   calcErroEl.hidden = true;
   calcPrecoEl.textContent = '—';
-  calcPrecoMinimoEl.textContent = '—';
   calcMarkupEl.textContent = '';
-  calcMarkupMinimoEl.textContent = '';
 
-  if (!(vendasMes > 0) || !(comissao >= 0)) {
+  if (!(vendasMes > 0)) {
     calcDetalheEl.replaceChildren();
-    calcErroEl.textContent = 'Informe as vendas por mês e a comissão em "Simular volume e comissão".';
+    calcErroEl.textContent = 'Sem vendas no período para calcular a parte das contas fixas.';
     calcErroEl.hidden = false;
     return;
   }
@@ -2317,34 +2308,24 @@ function atualizarCalculadora() {
   }));
 
   if (total >= 100) {
-    calcErroEl.textContent = `Os custos somam ${formatarPercentual(total)} da venda: nenhum preço cobre. Aumente as vendas por mês ou reduza a comissão ou o lucro.`;
+    calcErroEl.textContent = `Os custos somam ${formatarPercentual(total)} da venda: nenhum preço cobre. Reduza o lucro da categoria em Configurações.`;
     calcErroEl.hidden = false;
     return;
   }
 
   const sugerido = calcularPrecoVenda(custo, total);
-  const minimo = calcularPrecoVenda(custo, total - lucro);
   if (!sugerido) return;
   calcPrecoEl.textContent = formatMoney(sugerido.preco);
   calcMarkupEl.textContent = `markup ${formatarPercentual(sugerido.markup)}`;
-  calcPrecoMinimoEl.textContent = formatMoney(minimo.preco);
-  calcMarkupMinimoEl.textContent = `markup ${formatarPercentual(minimo.markup)}`;
 }
 
 function descreverHistoricoCalculadora(resumo) {
   calcStatusEl.textContent = `Médias desde ${formatDataBR(resumo.inicio)} (${resumo.dias} dias): vendas de ${formatMoney(resumo.vendasMes)}/mês.`;
-  if (resumo.comprasMes > 0 && resumo.vendasMes > 0) {
-    const markupImplicito = (resumo.vendasMes / resumo.comprasMes - 1) * 100;
-    calcDiagnosticoEl.textContent = `Compras de mercadoria registradas: ${formatMoney(resumo.comprasMes)}/mês. Se todas as compras estão em Contas a Pagar, o markup médio real é de ${formatarPercentual(markupImplicito)}; se esse número estiver muito acima do que você aplica, há compras fora do app.`;
-  } else {
-    calcDiagnosticoEl.textContent = 'Nenhuma compra de mercadoria registrada no período.';
-  }
 }
 
 async function abrirCalculadora() {
   calcEl.showModal();
   calcStatusEl.textContent = 'Carregando histórico…';
-  calcDiagnosticoEl.textContent = '';
   const hoje = hojeISO();
   const inicioBusca = somarDiasISO(hoje, -(CALC_DIAS_HISTORICO - 1));
 
@@ -2372,8 +2353,6 @@ async function abrirCalculadora() {
   }
 
   calcDados = { resumo, config };
-  calcVendasMesInput.value = formatarValorCampo(resumo.vendasMes);
-  calcComissaoInput.value = String(PERCENTUAL_COMISSAO * 100);
   preencherConfigCalculadora(config);
   descreverHistoricoCalculadora(resumo);
   atualizarCalculadora();
@@ -2427,7 +2406,7 @@ calcConfigForm.addEventListener('submit', async (e) => {
 document.getElementById('calc-categoria-adicionar').addEventListener('click', () => adicionarLinhaCategoria());
 document.getElementById('calc-fechar').addEventListener('click', () => calcEl.close());
 document.querySelectorAll('.calc-abrir').forEach((botao) => botao.addEventListener('click', abrirCalculadora));
-[calcCustoInput, calcVendasMesInput, calcComissaoInput].forEach((input) => input.addEventListener('input', atualizarCalculadora));
+calcCustoInput.addEventListener('input', atualizarCalculadora);
 calcCategoriaSelect.addEventListener('change', atualizarCalculadora);
 
 // ===================== INIT =====================
@@ -2813,7 +2792,7 @@ function executarTestes() {
     igual(somarDiasISO('2026-02-28', 1), '2026-03-01');
     igual(diasEntreISO('2026-11-01', '2026-11-30'), 30);
   });
-  teste('Calculadora — médias mensais separam fixas, impostos e compras', () => {
+  teste('Calculadora — médias mensais separam fixas e impostos e ignoram compras', () => {
     const resumo = resumirHistoricoCustos({
       hoje: '2026-11-29',
       vendas: [{ data: '2026-10-31', venda_base: 3000 }, { data: '2026-11-20', venda_base: 3000 }],
@@ -2831,7 +2810,7 @@ function executarTestes() {
       ],
     });
     igualJson(resumo, {
-      inicio: '2026-10-31', dias: 30, vendasMes: 6000, fixasMes: 850, impostosMes: 350, comprasMes: 600,
+      inicio: '2026-10-31', dias: 30, vendasMes: 6000, fixasMes: 850, impostosMes: 350,
     });
   });
   teste('Calculadora — sem vendas no período não há médias', () => {

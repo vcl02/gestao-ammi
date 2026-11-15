@@ -876,17 +876,17 @@ preço = custo ÷ (1 − % da venda que já tem destino)
 % da venda = comissão + impostos + contas fixas + maquininha + lucro
 ```
 
-O preço sugerido inclui o lucro da categoria; o **mínimo** é o mesmo cálculo
-sem lucro, ou seja, o preço que só empata. Se os percentuais somarem 100% ou
-mais, nenhum preço cobre e a calculadora avisa.
+A calculadora mostra só o **preço sugerido**, que já inclui o lucro da
+categoria, e o markup correspondente. Não há simulação de volume ou comissão:
+ela usa sempre o histórico e a comissão atual do Salário. Se os percentuais
+somarem 100% ou mais, nenhum preço cobre e a calculadora avisa.
 
 ### De onde vem cada percentual
 
-- **Comissão:** começa com os 15% do Salário; pode ser alterada em "Simular
-  volume e comissão" sem mudar a comissão real.
+- **Comissão:** a mesma do Salário (`PERCENTUAL_COMISSAO`, hoje 15%).
 - **Vendas por mês:** média das vendas brutas (`venda_base`) do Salário nos
   últimos 90 dias, contados a partir da primeira venda quando ela é mais
-  recente que isso, normalizada para 30 dias. Também pode ser simulada.
+  recente que isso, normalizada para 30 dias.
 - **Impostos e contas fixas:** vêm de Contas a Pagar pelo **tipo de gasto** da
   conta. Conta Mensal entra pelo seu valor mensal atual (ajustes pontuais não
   entram); parcelas entram pela média mensal das que venceram no mesmo
@@ -900,9 +900,8 @@ mais, nenhum preço cobre e a calculadora avisa.
 - **Lucro:** o lucro desejado da categoria escolhida.
 
 Compras de mercadoria **não** entram no percentual: o custo do produto já é o
-valor digitado. A calculadora mostra a média mensal de compras e o markup
-médio que ela implica (`vendas ÷ compras − 1`); um valor muito acima do markup
-praticado indica compras que não estão registradas no app.
+valor digitado. Elas também não servem para estimar o markup médio, porque a
+loja abriu com estoque comprado antes de entrar no app.
 
 ### Tipo de gasto das contas
 
