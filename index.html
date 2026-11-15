@@ -63,6 +63,10 @@
         <span class="menu-title">Fiado</span>
         <span class="menu-sub">Vendas e pagamentos por pessoa</span>
       </button>
+      <button class="menu-card calc-abrir" type="button">
+        <span class="menu-title">Calculadora de preço</span>
+        <span class="menu-sub">Quanto cobrar por um produto</span>
+      </button>
     </nav>
 
     <p class="empresa-cnpj">CNPJ 47.154.673/0001-60</p>
@@ -80,6 +84,7 @@
     </button>
 
     <p class="empresa-cnpj desktop-empresa">CNPJ 47.154.673/0001-60</p>
+    <button type="button" class="btn-link calc-abrir desktop-calculadora">Calculadora de preço</button>
 
     <!-- ===================== CAIXA CASA ===================== -->
     <main id="view-caixa-casa" class="page view panel" hidden>
@@ -271,6 +276,13 @@
         <label for="cp-descricao">Descrição</label>
         <input type="text" id="cp-descricao" placeholder="Luz" required>
 
+        <label for="cp-categoria">Tipo de gasto</label>
+        <select id="cp-categoria">
+          <option value="fixa">Fixa (aluguel, luz, contadora…)</option>
+          <option value="imposto">Imposto (DAS, DARE…)</option>
+          <option value="mercadoria">Compra de mercadoria</option>
+        </select>
+
         <button type="submit">Salvar</button>
         <p id="cp-form-error" class="error" hidden></p>
       </form>
@@ -400,6 +412,69 @@
       <button type="submit">Pagar</button>
       <p id="cp-pagamento-error" class="error" hidden></p>
     </form>
+  </dialog>
+
+  <dialog id="calc" class="modal-aviso modal-calculadora" aria-labelledby="calc-titulo">
+    <button type="button" id="calc-fechar" class="btn-icon modal-aviso-fechar" aria-label="Fechar calculadora">×</button>
+    <h2 id="calc-titulo">Calculadora de preço</h2>
+    <p id="calc-status" class="modal-venda-progresso"></p>
+
+    <div class="calc-campos">
+      <label for="calc-custo">Quanto você pagou no produto</label>
+      <input type="text" id="calc-custo" inputmode="decimal" placeholder="0,00">
+
+      <label for="calc-categoria">Categoria</label>
+      <select id="calc-categoria"></select>
+    </div>
+
+    <div class="calc-resultado">
+      <div>
+        <span class="calc-rotulo">Preço sugerido</span>
+        <strong id="calc-preco">—</strong>
+        <span id="calc-markup" class="calc-rotulo"></span>
+      </div>
+      <div>
+        <span class="calc-rotulo">Mínimo (sem lucro)</span>
+        <strong id="calc-preco-minimo">—</strong>
+        <span id="calc-markup-minimo" class="calc-rotulo"></span>
+      </div>
+    </div>
+    <p id="calc-erro" class="error" hidden></p>
+
+    <p class="calc-subtitulo">O que sai de cada venda</p>
+    <ul id="calc-detalhe" class="calc-detalhe"></ul>
+    <p id="calc-diagnostico" class="calc-ajuda"></p>
+
+    <details class="calc-secao">
+      <summary>Simular volume e comissão</summary>
+      <label for="calc-vendas-mes">Vendas por mês</label>
+      <input type="text" id="calc-vendas-mes" inputmode="decimal">
+      <label for="calc-comissao">Comissão (% da venda)</label>
+      <input type="text" id="calc-comissao" inputmode="decimal">
+      <p class="calc-ajuda">Só simula: não muda a comissão do Salário nem nada salvo.</p>
+    </details>
+
+    <details class="calc-secao">
+      <summary>Configurações</summary>
+      <form id="calc-config-form">
+        <label for="calc-taxa-credito">Taxa crédito 1x (%)</label>
+        <input type="text" id="calc-taxa-credito" inputmode="decimal">
+        <label for="calc-taxa-debito">Taxa débito (%)</label>
+        <input type="text" id="calc-taxa-debito" inputmode="decimal">
+        <label for="calc-mix-credito">Vendas no crédito (% do total)</label>
+        <input type="text" id="calc-mix-credito" inputmode="decimal">
+        <label for="calc-mix-debito">Vendas no débito (% do total)</label>
+        <input type="text" id="calc-mix-debito" inputmode="decimal">
+        <p class="calc-ajuda">O que sobrar é pix ou dinheiro, sem taxa.</p>
+
+        <p class="calc-subtitulo">Categorias e lucro desejado (% da venda)</p>
+        <div id="calc-categorias"></div>
+        <button type="button" id="calc-categoria-adicionar" class="btn-link">+ Categoria</button>
+
+        <button type="submit">Salvar configurações</button>
+        <p id="calc-config-erro" class="error" hidden></p>
+      </form>
+    </details>
   </dialog>
 
   <!-- ===================== TESTES DE REGRESSÃO (?testes=1) ===================== -->

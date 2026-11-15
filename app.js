@@ -17,6 +17,7 @@ const CP_AJUSTES_TABLE = 'contas_pagar_ajustes';
 const EMPRESTIMO_TABLE = 'emprestimo_lancamentos';
 const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
 const ROBERTA_TABLE = 'roberta_lancamentos';
+const CALC_CONFIG_TABLE = 'calculadora_config';
 const FI_TABLE = 'fiado_lancamentos';
 const PERCENTUAL_COMISSAO = 0.25;
 const modoTestes = new URLSearchParams(window.location.search).has('testes');
@@ -1146,6 +1147,7 @@ cpSelecaoLimparEl.addEventListener('click', () => {
 const cpForm = document.getElementById('cp-form');
 const cpErrorEl = document.getElementById('cp-form-error');
 const cpDescricaoInput = document.getElementById('cp-descricao');
+const cpCategoriaInput = document.getElementById('cp-categoria');
 const cpValorInput = document.getElementById('cp-valor');
 const cpDataInicioInput = document.getElementById('cp-data-inicio');
 const cpCampoDataUnicaEl = document.getElementById('cp-campo-data-unica');
@@ -1576,7 +1578,7 @@ async function carregarContasPagar() {
     <li class="lancamento-item">
       <div class="lancamento-info">
         <span class="lancamento-desc">${conta.descricao}</span>
-        <span class="lancamento-data">${conta.tipo === 'parcelado' ? 'parcelado' : `mensal — dia ${conta.dia_vencimento}`}</span>
+        <span class="lancamento-data">${conta.tipo === 'parcelado' ? 'parcelado' : `mensal — dia ${conta.dia_vencimento}`} · ${conta.categoria}</span>
       </div>
       <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>
       <button type="button" class="btn-icon cp-remover-btn" data-conta-id="${conta.id}" aria-label="Remover conta" title="Remover conta">
@@ -1836,6 +1838,7 @@ bloquearDuranteSubmit(cpForm, async (e) => {
   cpErrorEl.hidden = true;
 
   const descricao = cpDescricaoInput.value.trim();
+  const categoria = cpCategoriaInput.value;
   const valor = parseMoney(cpValorInput.value);
   const tipo = document.querySelector('input[name="cp-tipo"]:checked').value;
 
@@ -1860,6 +1863,7 @@ bloquearDuranteSubmit(cpForm, async (e) => {
       tipo: 'recorrente',
       dia_vencimento: dia,
       data_inicio: dataInicio,
+      categoria,
     });
 
     if (error) {
@@ -1884,6 +1888,7 @@ bloquearDuranteSubmit(cpForm, async (e) => {
       descricao,
       tipo: 'parcelado',
       data_inicio: dataInicio,
+      categoria,
     }).select().single();
 
     if (error) {
@@ -2119,6 +2124,311 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
   fiPagamentoDescricaoInput.value = 'Pagamento';
   await carregarFiado();
 });
+
+// ===================== CALCULADORA DE PREÇO =====================
+
+const CALC_DIAS_HISTORICO = 90;
+
+function somarDiasISO(isoDate, dias) {
+  const [ano, mes, dia] = isoDate.split('-').map(Number);
+  return new Date(Date.UTC(ano, mes - 1, dia + dias)).toISOString().slice(0, 10);
+}
+
+function diasEntreISO(inicio, fim) {
+  const paraUTC = (iso) => {
+    const [ano, mes, dia] = iso.split('-').map(Number);
+    return Date.UTC(ano, mes - 1, dia);
+  };
+  return Math.round((paraUTC(fim) - paraUTC(inicio)) / 86400000) + 1;
+}
+
+// Médias mensais a partir do histórico: vendas do Salário e contas por tipo de
+// gasto. Conta mensal entra pelo valor atual; parcelas entram pela média do
+// período, que começa na primeira venda quando ela é mais recente que a janela.
+function resumirHistoricoCustos({ vendas, contas, parcelas, hoje, diasHistorico = CALC_DIAS_HISTORICO }) {
+  const inicioJanela = somarDiasISO(hoje, -(diasHistorico - 1));
+  const datasVendas = vendas.map((venda) => venda.data).filter((data) => data >= inicioJanela && data <= hoje).sort();
+  if (datasVendas.length === 0) return null;
+
+  const inicio = datasVendas[0];
+  const dias = diasEntreISO(inicio, hoje);
+  const noPeriodo = (data) => data >= inicio && data <= hoje;
+  const porMes = (total) => total / dias * 30;
+
+  const totalVendas = vendas
+    .filter((venda) => noPeriodo(venda.data))
+    .reduce((total, venda) => total + Number(venda.venda_base || 0), 0);
+
+  const mensal = { fixa: 0, imposto: 0, mercadoria: 0 };
+  contas
+    .filter((conta) => conta.tipo === 'recorrente' && conta.data_inicio <= hoje && conta.categoria in mensal)
+    .forEach((conta) => { mensal[conta.categoria] += Number(conta.valor); });
+
+  const parcelado = { fixa: 0, imposto: 0, mercadoria: 0 };
+  const categoriaPorConta = new Map(contas.map((conta) => [conta.id, conta.categoria]));
+  parcelas
+    .filter((parcela) => noPeriodo(parcela.data) && categoriaPorConta.get(parcela.conta_id) in parcelado)
+    .forEach((parcela) => { parcelado[categoriaPorConta.get(parcela.conta_id)] += Number(parcela.valor); });
+
+  return {
+    inicio,
+    dias,
+    vendasMes: round2(porMes(totalVendas)),
+    fixasMes: round2(mensal.fixa + porMes(parcelado.fixa)),
+    impostosMes: round2(mensal.imposto + porMes(parcelado.imposto)),
+    comprasMes: round2(mensal.mercadoria + porMes(parcelado.mercadoria)),
+  };
+}
+
+function taxaMediaMaquininha(config) {
+  return round2((Number(config.mix_credito) * Number(config.taxa_credito)
+    + Number(config.mix_debito) * Number(config.taxa_debito)) / 100);
+}
+
+function percentuaisDoPreco({ comissao, impostosMes, fixasMes, vendasMes, taxaCartao, lucro }) {
+  return [
+    { nome: 'Comissão', pct: comissao },
+    { nome: 'Impostos', pct: impostosMes / vendasMes * 100, valorMes: impostosMes },
+    { nome: 'Contas fixas', pct: fixasMes / vendasMes * 100, valorMes: fixasMes },
+    { nome: 'Maquininha', pct: taxaCartao },
+    { nome: 'Lucro', pct: lucro },
+  ];
+}
+
+// preço = custo ÷ (1 − parte da venda que já tem destino)
+function calcularPrecoVenda(custo, percentualSobreVenda) {
+  if (!(custo > 0) || percentualSobreVenda >= 100) return null;
+  const preco = round2(custo / (1 - percentualSobreVenda / 100));
+  return { preco, markup: round2((preco / custo - 1) * 100) };
+}
+
+function formatarPercentual(valor) {
+  return `${Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+}
+
+const calcEl = document.getElementById('calc');
+const calcStatusEl = document.getElementById('calc-status');
+const calcCustoInput = document.getElementById('calc-custo');
+const calcCategoriaSelect = document.getElementById('calc-categoria');
+const calcPrecoEl = document.getElementById('calc-preco');
+const calcMarkupEl = document.getElementById('calc-markup');
+const calcPrecoMinimoEl = document.getElementById('calc-preco-minimo');
+const calcMarkupMinimoEl = document.getElementById('calc-markup-minimo');
+const calcErroEl = document.getElementById('calc-erro');
+const calcDetalheEl = document.getElementById('calc-detalhe');
+const calcDiagnosticoEl = document.getElementById('calc-diagnostico');
+const calcVendasMesInput = document.getElementById('calc-vendas-mes');
+const calcComissaoInput = document.getElementById('calc-comissao');
+const calcConfigForm = document.getElementById('calc-config-form');
+const calcTaxaCreditoInput = document.getElementById('calc-taxa-credito');
+const calcTaxaDebitoInput = document.getElementById('calc-taxa-debito');
+const calcMixCreditoInput = document.getElementById('calc-mix-credito');
+const calcMixDebitoInput = document.getElementById('calc-mix-debito');
+const calcCategoriasEl = document.getElementById('calc-categorias');
+const calcConfigErroEl = document.getElementById('calc-config-erro');
+let calcDados = null;
+
+aplicarMascaraMoney(calcCustoInput);
+aplicarMascaraMoney(calcVendasMesInput);
+
+function preencherCategoriasCalculadora(categorias) {
+  const selecionada = calcCategoriaSelect.value;
+  calcCategoriaSelect.replaceChildren(...(categorias.length === 0
+    ? [new Option('Sem categoria (lucro 0%)', '')]
+    : categorias.map((categoria, i) => new Option(`${categoria.nome} — lucro ${formatarPercentual(categoria.lucro)}`, String(i)))));
+  if (selecionada && Number(selecionada) < categorias.length) calcCategoriaSelect.value = selecionada;
+}
+
+function adicionarLinhaCategoria(nome = '', lucro = '') {
+  const linha = document.createElement('div');
+  linha.className = 'calc-categoria-linha';
+  const nomeInput = document.createElement('input');
+  nomeInput.type = 'text';
+  nomeInput.className = 'calc-categoria-nome';
+  nomeInput.placeholder = 'Nome';
+  nomeInput.value = nome;
+  const lucroInput = document.createElement('input');
+  lucroInput.type = 'text';
+  lucroInput.inputMode = 'decimal';
+  lucroInput.className = 'calc-categoria-lucro';
+  lucroInput.placeholder = 'Lucro %';
+  lucroInput.value = lucro === '' ? '' : String(lucro).replace('.', ',');
+  const remover = document.createElement('button');
+  remover.type = 'button';
+  remover.className = 'btn-icon calc-categoria-remover';
+  remover.setAttribute('aria-label', 'Remover categoria');
+  remover.textContent = '×';
+  remover.addEventListener('click', () => linha.remove());
+  linha.append(nomeInput, lucroInput, remover);
+  calcCategoriasEl.append(linha);
+}
+
+function preencherConfigCalculadora(config) {
+  calcTaxaCreditoInput.value = String(config.taxa_credito).replace('.', ',');
+  calcTaxaDebitoInput.value = String(config.taxa_debito).replace('.', ',');
+  calcMixCreditoInput.value = String(config.mix_credito).replace('.', ',');
+  calcMixDebitoInput.value = String(config.mix_debito).replace('.', ',');
+  calcCategoriasEl.replaceChildren();
+  config.categorias.forEach((categoria) => adicionarLinhaCategoria(categoria.nome, categoria.lucro));
+  preencherCategoriasCalculadora(config.categorias);
+}
+
+function atualizarCalculadora() {
+  if (!calcDados) return;
+  const { resumo, config } = calcDados;
+  const custo = parseMoney(calcCustoInput.value);
+  const vendasMes = parseMoney(calcVendasMesInput.value);
+  const comissao = parseMoney(calcComissaoInput.value);
+  const categoria = config.categorias[Number(calcCategoriaSelect.value)];
+  const lucro = categoria ? Number(categoria.lucro) : 0;
+
+  calcErroEl.hidden = true;
+  calcPrecoEl.textContent = '—';
+  calcPrecoMinimoEl.textContent = '—';
+  calcMarkupEl.textContent = '';
+  calcMarkupMinimoEl.textContent = '';
+
+  if (!(vendasMes > 0) || !(comissao >= 0)) {
+    calcDetalheEl.replaceChildren();
+    calcErroEl.textContent = 'Informe as vendas por mês e a comissão em "Simular volume e comissão".';
+    calcErroEl.hidden = false;
+    return;
+  }
+
+  const itens = percentuaisDoPreco({
+    comissao,
+    impostosMes: resumo.impostosMes,
+    fixasMes: resumo.fixasMes,
+    vendasMes,
+    taxaCartao: taxaMediaMaquininha(config),
+    lucro,
+  });
+  const total = itens.reduce((soma, item) => soma + item.pct, 0);
+
+  calcDetalheEl.replaceChildren(...[...itens, { nome: 'Total', pct: total, total: true }].map((item) => {
+    const li = document.createElement('li');
+    if (item.total) li.className = 'calc-detalhe-total';
+    const nome = document.createElement('span');
+    nome.textContent = item.valorMes === undefined ? item.nome : `${item.nome} (${formatMoney(item.valorMes)}/mês)`;
+    const pct = document.createElement('span');
+    pct.textContent = formatarPercentual(item.pct);
+    li.append(nome, pct);
+    return li;
+  }));
+
+  if (total >= 100) {
+    calcErroEl.textContent = `Os custos somam ${formatarPercentual(total)} da venda: nenhum preço cobre. Aumente as vendas por mês ou reduza a comissão ou o lucro.`;
+    calcErroEl.hidden = false;
+    return;
+  }
+
+  const sugerido = calcularPrecoVenda(custo, total);
+  const minimo = calcularPrecoVenda(custo, total - lucro);
+  if (!sugerido) return;
+  calcPrecoEl.textContent = formatMoney(sugerido.preco);
+  calcMarkupEl.textContent = `markup ${formatarPercentual(sugerido.markup)}`;
+  calcPrecoMinimoEl.textContent = formatMoney(minimo.preco);
+  calcMarkupMinimoEl.textContent = `markup ${formatarPercentual(minimo.markup)}`;
+}
+
+function descreverHistoricoCalculadora(resumo) {
+  calcStatusEl.textContent = `Médias desde ${formatDataBR(resumo.inicio)} (${resumo.dias} dias): vendas de ${formatMoney(resumo.vendasMes)}/mês.`;
+  if (resumo.comprasMes > 0 && resumo.vendasMes > 0) {
+    const markupImplicito = (resumo.vendasMes / resumo.comprasMes - 1) * 100;
+    calcDiagnosticoEl.textContent = `Compras de mercadoria registradas: ${formatMoney(resumo.comprasMes)}/mês. Se todas as compras estão em Contas a Pagar, o markup médio real é de ${formatarPercentual(markupImplicito)}; se esse número estiver muito acima do que você aplica, há compras fora do app.`;
+  } else {
+    calcDiagnosticoEl.textContent = 'Nenhuma compra de mercadoria registrada no período.';
+  }
+}
+
+async function abrirCalculadora() {
+  calcEl.showModal();
+  calcStatusEl.textContent = 'Carregando histórico…';
+  calcDiagnosticoEl.textContent = '';
+  const hoje = hojeISO();
+  const inicioBusca = somarDiasISO(hoje, -(CALC_DIAS_HISTORICO - 1));
+
+  const [
+    { data: vendas, error: errVendas },
+    { data: contas, error: errContas },
+    { data: parcelas, error: errParcelas },
+    { data: config, error: errConfig },
+  ] = await Promise.all([
+    supabase.from(SAL_TABLE).select('data, venda_base').eq('tipo', 'venda').gte('data', inicioBusca).lte('data', hoje),
+    supabase.from(CP_TABLE).select('id, tipo, valor, categoria, data_inicio'),
+    supabase.from(CP_PARCELAS_TABLE).select('conta_id, data, valor').gte('data', inicioBusca).lte('data', hoje),
+    supabase.from(CALC_CONFIG_TABLE).select('*').single(),
+  ]);
+
+  if (errVendas || errContas || errParcelas || errConfig) {
+    calcStatusEl.textContent = 'Erro ao carregar o histórico. Confira se a migration 019 foi aplicada.';
+    return;
+  }
+
+  const resumo = resumirHistoricoCustos({ vendas, contas, parcelas, hoje });
+  if (!resumo) {
+    calcStatusEl.textContent = 'Ainda não há vendas registradas no Salário para calcular as médias.';
+    return;
+  }
+
+  calcDados = { resumo, config };
+  calcVendasMesInput.value = formatarValorCampo(resumo.vendasMes);
+  calcComissaoInput.value = String(PERCENTUAL_COMISSAO * 100);
+  preencherConfigCalculadora(config);
+  descreverHistoricoCalculadora(resumo);
+  atualizarCalculadora();
+  calcCustoInput.focus();
+}
+
+function lerConfigCalculadora() {
+  const config = {
+    taxa_credito: parseMoney(calcTaxaCreditoInput.value),
+    taxa_debito: parseMoney(calcTaxaDebitoInput.value),
+    mix_credito: parseMoney(calcMixCreditoInput.value),
+    mix_debito: parseMoney(calcMixDebitoInput.value),
+    categorias: [...calcCategoriasEl.querySelectorAll('.calc-categoria-linha')].map((linha) => ({
+      nome: linha.querySelector('.calc-categoria-nome').value.trim(),
+      lucro: parseMoney(linha.querySelector('.calc-categoria-lucro').value),
+    })),
+  };
+  const percentuais = [config.taxa_credito, config.taxa_debito, config.mix_credito, config.mix_debito];
+  if (percentuais.some((valor) => !(valor >= 0 && valor < 100.01))) return { erro: 'Taxas e proporções devem ficar entre 0 e 100.' };
+  if (config.mix_credito + config.mix_debito > 100) return { erro: 'Crédito + débito não podem passar de 100% das vendas.' };
+  if (config.categorias.some((categoria) => !categoria.nome || !(categoria.lucro >= 0 && categoria.lucro < 100))) {
+    return { erro: 'Cada categoria precisa de nome e lucro entre 0 e 99%.' };
+  }
+  return { config };
+}
+
+calcConfigForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  calcConfigErroEl.hidden = true;
+  const { config, erro } = lerConfigCalculadora();
+  if (erro) {
+    calcConfigErroEl.textContent = erro;
+    calcConfigErroEl.hidden = false;
+    return;
+  }
+  const { data, error } = await supabase.from(CALC_CONFIG_TABLE)
+    .update({ ...config, updated_at: new Date().toISOString() })
+    .eq('id', true)
+    .select()
+    .single();
+  if (error) {
+    calcConfigErroEl.textContent = 'Erro ao salvar as configurações.';
+    calcConfigErroEl.hidden = false;
+    return;
+  }
+  calcDados.config = data;
+  preencherConfigCalculadora(data);
+  atualizarCalculadora();
+});
+
+document.getElementById('calc-categoria-adicionar').addEventListener('click', () => adicionarLinhaCategoria());
+document.getElementById('calc-fechar').addEventListener('click', () => calcEl.close());
+document.querySelectorAll('.calc-abrir').forEach((botao) => botao.addEventListener('click', abrirCalculadora));
+[calcCustoInput, calcVendasMesInput, calcComissaoInput].forEach((input) => input.addEventListener('input', atualizarCalculadora));
+calcCategoriaSelect.addEventListener('change', atualizarCalculadora);
 
 // ===================== INIT =====================
 
@@ -2497,6 +2807,56 @@ function executarTestes() {
   teste('Interface — CNPJ aparece no início do mobile e no topo do desktop', () => {
     igual(document.querySelector('#view-home .empresa-cnpj').textContent, 'CNPJ 47.154.673/0001-60');
     igual(document.querySelector('#desktop-grid > .desktop-empresa').textContent, 'CNPJ 47.154.673/0001-60');
+  });
+  teste('Calculadora — datas somam dias e contam o período inclusive', () => {
+    igual(somarDiasISO('2026-11-15', -89), '2026-08-18');
+    igual(somarDiasISO('2026-02-28', 1), '2026-03-01');
+    igual(diasEntreISO('2026-11-01', '2026-11-30'), 30);
+  });
+  teste('Calculadora — médias mensais separam fixas, impostos e compras', () => {
+    const resumo = resumirHistoricoCustos({
+      hoje: '2026-11-29',
+      vendas: [{ data: '2026-10-31', venda_base: 3000 }, { data: '2026-11-20', venda_base: 3000 }],
+      contas: [
+        { id: 'a', tipo: 'recorrente', valor: 850, categoria: 'fixa', data_inicio: '2026-09-30' },
+        { id: 'd', tipo: 'recorrente', valor: 200, categoria: 'imposto', data_inicio: '2026-09-20' },
+        { id: 'f', tipo: 'recorrente', valor: 99, categoria: 'fixa', data_inicio: '2026-12-01' },
+        { id: 'm', tipo: 'parcelado', valor: null, categoria: 'mercadoria', data_inicio: '2026-10-01' },
+        { id: 'r', tipo: 'parcelado', valor: null, categoria: 'imposto', data_inicio: '2026-11-01' },
+      ],
+      parcelas: [
+        { conta_id: 'm', data: '2026-11-10', valor: 600 },
+        { conta_id: 'm', data: '2026-10-01', valor: 999 },
+        { conta_id: 'r', data: '2026-11-05', valor: 150 },
+      ],
+    });
+    igualJson(resumo, {
+      inicio: '2026-10-31', dias: 30, vendasMes: 6000, fixasMes: 850, impostosMes: 350, comprasMes: 600,
+    });
+  });
+  teste('Calculadora — sem vendas no período não há médias', () => {
+    igual(resumirHistoricoCustos({ hoje: '2026-11-29', vendas: [], contas: [], parcelas: [] }), null);
+  });
+  teste('Calculadora — taxa média da maquininha segue a proporção crédito/débito', () => {
+    igual(taxaMediaMaquininha({ taxa_credito: 3.15, taxa_debito: 1.37, mix_credito: 100, mix_debito: 0 }), 3.15);
+    igual(taxaMediaMaquininha({ taxa_credito: 3.15, taxa_debito: 1.37, mix_credito: 50, mix_debito: 30 }), 1.99);
+  });
+  teste('Calculadora — preço divide o custo pelo que sobra da venda', () => {
+    igualJson(calcularPrecoVenda(10, 50), { preco: 20, markup: 100 });
+    igual(calcularPrecoVenda(10, 100), null);
+    igual(calcularPrecoVenda(0, 30), null);
+  });
+  teste('Calculadora — fixas e impostos viram % pelo volume de vendas', () => {
+    const itens = percentuaisDoPreco({ comissao: 25, impostosMes: 300, fixasMes: 1200, vendasMes: 6000, taxaCartao: 3.15, lucro: 10 });
+    igualJson(itens.map((item) => round2(item.pct)), [25, 5, 20, 3.15, 10]);
+  });
+  teste('Interface — calculadora abre pelo menu do celular e pelo topo do desktop', () => {
+    igual(document.querySelectorAll('#view-home .calc-abrir').length, 1);
+    igual(document.querySelectorAll('#desktop-grid > .calc-abrir').length, 1);
+    igual(Boolean(document.getElementById('calc')), true);
+  });
+  teste('Interface — conta informa o tipo de gasto para a calculadora', () => {
+    igualJson([...document.querySelectorAll('#cp-categoria option')].map((o) => o.value), ['fixa', 'imposto', 'mercadoria']);
   });
   teste('Interface — Contas a Pagar não tem mais a opção de conta pessoal', () => {
     igual(Boolean(document.getElementById('cp-pessoal')), false);

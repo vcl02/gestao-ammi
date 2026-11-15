@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-03 (Fiado aceita crédito do cliente).
+Última revisão: 2026-11-15 (calculadora de preço e tipo de gasto das contas).
 
 ---
 
@@ -27,6 +27,7 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
   - [Card do topo: esta semana e a próxima](#card-do-topo-esta-semana-e-a-próxima)
   - [Agrupamento por semana](#agrupamento-por-semana)
 - [Módulo: Fiado](#módulo-fiado)
+- [Calculadora de preço](#calculadora-de-preço)
 - [Regras transversais](#regras-transversais)
   - [Auditoria do banco](#auditoria-do-banco)
 - [Testes de regressão](#testes-de-regressão)
@@ -859,6 +860,64 @@ dívidas.
 
 ---
 
+## Calculadora de preço
+
+Responde "por quanto vender um produto que me custou X" usando os custos reais
+do histórico. Abre pelo card **Calculadora de preço** no menu do mobile e pelo
+link no topo do desktop. Só lê dados e não grava nada, exceto as
+configurações.
+
+### Fórmula
+
+```
+preço = custo ÷ (1 − % da venda que já tem destino)
+% da venda = comissão + impostos + contas fixas + maquininha + lucro
+```
+
+O preço sugerido inclui o lucro da categoria; o **mínimo** é o mesmo cálculo
+sem lucro, ou seja, o preço que só empata. Se os percentuais somarem 100% ou
+mais, nenhum preço cobre e a calculadora avisa.
+
+### De onde vem cada percentual
+
+- **Comissão:** começa com os 25% do Salário; pode ser alterada em "Simular
+  volume e comissão" sem mudar a comissão real.
+- **Vendas por mês:** média das vendas brutas (`venda_base`) do Salário nos
+  últimos 90 dias, contados a partir da primeira venda quando ela é mais
+  recente que isso, normalizada para 30 dias. Também pode ser simulada.
+- **Impostos e contas fixas:** vêm de Contas a Pagar pelo **tipo de gasto** da
+  conta. Conta Mensal entra pelo seu valor mensal atual (ajustes pontuais não
+  entram); parcelas entram pela média mensal das que venceram no mesmo
+  período das vendas. O valor por mês é dividido pelas vendas por mês para
+  virar percentual; por isso, mais volume dilui as fixas e baixa o preço.
+- **Maquininha:** média ponderada das taxas pela proporção de vendas no
+  crédito e no débito; o resto é pix ou dinheiro, sem taxa. Base: Visa e
+  Mastercard, crédito 1x 3,15% e débito 1,37%. Por segurança, a configuração
+  inicial considera 100% das vendas no crédito.
+- **Lucro:** o lucro desejado da categoria escolhida.
+
+Compras de mercadoria **não** entram no percentual: o custo do produto já é o
+valor digitado. A calculadora mostra a média mensal de compras e o markup
+médio que ela implica (`vendas ÷ compras − 1`); um valor muito acima do markup
+praticado indica compras que não estão registradas no app.
+
+### Tipo de gasto das contas
+
+Ao cadastrar uma conta, escolhe-se **Fixa**, **Imposto** ou **Compra de
+mercadoria** (`contas_pagar.categoria`, padrão `fixa`). A lista "Contas
+cadastradas" mostra o tipo. Na migration 019, DAS e DARE viraram imposto e
+Bello Festas, Darnel e Junco viraram mercadoria; as demais ficaram fixas. Não
+há edição do tipo de uma conta já cadastrada pela interface.
+
+### Configurações
+
+Ficam numa linha única em `calculadora_config`: taxas de crédito e débito,
+proporção de vendas em cada um (soma até 100%) e as categorias de produto com
+o lucro desejado (de 0 a 99% da venda). As categorias iniciais são sugestões:
+Doces 15%, Festa e decoração 15%, Descartáveis e embalagens 5%.
+
+---
+
 ## Regras transversais
 
 ### Auditoria do banco
@@ -949,6 +1008,8 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - soma de contas comuns atrasadas no primeiro card semanal;
 - saldo do Fiado, pagamento acima da dívida virando crédito e crédito abatido
   pela próxima venda;
+- médias mensais da calculadora de preço por tipo de gasto e período, taxa
+  média da maquininha, percentuais sobre a venda e fórmula do preço;
 - nomes distintos do Fiado, reaproveitamento de grafia e criação direta pela venda;
 - repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
   de quantidade após salvar uma conta parcelada;

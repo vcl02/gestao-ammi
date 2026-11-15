@@ -935,6 +935,115 @@ button[type="submit"]:disabled {
   display: none;
 }
 
+.modal-calculadora {
+  width: min(520px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(90vh, 900px);
+}
+
+.modal-calculadora label {
+  margin-top: 10px;
+}
+
+.calc-campos input,
+.calc-campos select {
+  margin-top: 6px;
+}
+
+.calc-resultado {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 18px 0 8px;
+}
+
+.calc-resultado > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.calc-resultado strong {
+  font-size: 22px;
+  color: var(--text);
+}
+
+.calc-resultado > div:first-child strong {
+  color: var(--primary);
+}
+
+.modal-aviso .calc-rotulo,
+.modal-aviso .calc-ajuda {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.modal-aviso .calc-subtitulo {
+  margin: 16px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.calc-detalhe {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.calc-detalhe li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.calc-detalhe .calc-detalhe-total {
+  border-bottom: none;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-aviso .calc-ajuda {
+  margin-top: 8px;
+}
+
+.calc-secao {
+  margin-top: 14px;
+}
+
+.calc-secao summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.calc-secao input {
+  margin-top: 6px;
+}
+
+.calc-categoria-linha {
+  display: grid;
+  grid-template-columns: 1fr 90px auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.calc-categoria-linha input {
+  margin: 0;
+}
+
+.desktop-calculadora {
+  display: none;
+}
+
 .rotulo-com-acao {
   display: flex;
   align-items: baseline;
@@ -972,6 +1081,15 @@ button[type="submit"]:disabled {
     font-weight: 600;
     color: var(--text);
     text-align: left;
+  }
+
+  .desktop-calculadora {
+    display: block;
+    position: absolute;
+    top: 38px;
+    right: 64px;
+    z-index: 1;
+    font-size: 15px;
   }
 
   .desktop-logout {
