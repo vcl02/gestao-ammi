@@ -892,8 +892,9 @@ mais, nenhum preço cobre e a calculadora avisa.
   virar percentual; por isso, mais volume dilui as fixas e baixa o preço.
 - **Maquininha:** média ponderada das taxas pela proporção de vendas no
   crédito e no débito; o resto é pix ou dinheiro, sem taxa. Base: Visa e
-  Mastercard, crédito 1x 3,15% e débito 1,37%. Por segurança, a configuração
-  inicial considera 100% das vendas no crédito.
+  Mastercard, crédito 1x 3,15% e débito 1,37%. A proporção configurada é 50% débito
+  e 20% crédito (os 30% restantes, pix), estimativa a partir de "a maioria é
+  débito, depois pix, depois crédito".
 - **Lucro:** o lucro desejado da categoria escolhida.
 
 Compras de mercadoria **não** entram no percentual: o custo do produto já é o
@@ -903,8 +904,9 @@ praticado indica compras que não estão registradas no app.
 
 ### Tipo de gasto das contas
 
-Ao cadastrar uma conta, escolhe-se **Fixa**, **Imposto** ou **Compra de
-mercadoria** (`contas_pagar.categoria`, padrão `fixa`). A lista "Contas
+Ao cadastrar uma conta, é obrigatório escolher **Fixa**, **Imposto** ou
+**Compra de mercadoria** (`contas_pagar.categoria`): o campo começa vazio para
+uma compra não entrar como fixa por descuido. No banco, o padrão é `fixa`. A lista "Contas
 cadastradas" mostra o tipo. Na migration 019, DAS e DARE viraram imposto e
 Bello Festas, Darnel e Junco viraram mercadoria; as demais ficaram fixas. Não
 há edição do tipo de uma conta já cadastrada pela interface.

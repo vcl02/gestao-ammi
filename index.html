@@ -277,7 +277,8 @@
         <input type="text" id="cp-descricao" placeholder="Luz" required>
 
         <label for="cp-categoria">Tipo de gasto</label>
-        <select id="cp-categoria">
+        <select id="cp-categoria" required>
+          <option value="" disabled selected>Escolha o tipo</option>
           <option value="fixa">Fixa (aluguel, luz, contadora…)</option>
           <option value="imposto">Imposto (DAS, DARE…)</option>
           <option value="mercadoria">Compra de mercadoria</option>

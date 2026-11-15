@@ -2856,7 +2856,10 @@ function executarTestes() {
     igual(Boolean(document.getElementById('calc')), true);
   });
   teste('Interface — conta informa o tipo de gasto para a calculadora', () => {
-    igualJson([...document.querySelectorAll('#cp-categoria option')].map((o) => o.value), ['fixa', 'imposto', 'mercadoria']);
+    const tipo = document.getElementById('cp-categoria');
+    igualJson([...tipo.querySelectorAll('option:not([disabled])')].map((o) => o.value), ['fixa', 'imposto', 'mercadoria']);
+    igual(tipo.required, true);
+    igual(tipo.value, '');
   });
   teste('Interface — Contas a Pagar não tem mais a opção de conta pessoal', () => {
     igual(Boolean(document.getElementById('cp-pessoal')), false);
