@@ -63,10 +63,6 @@
         <span class="menu-title">Fiado</span>
         <span class="menu-sub">Vendas e pagamentos por pessoa</span>
       </button>
-      <button class="menu-card calc-abrir" type="button">
-        <span class="menu-title">Calculadora de preço</span>
-        <span class="menu-sub">Quanto cobrar por um produto</span>
-      </button>
     </nav>
 
     <p class="empresa-cnpj">CNPJ 47.154.673/0001-60</p>
@@ -84,7 +80,6 @@
     </button>
 
     <p class="empresa-cnpj desktop-empresa">CNPJ 47.154.673/0001-60</p>
-    <button type="button" class="btn-link calc-abrir desktop-calculadora">Calculadora de preço</button>
 
     <!-- ===================== CAIXA CASA ===================== -->
     <main id="view-caixa-casa" class="page view panel" hidden>
@@ -276,14 +271,6 @@
         <label for="cp-descricao">Descrição</label>
         <input type="text" id="cp-descricao" placeholder="Luz" required>
 
-        <label for="cp-categoria">Tipo de gasto</label>
-        <select id="cp-categoria" required>
-          <option value="" disabled selected>Escolha o tipo</option>
-          <option value="fixa">Fixa (aluguel, luz, contadora…)</option>
-          <option value="imposto">Imposto (DAS, DARE…)</option>
-          <option value="mercadoria">Compra de mercadoria</option>
-        </select>
-
         <button type="submit">Salvar</button>
         <p id="cp-form-error" class="error" hidden></p>
       </form>
@@ -413,23 +400,6 @@
       <button type="submit">Pagar</button>
       <p id="cp-pagamento-error" class="error" hidden></p>
     </form>
-  </dialog>
-
-  <dialog id="calc" class="modal-aviso modal-calculadora" aria-labelledby="calc-titulo">
-    <button type="button" id="calc-fechar" class="btn-icon modal-aviso-fechar" aria-label="Fechar calculadora">×</button>
-    <h2 id="calc-titulo">Calculadora de preço</h2>
-    <p id="calc-status" class="modal-venda-progresso"></p>
-
-    <div class="calc-campos">
-      <label for="calc-custo">Quanto você pagou no produto</label>
-      <input type="text" id="calc-custo" inputmode="decimal" placeholder="0,00">
-    </div>
-
-    <div id="calc-faixas" class="calc-resultado"></div>
-    <p id="calc-erro" class="error" hidden></p>
-
-    <p class="calc-subtitulo">O que sai de cada venda</p>
-    <ul id="calc-detalhe" class="calc-detalhe"></ul>
   </dialog>
 
   <!-- ===================== TESTES DE REGRESSÃO (?testes=1) ===================== -->

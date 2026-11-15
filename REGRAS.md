@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-15 (teto mensal de R$ 800 na comissão).
+Última revisão: 2026-11-15 (remoção da calculadora de preço).
 
 ---
 
@@ -27,7 +27,6 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
   - [Card do topo: esta semana e a próxima](#card-do-topo-esta-semana-e-a-próxima)
   - [Agrupamento por semana](#agrupamento-por-semana)
 - [Módulo: Fiado](#módulo-fiado)
-- [Calculadora de preço](#calculadora-de-preço)
 - [Regras transversais](#regras-transversais)
   - [Auditoria do banco](#auditoria-do-banco)
 - [Testes de regressão](#testes-de-regressão)
@@ -878,77 +877,14 @@ dívidas.
 
 ---
 
-## Calculadora de preço
+## Calculadora de preço (removida)
 
-Responde "por quanto vender um produto que me custou X" usando os custos reais
-do histórico. Abre pelo card **Calculadora de preço** no menu do mobile e pelo
-link no topo do desktop. Só lê dados e não grava nada. A tela tem um único
-campo, o custo do produto, e mostra **três preços**, um por faixa, com o markup
-de cada um, e o que sai de cada venda antes do lucro.
-
-A ideia é precificar por mix: não precisa todo produto ter o mesmo markup. Itens
-em que o cliente compara preço podem ficar na faixa Competitivo, e itens de
-margem maior (direto da fábrica, impulso, exclusivos) compensam na faixa Alta
-margem. O que precisa fechar é a média ponderada pelo que mais vende.
-
-### Fórmula
-
-```
-preço = custo ÷ (1 − % da venda que já tem destino)
-% da venda = comissão + impostos + contas fixas + maquininha + lucro
-```
-
-Se os percentuais somarem 100% ou mais, nenhum preço cobre e a calculadora
-avisa.
-
-### Valores fixos no código
-
-- **Comissão:** a do Salário, com o teto: 15% das vendas por mês, limitado a
-  R$ 800 (`comissaoMensalEstimada`). Com vendas acima de ~R$ 5.333/mês, o teto
-  vale e a comissão efetiva fica abaixo de 15%.
-- **Faixas de lucro** (`CALC_FAIXAS`, % da venda):
-
-  | Faixa | Lucro | Uso |
-  |---|---|---|
-  | Competitivo | 0% | só empata: cobre produto, comissão, impostos, fixas e maquininha |
-  | Normal | 5% | a maior parte dos produtos |
-  | Alta margem | 20% | direto da fábrica, impulso, exclusivos |
-
-  Vender abaixo do preço Competitivo dá prejuízo naquele item; vender pelo
-  custo (markup 0%) perde toda a comissão, imposto e parte das fixas.
-- **Maquininha:** 1,32% (`CALC_MAQUININHA`): Visa e Mastercard, crédito 1x
-  3,15% e débito 1,37%, com 50% das vendas no débito, 20% no crédito e o resto
-  em pix, sem taxa. Estimativa a partir de "a maioria é débito, depois pix,
-  depois crédito".
-
-Mudar qualquer um exige editar o código.
-
-### Valores que vêm do histórico
-
-- **Vendas por mês:** média das vendas brutas (`venda_base`) do Salário nos
-  últimos 90 dias, contados a partir da primeira venda quando ela é mais
-  recente que isso, normalizada para 30 dias.
-- **Impostos e contas fixas:** vêm de Contas a Pagar pelo **tipo de gasto** da
-  conta. Conta Mensal entra pelo seu valor mensal atual (ajustes pontuais não
-  entram); parcelas entram pela média mensal das que venceram no mesmo
-  período das vendas. O valor por mês é dividido pelas vendas por mês para
-  virar percentual; por isso, mais volume dilui as fixas e baixa o preço.
-
-Compras de mercadoria **não** entram no percentual: o custo do produto já é o
-valor digitado. Elas também não servem para estimar o markup médio, porque a
-loja abriu com estoque comprado antes de entrar no app.
-
-### Tipo de gasto das contas
-
-Ao cadastrar uma conta, é obrigatório escolher **Fixa**, **Imposto** ou
-**Compra de mercadoria** (`contas_pagar.categoria`): o campo começa vazio para
-uma compra não entrar como fixa por descuido. No banco, o padrão é `fixa`. A
-lista "Contas cadastradas" mostra o tipo. Na migration 019, DAS e DARE viraram
-imposto e Bello Festas, Darnel e Junco viraram mercadoria; as demais ficaram
-fixas. Não há edição do tipo de uma conta já cadastrada pela interface.
-
-A tabela `calculadora_config` (migration 019), que guardava taxas e categorias
-editáveis, ficou sem uso depois que esses valores passaram a ser fixos.
+Existiu uma calculadora de preço que usava o histórico de vendas, contas fixas
+e impostos para sugerir preços por faixa de lucro. Ela foi removida em
+2026-11-15, junto com o campo "Tipo de gasto" do cadastro de contas, que só
+servia para ela. Ficaram no banco, sem uso pelo aplicativo, a coluna
+`contas_pagar.categoria` (padrão `fixa`) e a tabela `calculadora_config`, ambas
+da migration 019.
 
 ---
 
@@ -1042,8 +978,6 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - soma de contas comuns atrasadas no primeiro card semanal;
 - saldo do Fiado, pagamento acima da dívida virando crédito e crédito abatido
   pela próxima venda;
-- médias mensais da calculadora de preço por tipo de gasto e período, três
-  faixas de lucro, maquininha fixa, percentuais sobre a venda e fórmula do preço;
 - nomes distintos do Fiado, reaproveitamento de grafia e criação direta pela venda;
 - repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
   de quantidade após salvar uma conta parcelada;
