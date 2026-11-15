@@ -951,21 +951,29 @@ button[type="submit"]:disabled {
 
 .calc-resultado {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   margin: 18px 0 8px;
 }
 
 .calc-resultado > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
 }
 
 .calc-resultado strong {
-  font-size: 28px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-size: 22px;
+  color: var(--text);
+}
+
+.calc-resultado > div:nth-child(2) strong {
   color: var(--primary);
 }
 

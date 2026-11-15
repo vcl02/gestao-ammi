@@ -2127,7 +2127,12 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
 // ===================== CALCULADORA DE PREÇO =====================
 
 const CALC_DIAS_HISTORICO = 90;
-const CALC_LUCRO_PCT = 5;
+// Faixas de lucro (% da venda) para escolher conforme o produto.
+const CALC_FAIXAS = [
+  { nome: 'Competitivo', lucro: 0, ajuda: 'só empata' },
+  { nome: 'Normal', lucro: 5, ajuda: '5% de lucro' },
+  { nome: 'Alta margem', lucro: 20, ajuda: '20% de lucro' },
+];
 // Visa/Mastercard: crédito 1x 3,15% e débito 1,37%; 50% débito, 20% crédito e o resto pix (sem taxa).
 const CALC_MAQUININHA = { taxa_credito: 3.15, taxa_debito: 1.37, mix_credito: 20, mix_debito: 50 };
 
@@ -2186,14 +2191,17 @@ function taxaMediaMaquininha(config) {
     + Number(config.mix_debito) * Number(config.taxa_debito)) / 100);
 }
 
-function percentuaisDoPreco({ comissao, impostosMes, fixasMes, vendasMes, taxaCartao, lucro }) {
+function percentuaisDoPreco({ comissao, impostosMes, fixasMes, vendasMes, taxaCartao }) {
   return [
     { nome: 'Comissão', pct: comissao },
     { nome: 'Impostos', pct: impostosMes / vendasMes * 100, valorMes: impostosMes },
     { nome: 'Contas fixas', pct: fixasMes / vendasMes * 100, valorMes: fixasMes },
     { nome: 'Maquininha', pct: taxaCartao },
-    { nome: 'Lucro', pct: lucro },
   ];
+}
+
+function calcularFaixasPreco(custo, percentualCustos) {
+  return CALC_FAIXAS.map((faixa) => ({ ...faixa, ...calcularPrecoVenda(custo, percentualCustos + faixa.lucro) }));
 }
 
 // preço = custo ÷ (1 − parte da venda que já tem destino)
@@ -2210,8 +2218,7 @@ function formatarPercentual(valor) {
 const calcEl = document.getElementById('calc');
 const calcStatusEl = document.getElementById('calc-status');
 const calcCustoInput = document.getElementById('calc-custo');
-const calcPrecoEl = document.getElementById('calc-preco');
-const calcMarkupEl = document.getElementById('calc-markup');
+const calcFaixasEl = document.getElementById('calc-faixas');
 const calcErroEl = document.getElementById('calc-erro');
 const calcDetalheEl = document.getElementById('calc-detalhe');
 let calcResumo = null;
@@ -2223,8 +2230,7 @@ function atualizarCalculadora() {
   const custo = parseMoney(calcCustoInput.value);
 
   calcErroEl.hidden = true;
-  calcPrecoEl.textContent = '—';
-  calcMarkupEl.textContent = '';
+  calcFaixasEl.replaceChildren();
 
   if (!(calcResumo.vendasMes > 0)) {
     calcDetalheEl.replaceChildren();
@@ -2239,11 +2245,10 @@ function atualizarCalculadora() {
     fixasMes: calcResumo.fixasMes,
     vendasMes: calcResumo.vendasMes,
     taxaCartao: taxaMediaMaquininha(CALC_MAQUININHA),
-    lucro: CALC_LUCRO_PCT,
   });
   const total = itens.reduce((soma, item) => soma + item.pct, 0);
 
-  calcDetalheEl.replaceChildren(...[...itens, { nome: 'Total', pct: total, total: true }].map((item) => {
+  calcDetalheEl.replaceChildren(...[...itens, { nome: 'Total antes do lucro', pct: total, total: true }].map((item) => {
     const li = document.createElement('li');
     if (item.total) li.className = 'calc-detalhe-total';
     const nome = document.createElement('span');
@@ -2260,10 +2265,19 @@ function atualizarCalculadora() {
     return;
   }
 
-  const sugerido = calcularPrecoVenda(custo, total);
-  if (!sugerido) return;
-  calcPrecoEl.textContent = formatMoney(sugerido.preco);
-  calcMarkupEl.textContent = `markup ${formatarPercentual(sugerido.markup)}`;
+  calcFaixasEl.replaceChildren(...calcularFaixasPreco(custo, total).map((faixa) => {
+    const card = document.createElement('div');
+    const nome = document.createElement('span');
+    nome.className = 'calc-rotulo';
+    nome.textContent = faixa.nome;
+    const preco = document.createElement('strong');
+    preco.textContent = faixa.preco === undefined ? '—' : formatMoney(faixa.preco);
+    const detalhe = document.createElement('span');
+    detalhe.className = 'calc-rotulo';
+    detalhe.textContent = faixa.markup === undefined ? faixa.ajuda : `markup ${formatarPercentual(faixa.markup)} · ${faixa.ajuda}`;
+    card.append(nome, preco, detalhe);
+    return card;
+  }));
 }
 
 async function abrirCalculadora() {
@@ -2709,13 +2723,13 @@ function executarTestes() {
   teste('Calculadora — sem vendas no período não há médias', () => {
     igual(resumirHistoricoCustos({ hoje: '2026-11-29', vendas: [], contas: [], parcelas: [] }), null);
   });
-  teste('Calculadora — usa lucro fixo de 5% e maquininha média de 1,32%', () => {
-    igual(CALC_LUCRO_PCT, 5);
+  teste('Calculadora — três faixas de lucro e maquininha média de 1,32%', () => {
+    igualJson(CALC_FAIXAS.map((faixa) => faixa.lucro), [0, 5, 20]);
     igual(taxaMediaMaquininha(CALC_MAQUININHA), 1.32);
   });
   teste('Calculadora — tela tem só o custo e o preço sugerido', () => {
     igual(document.querySelectorAll('#calc input, #calc select').length, 1);
-    igual(Boolean(document.getElementById('calc-preco')), true);
+    igual(Boolean(document.getElementById('calc-faixas')), true);
   });
   teste('Calculadora — taxa média da maquininha segue a proporção crédito/débito', () => {
     igual(taxaMediaMaquininha({ taxa_credito: 3.15, taxa_debito: 1.37, mix_credito: 100, mix_debito: 0 }), 3.15);
@@ -2727,8 +2741,14 @@ function executarTestes() {
     igual(calcularPrecoVenda(0, 30), null);
   });
   teste('Calculadora — fixas e impostos viram % pelo volume de vendas', () => {
-    const itens = percentuaisDoPreco({ comissao: 25, impostosMes: 300, fixasMes: 1200, vendasMes: 6000, taxaCartao: 3.15, lucro: 10 });
-    igualJson(itens.map((item) => round2(item.pct)), [25, 5, 20, 3.15, 10]);
+    const itens = percentuaisDoPreco({ comissao: 25, impostosMes: 300, fixasMes: 1200, vendasMes: 6000, taxaCartao: 3.15 });
+    igualJson(itens.map((item) => round2(item.pct)), [25, 5, 20, 3.15]);
+  });
+  teste('Calculadora — cada faixa soma o próprio lucro aos custos da venda', () => {
+    igualJson(calcularFaixasPreco(10, 30).map((faixa) => [faixa.nome, faixa.preco, faixa.markup]), [
+      ['Competitivo', 14.29, 42.9], ['Normal', 15.38, 53.8], ['Alta margem', 20, 100],
+    ]);
+    igual(calcularFaixasPreco(0, 30)[0].preco, undefined);
   });
   teste('Interface — calculadora abre pelo menu do celular e pelo topo do desktop', () => {
     igual(document.querySelectorAll('#view-home .calc-abrir').length, 1);

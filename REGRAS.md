@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-15 (calculadora simplificada, lucro fixo de 5%).
+Última revisão: 2026-11-15 (calculadora com três faixas de lucro).
 
 ---
 
@@ -867,8 +867,13 @@ dívidas.
 Responde "por quanto vender um produto que me custou X" usando os custos reais
 do histórico. Abre pelo card **Calculadora de preço** no menu do mobile e pelo
 link no topo do desktop. Só lê dados e não grava nada. A tela tem um único
-campo, o custo do produto, e mostra o **preço sugerido**, o markup e o que sai
-de cada venda.
+campo, o custo do produto, e mostra **três preços**, um por faixa, com o markup
+de cada um, e o que sai de cada venda antes do lucro.
+
+A ideia é precificar por mix: não precisa todo produto ter o mesmo markup. Itens
+em que o cliente compara preço podem ficar na faixa Competitivo, e itens de
+margem maior (direto da fábrica, impulso, exclusivos) compensam na faixa Alta
+margem. O que precisa fechar é a média ponderada pelo que mais vende.
 
 ### Fórmula
 
@@ -883,8 +888,16 @@ avisa.
 ### Valores fixos no código
 
 - **Comissão:** a mesma do Salário (`PERCENTUAL_COMISSAO`, hoje 15%).
-- **Lucro:** 5% da venda (`CALC_LUCRO_PCT`), escolhido para manter preço
-  competitivo com algum lucro.
+- **Faixas de lucro** (`CALC_FAIXAS`, % da venda):
+
+  | Faixa | Lucro | Uso |
+  |---|---|---|
+  | Competitivo | 0% | só empata: cobre produto, comissão, impostos, fixas e maquininha |
+  | Normal | 5% | a maior parte dos produtos |
+  | Alta margem | 20% | direto da fábrica, impulso, exclusivos |
+
+  Vender abaixo do preço Competitivo dá prejuízo naquele item; vender pelo
+  custo (markup 0%) perde toda a comissão, imposto e parte das fixas.
 - **Maquininha:** 1,32% (`CALC_MAQUININHA`): Visa e Mastercard, crédito 1x
   3,15% e débito 1,37%, com 50% das vendas no débito, 20% no crédito e o resto
   em pix, sem taxa. Estimativa a partir de "a maioria é débito, depois pix,
@@ -1011,8 +1024,8 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - soma de contas comuns atrasadas no primeiro card semanal;
 - saldo do Fiado, pagamento acima da dívida virando crédito e crédito abatido
   pela próxima venda;
-- médias mensais da calculadora de preço por tipo de gasto e período, lucro e
-  maquininha fixos, percentuais sobre a venda e fórmula do preço;
+- médias mensais da calculadora de preço por tipo de gasto e período, três
+  faixas de lucro, maquininha fixa, percentuais sobre a venda e fórmula do preço;
 - nomes distintos do Fiado, reaproveitamento de grafia e criação direta pela venda;
 - repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
   de quantidade após salvar uma conta parcelada;
