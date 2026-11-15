@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-15 (calculadora com três faixas de lucro).
+Última revisão: 2026-11-15 (teto mensal de R$ 800 na comissão).
 
 ---
 
@@ -187,6 +187,22 @@ comissão = valor_da_venda × 0,15
 O percentual é fixo em **15%** (`PERCENTUAL_COMISSAO`), definido no código.
 Até 2026-11-15 era 25%; vendas lançadas antes disso mantêm a comissão de 25%
 já gravada.
+
+#### Teto mensal de R$ 800
+
+A comissão somada de um mês nunca passa de **R$ 800** (`TETO_COMISSAO_MES`),
+valor definido a partir dos custos mensais da Isabella (~R$ 593: unha, cílios,
+Senac e almoços) mais uma folga para ela. Ao salvar uma venda, o sistema busca
+no banco a comissão já gravada no **mês da data da venda** e grava:
+
+```
+comissão = mínimo(15% da venda, R$ 800 − comissão já gravada no mês)
+```
+
+Batido o teto, as vendas seguintes daquele mês são registradas com comissão
+`R$ 0,00` (o valor vendido continua em `venda_base`). Vale para o formulário de
+venda e para a venda esquecida. O teto passou a valer em 2026-11-15 e conta as
+comissões já gravadas em novembro, inclusive as calculadas a 25%.
 Não há como alterar pela interface — mudar exige editar o código.
 
 Quando você lança uma venda:
@@ -887,7 +903,9 @@ avisa.
 
 ### Valores fixos no código
 
-- **Comissão:** a mesma do Salário (`PERCENTUAL_COMISSAO`, hoje 15%).
+- **Comissão:** a do Salário, com o teto: 15% das vendas por mês, limitado a
+  R$ 800 (`comissaoMensalEstimada`). Com vendas acima de ~R$ 5.333/mês, o teto
+  vale e a comissão efetiva fica abaixo de 15%.
 - **Faixas de lucro** (`CALC_FAIXAS`, % da venda):
 
   | Faixa | Lucro | Uso |
@@ -1008,7 +1026,7 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - leitura e arredondamento de dinheiro;
 - saldo do Caixa, abatimento do aluguel, limite em zero e saída vinculada de
   conta paga com seu dinheiro;
-- comissão e saldo do Salário, inclusive o payload de uma venda esquecida, o
+- comissão e saldo do Salário, teto mensal da comissão, inclusive o payload de uma venda esquecida, o
   valor preenchido pelo Pagar tudo, a descrição padrão `Pagamento` e a venda
   esquecida de `R$ 0` marcando loja fechada;
 - limite, saldo restante e payload acumulado dos pagamentos parciais, com a
@@ -1066,9 +1084,9 @@ inteiro.
 Se o Caixa Casa também precisar exibir o saldo histórico real, será necessário
 separar a lista limitada do cálculo completo, como já ocorre no Salário.
 
-### Comissão é fixa no código
+### Comissão e teto são fixos no código
 
-Alterar exige mudar `PERCENTUAL_COMISSAO` e republicar. Lançamentos antigos
+Alterar exige mudar `PERCENTUAL_COMISSAO` ou `TETO_COMISSAO_MES` e republicar. Lançamentos antigos
 mantêm a comissão já calculada — a mudança não é retroativa, o que é o
 comportamento correto, mas significa que o histórico pode ter percentuais
 mistos sem nenhuma indicação de qual foi usado.

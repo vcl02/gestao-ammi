@@ -19,6 +19,8 @@ const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
 const ROBERTA_TABLE = 'roberta_lancamentos';
 const FI_TABLE = 'fiado_lancamentos';
 const PERCENTUAL_COMISSAO = 0.15;
+// Teto mensal de comissão: custos da Isabella (~R$ 593) mais uma folga para ela.
+const TETO_COMISSAO_MES = 800;
 const modoTestes = new URLSearchParams(window.location.search).has('testes');
 
 // ===================== HELPERS: dinheiro / data =====================
@@ -82,14 +84,40 @@ function calcularSaldoCaixa(lancamentos) {
   }, 0));
 }
 
-function calcularComissao(valorVenda) {
-  return round2(valorVenda * PERCENTUAL_COMISSAO);
+// 15% da venda, limitado ao que falta para o teto do mês da venda.
+function calcularComissao(valorVenda, comissaoJaNoMes = 0) {
+  const restanteNoMes = Math.max(round2(TETO_COMISSAO_MES - comissaoJaNoMes), 0);
+  return round2(Math.min(valorVenda * PERCENTUAL_COMISSAO, restanteNoMes));
 }
 
-function dadosVendaSalario(vendaBase, data, descricao = null) {
+function somarComissoesPorMes(lancamentos) {
+  const porMes = new Map();
+  lancamentos.filter((item) => item.tipo === 'venda').forEach((item) => {
+    const mes = item.data.slice(0, 7);
+    porMes.set(mes, round2((porMes.get(mes) || 0) + Number(item.valor)));
+  });
+  return porMes;
+}
+
+function ultimoDiaDoMesISO(isoDate) {
+  const [ano, mes] = isoDate.split('-').map(Number);
+  return new Date(Date.UTC(ano, mes, 0)).toISOString().slice(0, 10);
+}
+
+async function buscarComissaoDoMes(data) {
+  const { data: vendas, error } = await supabase.from(SAL_TABLE)
+    .select('valor')
+    .eq('tipo', 'venda')
+    .gte('data', `${data.slice(0, 7)}-01`)
+    .lte('data', ultimoDiaDoMesISO(data));
+  if (error) return { error };
+  return { comissao: round2(vendas.reduce((total, venda) => total + Number(venda.valor), 0)) };
+}
+
+function dadosVendaSalario(vendaBase, data, descricao = null, comissaoJaNoMes = 0) {
   return {
     tipo: 'venda',
-    valor: calcularComissao(vendaBase),
+    valor: calcularComissao(vendaBase, comissaoJaNoMes),
     venda_base: vendaBase,
     descricao,
     data,
@@ -97,10 +125,10 @@ function dadosVendaSalario(vendaBase, data, descricao = null) {
 }
 
 // Venda esquecida com valor 0 sinaliza que a loja não abriu naquele dia.
-function dadosVendaEsquecida(vendaBase, data) {
+function dadosVendaEsquecida(vendaBase, data, comissaoJaNoMes = 0) {
   return vendaBase === 0
     ? dadosVendaSalario(0, data, 'Loja fechada')
-    : dadosVendaSalario(vendaBase, data);
+    : dadosVendaSalario(vendaBase, data, null, comissaoJaNoMes);
 }
 
 function valorVendaEsquecidaValido(vendaBase) {
@@ -741,6 +769,7 @@ const salPagamentoDescricaoInput = document.getElementById('sal-pagamento-descri
 const salPagamentoErrorEl = document.getElementById('sal-pagamento-error');
 const DESCRICAO_PADRAO_PAGAMENTO_SALARIO = 'Pagamento';
 let salarioSaldoAtual = 0;
+let salComissaoPorMes = new Map();
 aplicarMascaraMoney(salPagamentoValorInput);
 
 function formatarValorCampo(valor) {
@@ -769,11 +798,12 @@ function updateSalVendaSubmitLabel() {
     salVendaSubmitEl.textContent = 'Salvar';
     return;
   }
-  const comissao = calcularComissao(valor);
+  const comissao = calcularComissao(valor, salComissaoPorMes.get(salVendaDataInput.value.slice(0, 7)) || 0);
   salVendaSubmitEl.textContent = `Salvar — ${formatMoney(comissao)}`;
 }
 
 salVendaValorInput.addEventListener('input', updateSalVendaSubmitLabel);
+salVendaDataInput.addEventListener('change', updateSalVendaSubmitLabel);
 
 function atualizarVendaEsquecidaAtual() {
   const data = diasSemVendaPendentes[0];
@@ -794,7 +824,8 @@ function atualizarVendaEsquecidaAtual() {
 function updateVendaEsquecidaSubmitLabel() {
   const valor = parseMoney(salAvisoDiasSemVendaValorInput.value);
   if (valor > 0) {
-    salAvisoDiasSemVendaSalvarEl.textContent = `Salvar — ${formatMoney(calcularComissao(valor))}`;
+    const comissaoJaNoMes = salComissaoPorMes.get(diasSemVendaPendentes[0]?.slice(0, 7)) || 0;
+    salAvisoDiasSemVendaSalvarEl.textContent = `Salvar — ${formatMoney(calcularComissao(valor, comissaoJaNoMes))}`;
   } else {
     salAvisoDiasSemVendaSalvarEl.textContent = valor === 0 ? 'Salvar — loja fechada' : 'Salvar';
   }
@@ -828,7 +859,13 @@ bloquearDuranteSubmit(salAvisoDiasSemVendaForm, async (e) => {
     return;
   }
 
-  const { error } = await supabase.from(SAL_TABLE).insert(dadosVendaEsquecida(vendaBase, data));
+  const { comissao: comissaoJaNoMes, error: erroComissao } = await buscarComissaoDoMes(data);
+  if (erroComissao) {
+    salAvisoDiasSemVendaErrorEl.textContent = 'Erro ao conferir a comissão do mês. Tente novamente.';
+    salAvisoDiasSemVendaErrorEl.hidden = false;
+    return;
+  }
+  const { error } = await supabase.from(SAL_TABLE).insert(dadosVendaEsquecida(vendaBase, data, comissaoJaNoMes));
   if (error) {
     salAvisoDiasSemVendaErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
     salAvisoDiasSemVendaErrorEl.hidden = false;
@@ -848,7 +885,7 @@ async function carregarLancamentosSalarioParaSaldo() {
   while (true) {
     const { data, error } = await supabase
       .from(SAL_TABLE)
-      .select('tipo, valor')
+      .select('tipo, valor, data')
       .order('id', { ascending: true })
       .range(inicio, inicio + tamanhoPagina - 1);
 
@@ -880,6 +917,7 @@ async function carregarSalario() {
   }
 
   const saldo = calcularSaldoSalario(lancamentosSaldo);
+  salComissaoPorMes = somarComissoesPorMes(lancamentosSaldo);
   salarioSaldoAtual = saldo;
   salPagarTudoEl.hidden = saldo <= 0;
   salSaldoEl.textContent = formatMoney(saldo);
@@ -960,8 +998,14 @@ bloquearDuranteSubmit(salVendaForm, async (e) => {
     return;
   }
 
+  const { comissao: comissaoJaNoMes, error: erroComissao } = await buscarComissaoDoMes(data);
+  if (erroComissao) {
+    salVendaErrorEl.textContent = 'Erro ao conferir a comissão do mês. Tente novamente.';
+    salVendaErrorEl.hidden = false;
+    return;
+  }
   const { error } = await supabase.from(SAL_TABLE).insert(
-    dadosVendaSalario(vendaBase, data, descricao || null)
+    dadosVendaSalario(vendaBase, data, descricao || null, comissaoJaNoMes)
   );
 
   if (error) {
@@ -2191,9 +2235,14 @@ function taxaMediaMaquininha(config) {
     + Number(config.mix_debito) * Number(config.taxa_debito)) / 100);
 }
 
-function percentuaisDoPreco({ comissao, impostosMes, fixasMes, vendasMes, taxaCartao }) {
+// Com o teto, a comissão do mês é 15% das vendas até R$ 800.
+function comissaoMensalEstimada(vendasMes) {
+  return round2(Math.min(vendasMes * PERCENTUAL_COMISSAO, TETO_COMISSAO_MES));
+}
+
+function percentuaisDoPreco({ comissaoMes, impostosMes, fixasMes, vendasMes, taxaCartao }) {
   return [
-    { nome: 'Comissão', pct: comissao },
+    { nome: 'Comissão', pct: comissaoMes / vendasMes * 100, valorMes: comissaoMes },
     { nome: 'Impostos', pct: impostosMes / vendasMes * 100, valorMes: impostosMes },
     { nome: 'Contas fixas', pct: fixasMes / vendasMes * 100, valorMes: fixasMes },
     { nome: 'Maquininha', pct: taxaCartao },
@@ -2240,7 +2289,7 @@ function atualizarCalculadora() {
   }
 
   const itens = percentuaisDoPreco({
-    comissao: PERCENTUAL_COMISSAO * 100,
+    comissaoMes: comissaoMensalEstimada(calcResumo.vendasMes),
     impostosMes: calcResumo.impostosMes,
     fixasMes: calcResumo.fixasMes,
     vendasMes: calcResumo.vendasMes,
@@ -2463,6 +2512,27 @@ function executarTestes() {
     igual(ehAluguel({ descricao: 'Aluguel casa' }), false);
   });
   teste('Salário — comissão é 15% da venda', () => igual(calcularComissao(199.99), 30));
+  teste('Salário — comissão para no teto de R$ 800 do mês', () => {
+    igual(TETO_COMISSAO_MES, 800);
+    igual(calcularComissao(1000, 750), 50);
+    igual(calcularComissao(1000, 800), 0);
+    igual(calcularComissao(1000, 900), 0);
+    igual(calcularComissao(100, 700), 15);
+  });
+  teste('Salário — comissões somadas por mês só contam vendas', () => {
+    const porMes = somarComissoesPorMes([
+      { tipo: 'venda', valor: 300, data: '2026-11-02' },
+      { tipo: 'venda', valor: 200.5, data: '2026-11-20' },
+      { tipo: 'pagamento', valor: 999, data: '2026-11-10' },
+      { tipo: 'venda', valor: 50, data: '2026-12-01' },
+    ]);
+    igual(porMes.get('2026-11'), 500.5);
+    igual(porMes.get('2026-12'), 50);
+  });
+  teste('Datas — último dia do mês considera fevereiro bissexto', () => {
+    igual(ultimoDiaDoMesISO('2028-02-10'), '2028-02-29');
+    igual(ultimoDiaDoMesISO('2026-11-15'), '2026-11-30');
+  });
   teste('Salário — venda esquecida grava valor bruto e comissão na data exibida', () => {
     igualJson(dadosVendaSalario(200, '2026-09-02'), {
       tipo: 'venda', valor: 30, venda_base: 200, descricao: null, data: '2026-09-02',
@@ -2741,8 +2811,12 @@ function executarTestes() {
     igual(calcularPrecoVenda(0, 30), null);
   });
   teste('Calculadora — fixas e impostos viram % pelo volume de vendas', () => {
-    const itens = percentuaisDoPreco({ comissao: 25, impostosMes: 300, fixasMes: 1200, vendasMes: 6000, taxaCartao: 3.15 });
-    igualJson(itens.map((item) => round2(item.pct)), [25, 5, 20, 3.15]);
+    const itens = percentuaisDoPreco({ comissaoMes: 600, impostosMes: 300, fixasMes: 1200, vendasMes: 6000, taxaCartao: 3.15 });
+    igualJson(itens.map((item) => round2(item.pct)), [10, 5, 20, 3.15]);
+  });
+  teste('Calculadora — comissão do mês respeita o teto de R$ 800', () => {
+    igual(comissaoMensalEstimada(4000), 600);
+    igual(comissaoMensalEstimada(6900), 800);
   });
   teste('Calculadora — cada faixa soma o próprio lucro aos custos da venda', () => {
     igualJson(calcularFaixasPreco(10, 30).map((faixa) => [faixa.nome, faixa.preco, faixa.markup]), [
