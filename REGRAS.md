@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-15 (calculadora de preço e tipo de gasto das contas).
+Última revisão: 2026-11-15 (comissão passa de 25% para 15%).
 
 ---
 
@@ -181,10 +181,12 @@ já feitos a ela. O saldo representa **quanto ainda é devido**.
 ### Comissão
 
 ```
-comissão = valor_da_venda × 0,25
+comissão = valor_da_venda × 0,15
 ```
 
-O percentual é fixo em **25%** (`PERCENTUAL_COMISSAO`), definido no código.
+O percentual é fixo em **15%** (`PERCENTUAL_COMISSAO`), definido no código.
+Até 2026-11-15 era 25%; vendas lançadas antes disso mantêm a comissão de 25%
+já gravada.
 Não há como alterar pela interface — mudar exige editar o código.
 
 Quando você lança uma venda:
@@ -194,7 +196,7 @@ Quando você lança uma venda:
 - O total vendido é preservado em `venda_base`, para rastreabilidade.
 
 O botão "Salvar" mostra em tempo real a comissão que será gravada
-(`Salvar — R$ 25,00`), para conferência antes de confirmar.
+(ex.: venda de R$ 100,00 mostra `Salvar — R$ 15,00`), para conferência antes de confirmar.
 
 ### Sem movimento no Empréstimo ao salvar uma venda
 
@@ -238,7 +240,7 @@ venda ainda pode ser registrada. Se algum dos demais dias não possuir venda,
 mostra um modal começando pelo dia faltante mais antigo. A data é preenchida e
 exibida automaticamente; o usuário informa apenas o valor bruto vendido. Ao
 salvar, o sistema registra uma venda naquela data, acrescenta sua comissão de
-25% ao Salário e avança para o próximo dia faltante, em ordem cronológica, até
+15% ao Salário e avança para o próximo dia faltante, em ordem cronológica, até
 chegar ao mais recente.
 
 Se a loja **não abriu** naquele dia, informa-se `0`. O botão passa a dizer
@@ -880,7 +882,7 @@ mais, nenhum preço cobre e a calculadora avisa.
 
 ### De onde vem cada percentual
 
-- **Comissão:** começa com os 25% do Salário; pode ser alterada em "Simular
+- **Comissão:** começa com os 15% do Salário; pode ser alterada em "Simular
   volume e comissão" sem mudar a comissão real.
 - **Vendas por mês:** média das vendas brutas (`venda_base`) do Salário nos
   últimos 90 dias, contados a partir da primeira venda quando ela é mais
@@ -1052,7 +1054,7 @@ inteiro.
 Se o Caixa Casa também precisar exibir o saldo histórico real, será necessário
 separar a lista limitada do cálculo completo, como já ocorre no Salário.
 
-### Comissão de 25% é fixa no código
+### Comissão é fixa no código
 
 Alterar exige mudar `PERCENTUAL_COMISSAO` e republicar. Lançamentos antigos
 mantêm a comissão já calculada — a mudança não é retroativa, o que é o

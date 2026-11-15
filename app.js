@@ -19,7 +19,7 @@ const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
 const ROBERTA_TABLE = 'roberta_lancamentos';
 const CALC_CONFIG_TABLE = 'calculadora_config';
 const FI_TABLE = 'fiado_lancamentos';
-const PERCENTUAL_COMISSAO = 0.25;
+const PERCENTUAL_COMISSAO = 0.15;
 const modoTestes = new URLSearchParams(window.location.search).has('testes');
 
 // ===================== HELPERS: dinheiro / data =====================
@@ -2576,10 +2576,10 @@ function executarTestes() {
     igual(ehAluguel({ descricao: ' ALUGUEL ' }), true);
     igual(ehAluguel({ descricao: 'Aluguel casa' }), false);
   });
-  teste('Salário — comissão é 25% da venda', () => igual(calcularComissao(199.99), 50));
+  teste('Salário — comissão é 15% da venda', () => igual(calcularComissao(199.99), 30));
   teste('Salário — venda esquecida grava valor bruto e comissão na data exibida', () => {
     igualJson(dadosVendaSalario(200, '2026-09-02'), {
-      tipo: 'venda', valor: 50, venda_base: 200, descricao: null, data: '2026-09-02',
+      tipo: 'venda', valor: 30, venda_base: 200, descricao: null, data: '2026-09-02',
     });
   });
   teste('Empréstimo e Cartão — dívida aumenta e abatimento reduz o saldo', () => {
