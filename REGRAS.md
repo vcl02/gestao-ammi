@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-15 (comissão passa de 25% para 15%).
+Última revisão: 2026-11-15 (calculadora simplificada, lucro fixo de 5%).
 
 ---
 
@@ -866,8 +866,9 @@ dívidas.
 
 Responde "por quanto vender um produto que me custou X" usando os custos reais
 do histórico. Abre pelo card **Calculadora de preço** no menu do mobile e pelo
-link no topo do desktop. Só lê dados e não grava nada, exceto as
-configurações.
+link no topo do desktop. Só lê dados e não grava nada. A tela tem um único
+campo, o custo do produto, e mostra o **preço sugerido**, o markup e o que sai
+de cada venda.
 
 ### Fórmula
 
@@ -876,14 +877,23 @@ preço = custo ÷ (1 − % da venda que já tem destino)
 % da venda = comissão + impostos + contas fixas + maquininha + lucro
 ```
 
-A calculadora mostra só o **preço sugerido**, que já inclui o lucro da
-categoria, e o markup correspondente. Não há simulação de volume ou comissão:
-ela usa sempre o histórico e a comissão atual do Salário. Se os percentuais
-somarem 100% ou mais, nenhum preço cobre e a calculadora avisa.
+Se os percentuais somarem 100% ou mais, nenhum preço cobre e a calculadora
+avisa.
 
-### De onde vem cada percentual
+### Valores fixos no código
 
 - **Comissão:** a mesma do Salário (`PERCENTUAL_COMISSAO`, hoje 15%).
+- **Lucro:** 5% da venda (`CALC_LUCRO_PCT`), escolhido para manter preço
+  competitivo com algum lucro.
+- **Maquininha:** 1,32% (`CALC_MAQUININHA`): Visa e Mastercard, crédito 1x
+  3,15% e débito 1,37%, com 50% das vendas no débito, 20% no crédito e o resto
+  em pix, sem taxa. Estimativa a partir de "a maioria é débito, depois pix,
+  depois crédito".
+
+Mudar qualquer um exige editar o código.
+
+### Valores que vêm do histórico
+
 - **Vendas por mês:** média das vendas brutas (`venda_base`) do Salário nos
   últimos 90 dias, contados a partir da primeira venda quando ela é mais
   recente que isso, normalizada para 30 dias.
@@ -892,12 +902,6 @@ somarem 100% ou mais, nenhum preço cobre e a calculadora avisa.
   entram); parcelas entram pela média mensal das que venceram no mesmo
   período das vendas. O valor por mês é dividido pelas vendas por mês para
   virar percentual; por isso, mais volume dilui as fixas e baixa o preço.
-- **Maquininha:** média ponderada das taxas pela proporção de vendas no
-  crédito e no débito; o resto é pix ou dinheiro, sem taxa. Base: Visa e
-  Mastercard, crédito 1x 3,15% e débito 1,37%. A proporção configurada é 50% débito
-  e 20% crédito (os 30% restantes, pix), estimativa a partir de "a maioria é
-  débito, depois pix, depois crédito".
-- **Lucro:** o lucro desejado da categoria escolhida.
 
 Compras de mercadoria **não** entram no percentual: o custo do produto já é o
 valor digitado. Elas também não servem para estimar o markup médio, porque a
@@ -907,17 +911,13 @@ loja abriu com estoque comprado antes de entrar no app.
 
 Ao cadastrar uma conta, é obrigatório escolher **Fixa**, **Imposto** ou
 **Compra de mercadoria** (`contas_pagar.categoria`): o campo começa vazio para
-uma compra não entrar como fixa por descuido. No banco, o padrão é `fixa`. A lista "Contas
-cadastradas" mostra o tipo. Na migration 019, DAS e DARE viraram imposto e
-Bello Festas, Darnel e Junco viraram mercadoria; as demais ficaram fixas. Não
-há edição do tipo de uma conta já cadastrada pela interface.
+uma compra não entrar como fixa por descuido. No banco, o padrão é `fixa`. A
+lista "Contas cadastradas" mostra o tipo. Na migration 019, DAS e DARE viraram
+imposto e Bello Festas, Darnel e Junco viraram mercadoria; as demais ficaram
+fixas. Não há edição do tipo de uma conta já cadastrada pela interface.
 
-### Configurações
-
-Ficam numa linha única em `calculadora_config`: taxas de crédito e débito,
-proporção de vendas em cada um (soma até 100%) e as categorias de produto com
-o lucro desejado (de 0 a 99% da venda). As categorias iniciais são sugestões:
-Doces 15%, Festa e decoração 15%, Descartáveis e embalagens 5%.
+A tabela `calculadora_config` (migration 019), que guardava taxas e categorias
+editáveis, ficou sem uso depois que esses valores passaram a ser fixos.
 
 ---
 
@@ -1011,8 +1011,8 @@ As verificações automatizadas cobrem as regras determinísticas mais sensívei
 - soma de contas comuns atrasadas no primeiro card semanal;
 - saldo do Fiado, pagamento acima da dívida virando crédito e crédito abatido
   pela próxima venda;
-- médias mensais da calculadora de preço por tipo de gasto e período, taxa
-  média da maquininha, percentuais sobre a venda e fórmula do preço;
+- médias mensais da calculadora de preço por tipo de gasto e período, lucro e
+  maquininha fixos, percentuais sobre a venda e fórmula do preço;
 - nomes distintos do Fiado, reaproveitamento de grafia e criação direta pela venda;
 - repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
   de quantidade após salvar uma conta parcelada;

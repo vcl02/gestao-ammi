@@ -945,8 +945,7 @@ button[type="submit"]:disabled {
   margin-top: 10px;
 }
 
-.calc-campos input,
-.calc-campos select {
+.calc-campos input {
   margin-top: 6px;
 }
 
@@ -970,8 +969,7 @@ button[type="submit"]:disabled {
   color: var(--primary);
 }
 
-.modal-aviso .calc-rotulo,
-.modal-aviso .calc-ajuda {
+.modal-aviso .calc-rotulo {
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -1003,36 +1001,6 @@ button[type="submit"]:disabled {
   border-bottom: none;
   font-weight: 600;
   color: var(--text);
-}
-
-.modal-aviso .calc-ajuda {
-  margin-top: 8px;
-}
-
-.calc-secao {
-  margin-top: 14px;
-}
-
-.calc-secao summary {
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--text);
-}
-
-.calc-secao input {
-  margin-top: 6px;
-}
-
-.calc-categoria-linha {
-  display: grid;
-  grid-template-columns: 1fr 90px auto;
-  gap: 8px;
-  align-items: center;
-  margin-top: 6px;
-}
-
-.calc-categoria-linha input {
-  margin: 0;
 }
 
 .desktop-calculadora {

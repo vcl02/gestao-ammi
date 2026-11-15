@@ -423,9 +423,6 @@
     <div class="calc-campos">
       <label for="calc-custo">Quanto você pagou no produto</label>
       <input type="text" id="calc-custo" inputmode="decimal" placeholder="0,00">
-
-      <label for="calc-categoria">Categoria</label>
-      <select id="calc-categoria"></select>
     </div>
 
     <div class="calc-resultado">
@@ -439,28 +436,6 @@
 
     <p class="calc-subtitulo">O que sai de cada venda</p>
     <ul id="calc-detalhe" class="calc-detalhe"></ul>
-
-    <details class="calc-secao">
-      <summary>Configurações</summary>
-      <form id="calc-config-form">
-        <label for="calc-taxa-credito">Taxa crédito 1x (%)</label>
-        <input type="text" id="calc-taxa-credito" inputmode="decimal">
-        <label for="calc-taxa-debito">Taxa débito (%)</label>
-        <input type="text" id="calc-taxa-debito" inputmode="decimal">
-        <label for="calc-mix-credito">Vendas no crédito (% do total)</label>
-        <input type="text" id="calc-mix-credito" inputmode="decimal">
-        <label for="calc-mix-debito">Vendas no débito (% do total)</label>
-        <input type="text" id="calc-mix-debito" inputmode="decimal">
-        <p class="calc-ajuda">O que sobrar é pix ou dinheiro, sem taxa.</p>
-
-        <p class="calc-subtitulo">Categorias e lucro desejado (% da venda)</p>
-        <div id="calc-categorias"></div>
-        <button type="button" id="calc-categoria-adicionar" class="btn-link">+ Categoria</button>
-
-        <button type="submit">Salvar configurações</button>
-        <p id="calc-config-erro" class="error" hidden></p>
-      </form>
-    </details>
   </dialog>
 
   <!-- ===================== TESTES DE REGRESSÃO (?testes=1) ===================== -->

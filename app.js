@@ -17,7 +17,6 @@ const CP_AJUSTES_TABLE = 'contas_pagar_ajustes';
 const EMPRESTIMO_TABLE = 'emprestimo_lancamentos';
 const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
 const ROBERTA_TABLE = 'roberta_lancamentos';
-const CALC_CONFIG_TABLE = 'calculadora_config';
 const FI_TABLE = 'fiado_lancamentos';
 const PERCENTUAL_COMISSAO = 0.15;
 const modoTestes = new URLSearchParams(window.location.search).has('testes');
@@ -2128,6 +2127,9 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
 // ===================== CALCULADORA DE PREÇO =====================
 
 const CALC_DIAS_HISTORICO = 90;
+const CALC_LUCRO_PCT = 5;
+// Visa/Mastercard: crédito 1x 3,15% e débito 1,37%; 50% débito, 20% crédito e o resto pix (sem taxa).
+const CALC_MAQUININHA = { taxa_credito: 3.15, taxa_debito: 1.37, mix_credito: 20, mix_debito: 50 };
 
 function somarDiasISO(isoDate, dias) {
   const [ano, mes, dia] = isoDate.split('-').map(Number);
@@ -2208,78 +2210,23 @@ function formatarPercentual(valor) {
 const calcEl = document.getElementById('calc');
 const calcStatusEl = document.getElementById('calc-status');
 const calcCustoInput = document.getElementById('calc-custo');
-const calcCategoriaSelect = document.getElementById('calc-categoria');
 const calcPrecoEl = document.getElementById('calc-preco');
 const calcMarkupEl = document.getElementById('calc-markup');
 const calcErroEl = document.getElementById('calc-erro');
 const calcDetalheEl = document.getElementById('calc-detalhe');
-const calcConfigForm = document.getElementById('calc-config-form');
-const calcTaxaCreditoInput = document.getElementById('calc-taxa-credito');
-const calcTaxaDebitoInput = document.getElementById('calc-taxa-debito');
-const calcMixCreditoInput = document.getElementById('calc-mix-credito');
-const calcMixDebitoInput = document.getElementById('calc-mix-debito');
-const calcCategoriasEl = document.getElementById('calc-categorias');
-const calcConfigErroEl = document.getElementById('calc-config-erro');
-let calcDados = null;
+let calcResumo = null;
 
 aplicarMascaraMoney(calcCustoInput);
 
-function preencherCategoriasCalculadora(categorias) {
-  const selecionada = calcCategoriaSelect.value;
-  calcCategoriaSelect.replaceChildren(...(categorias.length === 0
-    ? [new Option('Sem categoria (lucro 0%)', '')]
-    : categorias.map((categoria, i) => new Option(`${categoria.nome} — lucro ${formatarPercentual(categoria.lucro)}`, String(i)))));
-  if (selecionada && Number(selecionada) < categorias.length) calcCategoriaSelect.value = selecionada;
-}
-
-function adicionarLinhaCategoria(nome = '', lucro = '') {
-  const linha = document.createElement('div');
-  linha.className = 'calc-categoria-linha';
-  const nomeInput = document.createElement('input');
-  nomeInput.type = 'text';
-  nomeInput.className = 'calc-categoria-nome';
-  nomeInput.placeholder = 'Nome';
-  nomeInput.value = nome;
-  const lucroInput = document.createElement('input');
-  lucroInput.type = 'text';
-  lucroInput.inputMode = 'decimal';
-  lucroInput.className = 'calc-categoria-lucro';
-  lucroInput.placeholder = 'Lucro %';
-  lucroInput.value = lucro === '' ? '' : String(lucro).replace('.', ',');
-  const remover = document.createElement('button');
-  remover.type = 'button';
-  remover.className = 'btn-icon calc-categoria-remover';
-  remover.setAttribute('aria-label', 'Remover categoria');
-  remover.textContent = '×';
-  remover.addEventListener('click', () => linha.remove());
-  linha.append(nomeInput, lucroInput, remover);
-  calcCategoriasEl.append(linha);
-}
-
-function preencherConfigCalculadora(config) {
-  calcTaxaCreditoInput.value = String(config.taxa_credito).replace('.', ',');
-  calcTaxaDebitoInput.value = String(config.taxa_debito).replace('.', ',');
-  calcMixCreditoInput.value = String(config.mix_credito).replace('.', ',');
-  calcMixDebitoInput.value = String(config.mix_debito).replace('.', ',');
-  calcCategoriasEl.replaceChildren();
-  config.categorias.forEach((categoria) => adicionarLinhaCategoria(categoria.nome, categoria.lucro));
-  preencherCategoriasCalculadora(config.categorias);
-}
-
 function atualizarCalculadora() {
-  if (!calcDados) return;
-  const { resumo, config } = calcDados;
+  if (!calcResumo) return;
   const custo = parseMoney(calcCustoInput.value);
-  const { vendasMes } = resumo;
-  const comissao = PERCENTUAL_COMISSAO * 100;
-  const categoria = config.categorias[Number(calcCategoriaSelect.value)];
-  const lucro = categoria ? Number(categoria.lucro) : 0;
 
   calcErroEl.hidden = true;
   calcPrecoEl.textContent = '—';
   calcMarkupEl.textContent = '';
 
-  if (!(vendasMes > 0)) {
+  if (!(calcResumo.vendasMes > 0)) {
     calcDetalheEl.replaceChildren();
     calcErroEl.textContent = 'Sem vendas no período para calcular a parte das contas fixas.';
     calcErroEl.hidden = false;
@@ -2287,12 +2234,12 @@ function atualizarCalculadora() {
   }
 
   const itens = percentuaisDoPreco({
-    comissao,
-    impostosMes: resumo.impostosMes,
-    fixasMes: resumo.fixasMes,
-    vendasMes,
-    taxaCartao: taxaMediaMaquininha(config),
-    lucro,
+    comissao: PERCENTUAL_COMISSAO * 100,
+    impostosMes: calcResumo.impostosMes,
+    fixasMes: calcResumo.fixasMes,
+    vendasMes: calcResumo.vendasMes,
+    taxaCartao: taxaMediaMaquininha(CALC_MAQUININHA),
+    lucro: CALC_LUCRO_PCT,
   });
   const total = itens.reduce((soma, item) => soma + item.pct, 0);
 
@@ -2308,7 +2255,7 @@ function atualizarCalculadora() {
   }));
 
   if (total >= 100) {
-    calcErroEl.textContent = `Os custos somam ${formatarPercentual(total)} da venda: nenhum preço cobre. Reduza o lucro da categoria em Configurações.`;
+    calcErroEl.textContent = `Os custos somam ${formatarPercentual(total)} da venda: nenhum preço cobre.`;
     calcErroEl.hidden = false;
     return;
   }
@@ -2317,10 +2264,6 @@ function atualizarCalculadora() {
   if (!sugerido) return;
   calcPrecoEl.textContent = formatMoney(sugerido.preco);
   calcMarkupEl.textContent = `markup ${formatarPercentual(sugerido.markup)}`;
-}
-
-function descreverHistoricoCalculadora(resumo) {
-  calcStatusEl.textContent = `Médias desde ${formatDataBR(resumo.inicio)} (${resumo.dias} dias): vendas de ${formatMoney(resumo.vendasMes)}/mês.`;
 }
 
 async function abrirCalculadora() {
@@ -2333,81 +2276,31 @@ async function abrirCalculadora() {
     { data: vendas, error: errVendas },
     { data: contas, error: errContas },
     { data: parcelas, error: errParcelas },
-    { data: config, error: errConfig },
   ] = await Promise.all([
     supabase.from(SAL_TABLE).select('data, venda_base').eq('tipo', 'venda').gte('data', inicioBusca).lte('data', hoje),
     supabase.from(CP_TABLE).select('id, tipo, valor, categoria, data_inicio'),
     supabase.from(CP_PARCELAS_TABLE).select('conta_id, data, valor').gte('data', inicioBusca).lte('data', hoje),
-    supabase.from(CALC_CONFIG_TABLE).select('*').single(),
   ]);
 
-  if (errVendas || errContas || errParcelas || errConfig) {
-    calcStatusEl.textContent = 'Erro ao carregar o histórico. Confira se a migration 019 foi aplicada.';
+  if (errVendas || errContas || errParcelas) {
+    calcStatusEl.textContent = 'Erro ao carregar o histórico.';
     return;
   }
 
-  const resumo = resumirHistoricoCustos({ vendas, contas, parcelas, hoje });
-  if (!resumo) {
+  calcResumo = resumirHistoricoCustos({ vendas, contas, parcelas, hoje });
+  if (!calcResumo) {
     calcStatusEl.textContent = 'Ainda não há vendas registradas no Salário para calcular as médias.';
     return;
   }
 
-  calcDados = { resumo, config };
-  preencherConfigCalculadora(config);
-  descreverHistoricoCalculadora(resumo);
+  calcStatusEl.textContent = `Médias desde ${formatDataBR(calcResumo.inicio)} (${calcResumo.dias} dias): vendas de ${formatMoney(calcResumo.vendasMes)}/mês.`;
   atualizarCalculadora();
   calcCustoInput.focus();
 }
 
-function lerConfigCalculadora() {
-  const config = {
-    taxa_credito: parseMoney(calcTaxaCreditoInput.value),
-    taxa_debito: parseMoney(calcTaxaDebitoInput.value),
-    mix_credito: parseMoney(calcMixCreditoInput.value),
-    mix_debito: parseMoney(calcMixDebitoInput.value),
-    categorias: [...calcCategoriasEl.querySelectorAll('.calc-categoria-linha')].map((linha) => ({
-      nome: linha.querySelector('.calc-categoria-nome').value.trim(),
-      lucro: parseMoney(linha.querySelector('.calc-categoria-lucro').value),
-    })),
-  };
-  const percentuais = [config.taxa_credito, config.taxa_debito, config.mix_credito, config.mix_debito];
-  if (percentuais.some((valor) => !(valor >= 0 && valor < 100.01))) return { erro: 'Taxas e proporções devem ficar entre 0 e 100.' };
-  if (config.mix_credito + config.mix_debito > 100) return { erro: 'Crédito + débito não podem passar de 100% das vendas.' };
-  if (config.categorias.some((categoria) => !categoria.nome || !(categoria.lucro >= 0 && categoria.lucro < 100))) {
-    return { erro: 'Cada categoria precisa de nome e lucro entre 0 e 99%.' };
-  }
-  return { config };
-}
-
-calcConfigForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  calcConfigErroEl.hidden = true;
-  const { config, erro } = lerConfigCalculadora();
-  if (erro) {
-    calcConfigErroEl.textContent = erro;
-    calcConfigErroEl.hidden = false;
-    return;
-  }
-  const { data, error } = await supabase.from(CALC_CONFIG_TABLE)
-    .update({ ...config, updated_at: new Date().toISOString() })
-    .eq('id', true)
-    .select()
-    .single();
-  if (error) {
-    calcConfigErroEl.textContent = 'Erro ao salvar as configurações.';
-    calcConfigErroEl.hidden = false;
-    return;
-  }
-  calcDados.config = data;
-  preencherConfigCalculadora(data);
-  atualizarCalculadora();
-});
-
-document.getElementById('calc-categoria-adicionar').addEventListener('click', () => adicionarLinhaCategoria());
 document.getElementById('calc-fechar').addEventListener('click', () => calcEl.close());
 document.querySelectorAll('.calc-abrir').forEach((botao) => botao.addEventListener('click', abrirCalculadora));
 calcCustoInput.addEventListener('input', atualizarCalculadora);
-calcCategoriaSelect.addEventListener('change', atualizarCalculadora);
 
 // ===================== INIT =====================
 
@@ -2815,6 +2708,14 @@ function executarTestes() {
   });
   teste('Calculadora — sem vendas no período não há médias', () => {
     igual(resumirHistoricoCustos({ hoje: '2026-11-29', vendas: [], contas: [], parcelas: [] }), null);
+  });
+  teste('Calculadora — usa lucro fixo de 5% e maquininha média de 1,32%', () => {
+    igual(CALC_LUCRO_PCT, 5);
+    igual(taxaMediaMaquininha(CALC_MAQUININHA), 1.32);
+  });
+  teste('Calculadora — tela tem só o custo e o preço sugerido', () => {
+    igual(document.querySelectorAll('#calc input, #calc select').length, 1);
+    igual(Boolean(document.getElementById('calc-preco')), true);
   });
   teste('Calculadora — taxa média da maquininha segue a proporção crédito/débito', () => {
     igual(taxaMediaMaquininha({ taxa_credito: 3.15, taxa_debito: 1.37, mix_credito: 100, mix_debito: 0 }), 3.15);
