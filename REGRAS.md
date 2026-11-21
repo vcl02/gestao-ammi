@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-15 (remoção da calculadora de preço).
+Última revisão: 2026-11-21 (teto da comissão começa em dezembro/2026).
 
 ---
 
@@ -200,8 +200,12 @@ comissão = mínimo(15% da venda, R$ 800 − comissão já gravada no mês)
 
 Batido o teto, as vendas seguintes daquele mês são registradas com comissão
 `R$ 0,00` (o valor vendido continua em `venda_base`). Vale para o formulário de
-venda e para a venda esquecida. O teto passou a valer em 2026-11-15 e conta as
-comissões já gravadas em novembro, inclusive as calculadas a 25%.
+venda e para a venda esquecida.
+
+O teto vale para vendas com data a partir de **01/12/2026**
+(`TETO_COMISSAO_INICIO`). Vendas de novembro/2026 ou antes têm 15% sem limite:
+novembro começou com comissão de 25% e, contando essas comissões, o teto já
+estava praticamente batido no dia 20.
 Não há como alterar pela interface — mudar exige editar o código.
 
 Quando você lança uma venda:
