@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-21 (teto da comissão começa em dezembro/2026).
+Última revisão: 2026-11-24 (máscara de valor em todas as janelas).
 
 ---
 
@@ -67,10 +67,15 @@ Contas a Pagar não cria lançamentos no Salário.
   separador de milhar e a vírgula é decimal. A máscara aplica isso enquanto
   a pessoa digita, tratando os dígitos como centavos da direita para a
   esquerda (digitar `12345` resulta em `123,45`).
-- Campos abertos em prompts, como Aporte e ajuste de valor, também aceitam
-  ponto seguido de uma ou duas casas decimais (`77.62` resulta em `77,62`).
-  Um ponto seguido de três casas continua sendo interpretado como milhar
-  (`1.234` resulta em `1.234,00`).
+- **Todo campo de valor usa essa máscara**, inclusive os que abrem em janela:
+  valor atual do Empréstimo, `+`/`−` do Cartão de Crédito e da Roberta, e o
+  lápis que edita o valor de uma ocorrência. Essas janelas são do próprio app
+  (não o `prompt()` do navegador), vêm preenchidas quando há um valor sugerido
+  e mostram o erro na própria janela; fechar (×, Esc) cancela sem gravar. Só o
+  valor atual do Empréstimo aceita `0,00`.
+- A leitura do valor (`parseMoney`) também aceita ponto seguido de uma ou duas
+  casas decimais (`77.62` resulta em `77,62`); um ponto seguido de três casas
+  é milhar (`1.234` resulta em `1.234,00`).
 
 ### Datas
 

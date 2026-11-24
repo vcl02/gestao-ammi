@@ -382,6 +382,17 @@
     </form>
   </dialog>
 
+  <dialog id="valor-dialog" class="modal-aviso" aria-labelledby="valor-dialog-titulo">
+    <button type="button" id="valor-dialog-fechar" class="btn-icon modal-aviso-fechar" aria-label="Cancelar">×</button>
+    <h2 id="valor-dialog-titulo"></h2>
+    <form id="valor-dialog-form" class="modal-venda-form">
+      <label for="valor-dialog-input" id="valor-dialog-rotulo">Valor</label>
+      <input type="text" id="valor-dialog-input" inputmode="decimal" placeholder="0,00">
+      <button type="submit">Confirmar</button>
+      <p id="valor-dialog-erro" class="error" hidden></p>
+    </form>
+  </dialog>
+
   <dialog id="cp-pagamento" class="modal-aviso" aria-labelledby="cp-pagamento-titulo">
     <button type="button" id="cp-pagamento-fechar" class="btn-icon modal-aviso-fechar"
       aria-label="Cancelar pagamento">×</button>

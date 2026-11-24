@@ -1123,6 +1123,54 @@ function concluirPagamentoConta(resultado) {
   pendente?.resolve(resultado);
 }
 
+// Janela de valor com máscara, no lugar do prompt() do navegador.
+const valorDialogEl = document.getElementById('valor-dialog');
+const valorDialogTituloEl = document.getElementById('valor-dialog-titulo');
+const valorDialogRotuloEl = document.getElementById('valor-dialog-rotulo');
+const valorDialogInput = document.getElementById('valor-dialog-input');
+const valorDialogErroEl = document.getElementById('valor-dialog-erro');
+let valorDialogPendente = null;
+
+aplicarMascaraMoney(valorDialogInput);
+
+function valorInformadoValido(valor, permitirZero) {
+  return Number.isFinite(valor) && (permitirZero ? valor >= 0 : round2(valor) > 0);
+}
+
+// Resolve com o número digitado ou null se cancelar.
+function pedirValor({ titulo, rotulo = 'Valor', valorInicial = null, permitirZero = false }) {
+  valorDialogTituloEl.textContent = titulo;
+  valorDialogRotuloEl.textContent = rotulo;
+  valorDialogInput.value = valorInicial === null ? '' : formatarValorCampo(valorInicial);
+  valorDialogErroEl.hidden = true;
+  valorDialogEl.showModal();
+  valorDialogInput.focus();
+  return new Promise((resolve) => {
+    valorDialogPendente = { resolve, permitirZero };
+  });
+}
+
+function concluirPedidoValor(resultado) {
+  const pendente = valorDialogPendente;
+  valorDialogPendente = null;
+  if (valorDialogEl.open) valorDialogEl.close();
+  pendente?.resolve(resultado);
+}
+
+document.getElementById('valor-dialog-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!valorDialogPendente) return;
+  const valor = parseMoney(valorDialogInput.value);
+  if (!valorInformadoValido(valor, valorDialogPendente.permitirZero)) {
+    valorDialogErroEl.textContent = valorDialogPendente.permitirZero ? 'Informe um valor (pode ser 0,00).' : 'Informe um valor a partir de R$ 0,01.';
+    valorDialogErroEl.hidden = false;
+    return;
+  }
+  concluirPedidoValor(round2(valor));
+});
+document.getElementById('valor-dialog-fechar').addEventListener('click', () => concluirPedidoValor(null));
+valorDialogEl.addEventListener('close', () => concluirPedidoValor(null));
+
 cpPagamentoForm.addEventListener('submit', (e) => {
   e.preventDefault();
   if (!cpPagamentoPendente) return;
@@ -1784,14 +1832,13 @@ cpListEl.addEventListener('click', async (e) => {
   if (dividaValorAtualBtn) {
     const nome = dividaValorAtualBtn.dataset.nome;
     const saldoAtual = emprestimoSaldoAtual;
-    const valorTexto = prompt(`Valor atual do ${nome}:`, saldoAtual.toFixed(2).replace('.', ','));
-    if (valorTexto === null) return;
-
-    const valorInformado = parseMoney(valorTexto);
-    if (Number.isNaN(valorInformado) || valorInformado < 0) {
-      alert('Valor inválido.');
-      return;
-    }
+    const valorInformado = await pedirValor({
+      titulo: `Valor atual do ${nome}`,
+      rotulo: 'Quanto a dívida vale hoje',
+      valorInicial: saldoAtual,
+      permitirZero: true,
+    });
+    if (valorInformado === null) return;
 
     const dados = dadosAtualizacaoValorDivida(valorInformado, saldoAtual);
     if (!dados) return;
@@ -1811,19 +1858,14 @@ cpListEl.addEventListener('click', async (e) => {
     const nome = dividaMovimentoBtn.dataset.nome;
     const roberta = dividaMovimentoBtn.dataset.tabela === ROBERTA_TABLE;
     const saldoAtual = roberta ? robertaSaldoAtual : cartaoSaldoAtual;
-    const valorTexto = prompt(
-      abatimento
-        ? `Valor para abater ${roberta ? 'da Roberta' : `do ${nome}`}:`
-        : `Valor para adicionar ${roberta ? 'à Roberta' : `ao ${nome}`}:`,
-      abatimento ? saldoAtual.toFixed(2).replace('.', ',') : ''
-    );
-    if (valorTexto === null) return;
-
-    const valorInformado = parseMoney(valorTexto);
-    if (!valorInformado || valorInformado <= 0) {
-      alert('Valor inválido.');
-      return;
-    }
+    const valorInformado = await pedirValor({
+      titulo: abatimento
+        ? `Abater ${roberta ? 'da Roberta' : `do ${nome}`}`
+        : `Adicionar ${roberta ? 'à Roberta' : `ao ${nome}`}`,
+      rotulo: abatimento ? 'Valor para abater' : 'Valor para adicionar',
+      valorInicial: abatimento ? saldoAtual : null,
+    });
+    if (valorInformado === null) return;
 
     const valor = abatimento
       ? limitarAbatimentoDivida(valorInformado, saldoAtual)
@@ -1858,14 +1900,8 @@ cpListEl.addEventListener('click', async (e) => {
   const editarBtn = e.target.closest('.cp-editar-btn');
   if (editarBtn) {
     const { contaId, data, tipo, valor } = editarBtn.dataset;
-    const novoValorTexto = prompt('Novo valor:', valor.replace('.', ','));
-    if (novoValorTexto === null) return;
-
-    const novoValor = parseMoney(novoValorTexto);
-    if (!novoValor || novoValor <= 0) {
-      alert('Valor inválido.');
-      return;
-    }
+    const novoValor = await pedirValor({ titulo: 'Editar valor', rotulo: 'Novo valor', valorInicial: Number(valor) });
+    if (novoValor === null) return;
 
     await gravarValorOcorrencia(contaId, data, tipo, novoValor);
     await carregarContasPagar();
@@ -2571,6 +2607,19 @@ function executarTestes() {
   teste('Interface — CNPJ aparece no início do mobile e no topo do desktop', () => {
     igual(document.querySelector('#view-home .empresa-cnpj').textContent, 'CNPJ 47.154.673/0001-60');
     igual(document.querySelector('#desktop-grid > .desktop-empresa').textContent, 'CNPJ 47.154.673/0001-60');
+  });
+  teste('Valores — janela de valor aceita zero só quando permitido', () => {
+    igual(valorInformadoValido(0, true), true);
+    igual(valorInformadoValido(0, false), false);
+    igual(valorInformadoValido(0.01, false), true);
+    igual(valorInformadoValido(NaN, true), false);
+  });
+  teste('Interface — janela de valor do app aplica máscara ao digitar', () => {
+    const input = document.getElementById('valor-dialog-input');
+    input.value = '156386';
+    input.dispatchEvent(new Event('input'));
+    igual(input.value, '1.563,86');
+    input.value = '';
   });
   teste('Interface — Contas a Pagar não tem mais a opção de conta pessoal', () => {
     igual(Boolean(document.getElementById('cp-pessoal')), false);
