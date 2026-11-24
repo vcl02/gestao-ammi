@@ -173,7 +173,7 @@ body {
 }
 
 .modal-aviso {
-  position: relative;
+  position: fixed;
   max-width: min(420px, calc(100vw - 32px));
   max-height: min(70vh, 520px);
   overflow: auto;

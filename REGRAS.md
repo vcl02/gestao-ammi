@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-24 (máscara de valor em todas as janelas).
+Última revisão: 2026-11-24 (janelas não rolam mais a página).
 
 ---
 
@@ -72,7 +72,8 @@ Contas a Pagar não cria lançamentos no Salário.
   lápis que edita o valor de uma ocorrência. Essas janelas são do próprio app
   (não o `prompt()` do navegador), vêm preenchidas quando há um valor sugerido
   e mostram o erro na própria janela; fechar (×, Esc) cancela sem gravar. Só o
-  valor atual do Empréstimo aceita `0,00`.
+  valor atual do Empréstimo aceita `0,00`. Todas as janelas do app ficam fixas
+  e centralizadas na tela visível: abrir ou fechar não rola a página.
 - A leitura do valor (`parseMoney`) também aceita ponto seguido de uma ou duas
   casas decimais (`77.62` resulta em `77,62`); um ponto seguido de três casas
   é milhar (`1.234` resulta em `1.234,00`).

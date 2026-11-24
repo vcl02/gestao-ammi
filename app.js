@@ -783,7 +783,6 @@ const salPagarTudoEl = document.getElementById('sal-pagar-tudo');
 salPagarTudoEl.addEventListener('click', () => {
   salPagamentoErrorEl.hidden = true;
   salPagamentoValorInput.value = formatarValorCampo(salarioSaldoAtual);
-  salPagamentoValorInput.focus();
 });
 
 document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -822,7 +821,7 @@ function atualizarVendaEsquecidaAtual() {
   salAvisoDiasSemVendaValorInput.value = '';
   salAvisoDiasSemVendaSalvarEl.textContent = 'Salvar';
   salAvisoDiasSemVendaErrorEl.hidden = true;
-  salAvisoDiasSemVendaValorInput.focus();
+  salAvisoDiasSemVendaValorInput.focus({ preventScroll: true });
 }
 
 function updateVendaEsquecidaSubmitLabel() {
@@ -1144,7 +1143,7 @@ function pedirValor({ titulo, rotulo = 'Valor', valorInicial = null, permitirZer
   valorDialogInput.value = valorInicial === null ? '' : formatarValorCampo(valorInicial);
   valorDialogErroEl.hidden = true;
   valorDialogEl.showModal();
-  valorDialogInput.focus();
+  valorDialogInput.focus({ preventScroll: true });
   return new Promise((resolve) => {
     valorDialogPendente = { resolve, permitirZero };
   });
@@ -2613,6 +2612,11 @@ function executarTestes() {
     igual(valorInformadoValido(0, false), false);
     igual(valorInformadoValido(0.01, false), true);
     igual(valorInformadoValido(NaN, true), false);
+  });
+  teste('Interface — janelas ficam fixas na tela e não rolam a página', () => {
+    document.querySelectorAll('dialog.modal-aviso').forEach((dialog) => {
+      igual(getComputedStyle(dialog).position, 'fixed');
+    });
   });
   teste('Interface — janela de valor do app aplica máscara ao digitar', () => {
     const input = document.getElementById('valor-dialog-input');
