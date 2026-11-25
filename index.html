@@ -68,7 +68,11 @@
     <p class="empresa-cnpj">CNPJ 47.154.673/0001-60</p>
   </main>
 
-  <!-- ===================== DESKTOP: as duas lado a lado ===================== -->
+  <!-- ===================== DESKTOP: as duas lado a lado =====================
+       Mobile e desktop compartilham este mesmo HTML. No mobile, #desktop-grid usa
+       `display: contents` (style.css) e some do layout; acima de 900px vira grid de
+       4 colunas. Cuidado ao mexer: já causou tela em branco no mobile. -->
+
   <div id="desktop-grid" class="desktop-grid" hidden>
     <button id="logout-btn-desktop" class="btn-icon desktop-logout" aria-label="Sair" title="Sair">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"

@@ -2,7 +2,10 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // ===================== CONFIG =====================
 
-const SUPABASE_URL = 'https://odjryakghivbwyftfjar.supabase.co';
+// A chave abaixo é pública (anon/publishable) e fica exposta de propósito: o
+// repositório é público e a proteção real é o RLS no Supabase. Não é vazamento
+// e não deve ir para variável de ambiente (não há build para injetá-la).
+const SUPABASE_URL ='https://odjryakghivbwyftfjar.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_SHyvOxJ8tz2BMFDJ1nZL0w_hUQbIGUc';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -400,7 +403,9 @@ function totalAtrasadasNoResumoSemanal(ocorrencias, hoje) {
     .reduce((total, ocorrencia) => total + valorExibidoOcorrencia(ocorrencia), 0));
 }
 
-// Data de hoje (YYYY-MM-DD) no fuso America/Sao_Paulo.
+// Data de hoje (YYYY-MM-DD) no fuso America/Sao_Paulo. Use sempre esta função,
+// nunca `new Date()` direto: o fuso do aparelho pode mudar o "hoje".
+// Datas são comparadas como string YYYY-MM-DD.
 function hojeISO() {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Sao_Paulo',

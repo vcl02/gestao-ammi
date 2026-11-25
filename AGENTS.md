@@ -3,15 +3,20 @@
 Projeto pessoal de controle financeiro de uma loja. HTML/CSS/JS puro, sem
 build, sem framework, sem dependências instaladas. Backend é Supabase.
 
+**Responda e escreva sempre em português do Brasil** (conversa, comentários no
+código, documentação e commits).
+
+## Mapa do repositório
+
+- `index.html`, `style.css`, `app.js` — toda a aplicação (e a suíte de testes)
+- `REGRAS.md` — regras de negócio, fonte de verdade
+- `migrations/` — SQL do banco, numerado em sequência
+- `manifest.webmanifest`, `sw.js`, `pwa-icon-*.png`, `ammi-logo.png` — PWA e logo
+
 ## Leia isto antes de mexer em qualquer lógica
 
-**[REGRAS.md](REGRAS.md) é a fonte de verdade das regras de negócio.**
-
-Leia antes de alterar qualquer cálculo, regra de exibição ou comportamento
-de Caixa Casa, Salário ou Contas a Pagar. Boa parte das regras não é óbvia
-lendo o código: o modelo regra-vs-ocorrência de Contas a Pagar, o rateio de
-parcelas, a definição de semana, quais ações são destrutivas e quais são
-reversíveis.
+[REGRAS.md](REGRAS.md) é a fonte de verdade das regras de negócio. Leia antes de alterar qualquer cálculo, regra de exibição ou comportamento
+de algum módulo.
 
 Se uma mudança alterar alguma regra descrita lá, **atualize o REGRAS.md no
 mesmo commit**. Documentação desatualizada é pior que documentação ausente.
@@ -21,20 +26,19 @@ mesmo commit**. Documentação desatualizada é pior que documentação ausente.
 Toda nova feature ou mudança no projeto deve atualizar, no mesmo trabalho:
 
 1. O `REGRAS.md`, documentando o comportamento novo ou alterado
-2. Os testes de regressão, adicionando ou ajustando casos que protejam esse
-   comportamento
+2. Os testes de regressão, adicionando ou ajustando casos que protejam esse comportamento,
+  sempre cuidando para não inflar a quantidade de testes ou repetir algo que já está coberto.
 
 A mudança só é considerada concluída quando documentação e testes também
 estiverem coerentes com o código. Ao finalizar, informe quais testes foram
-executados; se não puder executá-los, diga isso explicitamente.
+adicionados ou ajustados (quem os executa é o usuário, veja "Testes").
 
 ## Preferências de trabalho
 
 ### Evite overengineering, sempre
 
 Esta é a preferência mais importante do projeto. O usuário rejeita
-explicitamente abstrações prematuras — uma proposta de "arquitetura
-hexagonal com plugins" para adicionar um módulo foi recusada por isso.
+explicitamente abstrações prematuras.
 
 - Não crie camadas, interfaces ou indireções que o projeto não precisa hoje
 - Não adicione tratamento de erro para cenários que não acontecem
@@ -43,21 +47,22 @@ hexagonal com plugins" para adicionar um módulo foi recusada por isso.
 
 ### Tudo em três arquivos
 
-`index.html`, `style.css`, `app.js`. Não crie arquivos JS/CSS novos para
-separar módulos — o usuário pediu explicitamente para manter tudo junto.
-A separação é por blocos comentados dentro do `app.js`:
-
-```
-// ===================== CAIXA CASA =====================
-```
+Não crie arquivos JS/CSS novos para separar módulos — o usuário pediu explicitamente para manter tudo junto.
+A separação é por blocos comentados dentro do `app.js`, no formato
+`// ===================== CAIXA CASA =====================`.
 
 #### Exceção: arquivos mínimos da PWA
 
 A instalação pelo Chrome também depende de `manifest.webmanifest`, `sw.js` e
 dos ícones `pwa-icon-192.png` e `pwa-icon-512.png`. São arquivos de suporte da
 PWA, não módulos novos da aplicação. Mantenha o service worker restrito ao
-cache da interface: nunca coloque respostas, credenciais ou dados do Supabase
-no cache.
+cache da interface: nunca coloque respostas, credenciais ou dados do Supabase no cache.
+
+### Comentários sucintos em funções novas
+
+Toda função nova no código leva um comentário curto e simples dizendo o que ela
+faz e para que serve. Uma ou duas linhas, sem jargão. Não comente o óbvio linha
+a linha: o comentário é sobre a utilidade da função.
 
 ### Confirme antes de decidir por conta própria
 
@@ -67,7 +72,7 @@ rápido e prefere corrigir o rumo antes da implementação, não depois.
 
 ## Commits e push
 
-### Ajustes simples: commit e push direto
+### Ajustes simples: commit e push direto na main
 
 Ajustes visuais pequenos — espaçamento, alinhamento, cor, troca de ícone,
 tamanho de fonte — e correções simples, pontuais e sem mudança de schema
@@ -81,57 +86,58 @@ refatorações estruturais. Na dúvida sobre a classificação, pergunte.
 
 ### Formato
 
-Mensagens em português, explicando o **porquê** e não só o quê. Termine com
+Explique o **porquê** e não só o quê. Termine com
 a linha de atribuição do modelo que o sistema indicar na sessão.
 
 ## Migrations — cuidado redobrado
 
-`migrations/` contém SQL aplicado manualmente no SQL Editor do Supabase.
-Não há ferramenta de migration, nem registro automático do que já rodou.
+`migrations/` contém os arquivos SQL do banco, e só existe o banco de PROD.
+Ao criar uma migration, **mostre o SQL e peça confirmação antes de aplicar**.
+Confirmado, **aplique pelo MCP do Supabase** (`apply_migration`), em vez de
+pedir que o usuário rode no SQL Editor. Se o MCP não estiver disponível, avise
+e peça ao usuário.
 
-**Nunca reescreva uma migration já aplicada.** Se o usuário já rodou o
-arquivo, alterá-lo faz o arquivo descrever algo diferente do banco real —
-o que já aconteceu uma vez neste projeto e teve que ser desfeito.
+As queries devem ser sempre **idempotentes** (`if not exists`, `create or
+replace`, etc.), para poderem rodar mais de uma vez sem erro.
 
-Antes de editar qualquer arquivo em `migrations/`:
-
-1. Pergunte se aquela migration já foi rodada no Supabase
-2. Se sim, crie uma nova numerada (`004_...`) com o incremento
-3. Se não, pode editar no lugar
-
-Estado atual confirmado: **001 a 019 já foram aplicadas.** O usuário avisa
-quando roda uma nova — atualize esta linha quando isso acontecer.
+**Nunca edite uma migration já aplicada.** Para mudar algo, crie uma nova com
+o próximo número da sequência. As migrations 001 a 019 foram rodadas à mão pelo
+usuário e não aparecem no histórico do MCP; da 020 em diante, confira o que já
+foi aplicado com `list_migrations`. Na dúvida, pergunte.
 
 Toda tabela nova precisa de RLS habilitado e a policy `auth_all`, seguindo
 o padrão das existentes. Sem isso, a tabela fica inacessível pelo app. Tabelas
 deliberadamente somente leitura, como auditoria, usam policy apenas de `select`
 e removem as permissões de escrita dos usuários do aplicativo.
 
-## Detalhes técnicos que importam
+## Rodar localmente
 
-- **A chave do Supabase no `app.js` é pública** (anon/publishable) e fica
-  exposta de propósito. O repositório é público. A proteção é o RLS. Não
-  trate isso como vazamento nem tente mover para variável de ambiente —
-  não há build para injetar variáveis.
-- **Datas são strings `YYYY-MM-DD`**, comparadas como string. Não converta
-  para `Date` sem necessidade; várias regras dependem dessa comparação.
-- **"Hoje" é sempre America/Sao_Paulo**, via `hojeISO()`. Nunca use
-  `new Date()` direto para obter a data corrente.
-- **Valores no banco são sempre positivos.** O sinal vem do campo `tipo`. Única
-  exceção: venda do Salário com valor 0, que marca dia de loja fechada.
-- **Mobile e desktop compartilham o mesmo HTML.** As seções vivem dentro de
-  `#desktop-grid`, que usa `display: contents` no mobile e vira grid de 4
-  colunas acima de 900px. Cuidado ao mexer nisso — já causou tela em branco
-  no mobile uma vez.
-- **PWA:** o manifesto declara ícones PNG quadrados de 192 e 512 px. O
-  service worker atualiza a interface pela rede primeiro e usa o cache só
-  quando não há conexão; o Chrome exige que ambos continuem acessíveis para
-  permitir a instalação.
+O projeto é estático, mas precisa de servidor HTTP (o `app.js` usa módulo ES;
+abrir o `index.html` direto, via `file://`, não funciona). O usuário usa a
+extensão **Live Server** do VS Code (`http://127.0.0.1:5500`). Não há Node nem
+`package.json`.
+
+**Atenção: só existe o banco de PROD.** O app local grava de verdade no
+Supabase de produção. Para checar sem risco, use `?testes=1`, que não faz login
+nem consulta o banco.
+
+## Convenções de código
+
+Armadilhas e convenções do código ficam como comentário no próprio `app.js`,
+junto do ponto onde se aplicam (ex.: a chave pública do Supabase e `hojeISO()`).
+Leia os comentários antes de alterar essas partes.
 
 ## Testes
 
-A suíte de regressão fica no próprio `app.js`: abra `?testes=1` no navegador.
-Para checagens estáticas, quando Node estiver disponível, use `node --check
-app.js` e também `node --check sw.js` se a PWA for alterada. Mudanças visuais,
-instalação pelo Chrome e operações reais no Supabase continuam exigindo
-verificação manual; informe isso ao usuário em vez de afirmar que funcionam.
+**Só testes unitários.** A suíte fica no próprio `app.js`: abra `?testes=1` no
+navegador. Não criar testes de integração, nem Playwright ou qualquer outra
+ferramenta de automação de navegador. Também não usar Node: o projeto não tem
+`package.json` nem dependências, e isso não deve mudar.
+
+Mudanças visuais, instalação pelo Chrome e operações reais no Supabase não têm
+teste automatizado: exigem verificação manual. Informe isso ao usuário em vez
+de afirmar que funcionam.
+
+**Quem roda os testes é o usuário.** O agente não executa a suíte; ao
+finalizar, diga quais casos foram adicionados ou ajustados para o usuário
+rodar.
