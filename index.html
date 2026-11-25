@@ -14,6 +14,22 @@
 
 <body>
 
+  <!-- ===================== ÍCONES REUTILIZÁVEIS =====================
+       Desenhados uma única vez aqui e usados nos botões com <use href="#nome">.
+       O traço (cor, espessura, pontas) é definido em style.css, na classe .icone. -->
+  <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position: absolute" aria-hidden="true">
+    <symbol id="icone-inicio" viewBox="0 0 24 24">
+      <path d="M3 11l9-8 9 8"></path>
+      <path d="M5 10v10h14V10"></path>
+      <path d="M9 20v-6h6v6"></path>
+    </symbol>
+    <symbol id="icone-sair" viewBox="0 0 24 24">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+      <polyline points="16 17 21 12 16 7"></polyline>
+      <line x1="21" y1="12" x2="9" y2="12"></line>
+    </symbol>
+  </svg>
+
   <!-- ===================== LOGIN ===================== -->
   <main id="view-login" class="page page-center view">
     <form id="login-form" class="card">
@@ -22,10 +38,10 @@
         <h1>Gestão Ammi</h1>
       </div>
 
-      <label for="email" class="sr-only">E-mail</label>
+      <label for="email" class="somente-leitor-de-tela">E-mail</label>
       <input type="email" id="email" placeholder="E-mail" required autocomplete="username">
 
-      <label for="password" class="sr-only">Senha</label>
+      <label for="password" class="somente-leitor-de-tela">Senha</label>
       <input type="password" id="password" placeholder="Senha" required autocomplete="current-password">
 
       <button type="submit">Entrar</button>
@@ -36,13 +52,8 @@
   <!-- ===================== HOME (mobile) ===================== -->
   <main id="view-home" class="page view" hidden>
     <header class="topbar topbar-end">
-      <button id="logout-btn" class="btn-icon" aria-label="Sair" title="Sair">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <polyline points="16 17 21 12 16 7"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
+      <button id="botao-sair" class="botao-icone" aria-label="Sair" title="Sair">
+        <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-sair"></use></svg>
       </button>
     </header>
 
@@ -74,346 +85,359 @@
        4 colunas. Cuidado ao mexer: já causou tela em branco no mobile. -->
 
   <div id="desktop-grid" class="desktop-grid" hidden>
-    <button id="logout-btn-desktop" class="btn-icon desktop-logout" aria-label="Sair" title="Sair">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-        <polyline points="16 17 21 12 16 7"></polyline>
-        <line x1="21" y1="12" x2="9" y2="12"></line>
-      </svg>
+    <button id="botao-sair-desktop" class="botao-icone desktop-logout" aria-label="Sair" title="Sair">
+      <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-sair"></use></svg>
     </button>
 
     <p class="empresa-cnpj desktop-empresa">CNPJ 47.154.673/0001-60</p>
 
-    <!-- ===================== CAIXA CASA ===================== -->
-    <main id="view-caixa-casa" class="page view panel" hidden>
+    <!-- ===================== CAIXA CASA =====================
+         Dinheiro retirado do caixa da loja e guardado em casa. -->
+    <section id="view-caixa-casa" class="page view panel" aria-label="Caixa Casa" hidden>
+
+      <!-- Cabeçalho: botão de voltar ao início (mobile) e título -->
       <header class="topbar">
-        <button class="btn-icon btn-inicio" data-nav="home" aria-label="Início" title="Início">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 11l9-8 9 8"></path>
-            <path d="M5 10v10h14V10"></path>
-            <path d="M9 20v-6h6v6"></path>
-          </svg>
+        <button class="botao-icone botao-inicio" data-nav="home" aria-label="Início" title="Início">
+          <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-inicio"></use></svg>
         </button>
         <h1>Caixa Casa</h1>
       </header>
       <h2 class="panel-title">Caixa Casa</h2>
 
+      <!-- Saldos: principal (após abater o aluguel) e total no caixa -->
       <section class="balance-box">
         <div class="balance-semanas">
           <span class="balance-semana-item">
-            <span id="cc-saldo" class="balance-value">R$ 0,00</span>
+            <span id="caixa-casa-saldo-apos-aluguel" class="balance-value">R$ 0,00</span>
             <span class="balance-label">Após aluguel</span>
           </span>
           <span class="balance-semana-item">
-            <span id="cc-saldo-total" class="balance-value-secundario">R$ 0,00</span>
+            <span id="caixa-casa-saldo-total" class="balance-value-secundario">R$ 0,00</span>
             <span class="balance-label">Total no caixa</span>
           </span>
         </div>
       </section>
 
+      <!-- Tipo do lançamento: entrada ou saída -->
       <div class="switch-toggle">
-        <input type="radio" name="cc-tipo" id="cc-tipo-entrada" value="entrada" checked>
-        <label for="cc-tipo-entrada">Entrada</label>
-        <input type="radio" name="cc-tipo" id="cc-tipo-saida" value="saida">
-        <label for="cc-tipo-saida">Saída</label>
+        <input type="radio" name="caixa-casa-tipo" id="caixa-casa-tipo-entrada" value="entrada" checked>
+        <label for="caixa-casa-tipo-entrada">Entrada</label>
+        <input type="radio" name="caixa-casa-tipo" id="caixa-casa-tipo-saida" value="saida">
+        <label for="caixa-casa-tipo-saida">Saída</label>
         <span class="switch-thumb"></span>
       </div>
 
-      <form id="cc-form" class="card">
-        <label for="cc-valor">Valor</label>
-        <input type="text" id="cc-valor" inputmode="decimal" placeholder="0,00" required>
+      <!-- Formulário de novo lançamento -->
+      <form id="caixa-casa-formulario" class="card">
+        <label for="caixa-casa-valor">Valor</label>
+        <input type="text" id="caixa-casa-valor" inputmode="decimal" placeholder="0,00" required>
 
-        <label for="cc-data">Data</label>
-        <input type="date" id="cc-data" required>
+        <label for="caixa-casa-data">Data</label>
+        <input type="date" id="caixa-casa-data" required>
 
-        <label for="cc-descricao">Descrição <span id="cc-descricao-req" class="req" hidden>*</span></label>
-        <input type="text" id="cc-descricao" placeholder="Aluguel">
+        <label for="caixa-casa-descricao">Descrição <span id="caixa-casa-descricao-obrigatoria" class="campo-obrigatorio" hidden>*</span></label>
+        <input type="text" id="caixa-casa-descricao" placeholder="Aluguel">
 
         <button type="submit">Salvar</button>
-        <p id="cc-form-error" class="error" hidden></p>
+        <p id="caixa-casa-formulario-erro" class="error" hidden></p>
       </form>
 
+      <!-- Histórico dos últimos lançamentos -->
       <details class="list">
         <summary>Últimos lançamentos</summary>
-        <ul id="cc-list" class="lancamentos"></ul>
+        <ul id="caixa-casa-lista-lancamentos" class="lancamentos"></ul>
       </details>
-    </main>
+    </section>
 
-    <!-- ===================== SALÁRIO ===================== -->
-    <main id="view-salario" class="page view panel" hidden>
+    <!-- ===================== SALÁRIO =====================
+         Remuneração da gerente: comissão sobre vendas menos os pagamentos feitos a ela. -->
+    <section id="view-salario" class="page view panel" aria-label="Salário" hidden>
+
+      <!-- Cabeçalho: botão de voltar ao início (mobile) e título -->
       <header class="topbar">
-        <button class="btn-icon btn-inicio" data-nav="home" aria-label="Início" title="Início">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 11l9-8 9 8"></path>
-            <path d="M5 10v10h14V10"></path>
-            <path d="M9 20v-6h6v6"></path>
-          </svg>
+        <button class="botao-icone botao-inicio" data-nav="home" aria-label="Início" title="Início">
+          <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-inicio"></use></svg>
         </button>
         <h1>Salário</h1>
       </header>
       <h2 class="panel-title">Salário</h2>
+      <!-- Saldo: quanto ainda é devido à gerente -->
 
       <section class="balance-box">
         <span class="balance-label">Saldo da conta</span>
-        <span id="sal-saldo" class="balance-value">R$ 0,00</span>
+        <span id="salario-saldo" class="balance-value">R$ 0,00</span>
       </section>
 
-      <div class="switch-toggle tabs-switch">
-        <input type="radio" name="sal-tab" id="sal-tab-venda" checked>
-        <label for="sal-tab-venda" class="tab-btn" data-tab="venda">Vendas Hoje</label>
-        <input type="radio" name="sal-tab" id="sal-tab-pagamento">
-        <label for="sal-tab-pagamento" class="tab-btn" data-tab="pagamento">Pagamento</label>
+      <!-- Escolha da aba: venda ou pagamento -->
+      <div class="switch-toggle abas-alternador">
+        <input type="radio" name="salario-aba" id="salario-aba-venda" checked>
+        <label for="salario-aba-venda" class="aba-botao" data-aba="venda">Vendas Hoje</label>
+        <input type="radio" name="salario-aba" id="salario-aba-pagamento">
+        <label for="salario-aba-pagamento" class="aba-botao" data-aba="pagamento">Pagamento</label>
         <span class="switch-thumb"></span>
       </div>
 
-      <div class="tab-panels">
-        <form id="sal-venda-form" class="card tab-panel tab-panel-active" data-panel="venda">
-          <label for="sal-venda-valor">Valor</label>
-          <input type="text" id="sal-venda-valor" inputmode="decimal" placeholder="0,00" required>
+      <!-- Formulários, um por aba; só o da aba escolhida fica visível -->
+      <div class="abas-paineis">
+        <!-- Aba Vendas Hoje: o valor vendido gera a comissão -->
+        <form id="salario-venda-formulario" class="card aba-painel aba-painel-ativo" data-aba-painel="venda">
+          <label for="salario-venda-valor">Valor</label>
+          <input type="text" id="salario-venda-valor" inputmode="decimal" placeholder="0,00" required>
 
-          <label for="sal-venda-data">Data</label>
-          <input type="date" id="sal-venda-data" required>
+          <label for="salario-venda-data">Data</label>
+          <input type="date" id="salario-venda-data" required>
 
-          <label for="sal-venda-descricao">Descrição</label>
-          <input type="text" id="sal-venda-descricao" placeholder="Vendas do dia">
+          <label for="salario-venda-descricao">Descrição</label>
+          <input type="text" id="salario-venda-descricao" placeholder="Vendas do dia">
 
-          <button type="submit" id="sal-venda-submit">Salvar</button>
-          <p id="sal-venda-error" class="error" hidden></p>
+          <button type="submit" id="salario-venda-salvar">Salvar</button>
+          <p id="salario-venda-erro" class="error" hidden></p>
         </form>
 
-        <form id="sal-pagamento-form" class="card tab-panel" data-panel="pagamento">
+        <!-- Aba Pagamento: dinheiro entregue à gerente, que abate o saldo devido -->
+        <form id="salario-pagamento-formulario" class="card aba-painel" data-aba-painel="pagamento">
           <div class="rotulo-com-acao">
-            <label for="sal-pagamento-valor">Valor</label>
-            <button type="button" id="sal-pagar-tudo" class="btn-link">Pagar tudo</button>
+            <label for="salario-pagamento-valor">Valor</label>
+            <button type="button" id="salario-pagar-tudo" class="botao-link">Pagar tudo</button>
           </div>
-          <input type="text" id="sal-pagamento-valor" inputmode="decimal" placeholder="0,00" required>
+          <input type="text" id="salario-pagamento-valor" inputmode="decimal" placeholder="0,00" required>
 
-          <label for="sal-pagamento-data">Data</label>
-          <input type="date" id="sal-pagamento-data" required>
+          <label for="salario-pagamento-data">Data</label>
+          <input type="date" id="salario-pagamento-data" required>
 
-          <label for="sal-pagamento-descricao">Descrição</label>
-          <input type="text" id="sal-pagamento-descricao" value="Pagamento" required>
+          <label for="salario-pagamento-descricao">Descrição</label>
+          <input type="text" id="salario-pagamento-descricao" value="Pagamento" required>
 
           <button type="submit">Salvar</button>
-          <p id="sal-pagamento-error" class="error" hidden></p>
+          <p id="salario-pagamento-erro" class="error" hidden></p>
         </form>
       </div>
 
+      <!-- Histórico dos últimos lançamentos (vendas e pagamentos) -->
       <details class="list">
         <summary>Últimos lançamentos</summary>
-        <ul id="sal-list" class="lancamentos"></ul>
+        <ul id="salario-lista-lancamentos" class="lancamentos"></ul>
       </details>
-    </main>
+    </section>
 
-    <!-- ===================== CONTAS A PAGAR ===================== -->
-    <main id="view-contas-pagar" class="page view panel" hidden>
+    <!-- ===================== CONTAS A PAGAR =====================
+         Contas futuras: mensais (regra que se repete) ou parceladas (datas escolhidas). -->
+    <section id="view-contas-pagar" class="page view panel" aria-label="Contas a Pagar" hidden>
+
+      <!-- Cabeçalho: botão de voltar ao início (mobile) e título -->
       <header class="topbar">
-        <button class="btn-icon btn-inicio" data-nav="home" aria-label="Início" title="Início">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 11l9-8 9 8"></path>
-            <path d="M5 10v10h14V10"></path>
-            <path d="M9 20v-6h6v6"></path>
-          </svg>
+        <button class="botao-icone botao-inicio" data-nav="home" aria-label="Início" title="Início">
+          <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-inicio"></use></svg>
         </button>
         <h1>Contas a Pagar</h1>
       </header>
       <h2 class="panel-title">Contas a Pagar</h2>
 
+      <!-- Resumo: pago no mês e pendências da semana atual e da próxima -->
       <section class="balance-box">
-        <span class="balance-subtitulo"><span id="cp-total-mes-pago" class="balance-subtitulo-destaque">R$ 0,00</span>
-          <span class="balance-subtitulo-destaque">pago de</span> <span id="cp-total-mes-geral">R$ 0,00</span> no
+        <span class="balance-subtitulo"><span id="contas-pagar-total-mes-pago" class="balance-subtitulo-destaque">R$ 0,00</span>
+          <span class="balance-subtitulo-destaque">pago de</span> <span id="contas-pagar-total-mes-geral">R$ 0,00</span> no
           mês</span>
         <div class="balance-semanas">
           <span class="balance-semana-item">
-            <span id="cp-total-semana-atual" class="balance-value">R$ 0,00</span>
-            <span id="cp-label-semana-atual" class="balance-label">Esta semana</span>
+            <span id="contas-pagar-total-semana-atual" class="balance-value">R$ 0,00</span>
+            <span id="contas-pagar-rotulo-semana-atual" class="balance-label">Esta semana</span>
           </span>
           <span class="balance-semana-item">
-            <span id="cp-total-proxima-semana" class="balance-value-secundario">R$ 0,00</span>
-            <span id="cp-label-proxima-semana" class="balance-label">Próxima semana</span>
+            <span id="contas-pagar-total-proxima-semana" class="balance-value-secundario">R$ 0,00</span>
+            <span id="contas-pagar-rotulo-proxima-semana" class="balance-label">Próxima semana</span>
           </span>
         </div>
       </section>
 
+      <!-- Tipo da conta: mensal (recorrente) ou parcelada -->
       <div class="switch-toggle">
-        <input type="radio" name="cp-tipo" id="cp-tipo-recorrente" value="recorrente" checked>
-        <label for="cp-tipo-recorrente">Mensal</label>
-        <input type="radio" name="cp-tipo" id="cp-tipo-parcelado" value="parcelado">
-        <label for="cp-tipo-parcelado">Parcelado</label>
+        <input type="radio" name="contas-pagar-tipo" id="contas-pagar-tipo-recorrente" value="recorrente" checked>
+        <label for="contas-pagar-tipo-recorrente">Mensal</label>
+        <input type="radio" name="contas-pagar-tipo" id="contas-pagar-tipo-parcelado" value="parcelado">
+        <label for="contas-pagar-tipo-parcelado">Parcelado</label>
         <span class="switch-thumb"></span>
       </div>
 
-      <form id="cp-form" class="card">
+      <!-- Formulário de nova conta -->
+      <form id="contas-pagar-formulario" class="card">
         <div class="label-com-switch">
-          <label for="cp-valor">Valor</label>
-          <div id="cp-valor-modo" class="switch-toggle switch-toggle-mini" hidden>
-            <input type="radio" name="cp-valor-modo" id="cp-valor-modo-repetir" value="repetir" checked>
-            <label for="cp-valor-modo-repetir">Repetir</label>
-            <input type="radio" name="cp-valor-modo" id="cp-valor-modo-dividir" value="dividir">
-            <label for="cp-valor-modo-dividir">Dividir</label>
+          <label for="contas-pagar-valor">Valor</label>
+          <div id="contas-pagar-valor-modo" class="switch-toggle switch-toggle-mini" hidden>
+            <input type="radio" name="contas-pagar-valor-modo" id="contas-pagar-valor-modo-repetir" value="repetir" checked>
+            <label for="contas-pagar-valor-modo-repetir">Repetir</label>
+            <input type="radio" name="contas-pagar-valor-modo" id="contas-pagar-valor-modo-dividir" value="dividir">
+            <label for="contas-pagar-valor-modo-dividir">Dividir</label>
             <span class="switch-thumb"></span>
           </div>
         </div>
-        <input type="text" id="cp-valor" inputmode="decimal" placeholder="0,00" required>
+        <input type="text" id="contas-pagar-valor" inputmode="decimal" placeholder="0,00" required>
 
-        <div id="cp-campo-data-unica">
-          <label for="cp-data-inicio">Data</label>
-          <input type="date" id="cp-data-inicio" required>
+        <!-- Mensal: data do primeiro vencimento -->
+        <div id="contas-pagar-campo-data-unica">
+          <label for="contas-pagar-data-inicio">Data</label>
+          <input type="date" id="contas-pagar-data-inicio" required>
         </div>
 
-        <div id="cp-campo-parcelas" hidden>
-          <label for="cp-qtde-parcelas">Parcelas</label>
-          <input type="text" id="cp-qtde-parcelas" inputmode="numeric" maxlength="2" placeholder="3">
+        <!-- Parcelado: quantidade e uma data por parcela -->
+        <div id="contas-pagar-campo-parcelas" hidden>
+          <label for="contas-pagar-quantidade-parcelas">Parcelas</label>
+          <input type="text" id="contas-pagar-quantidade-parcelas" inputmode="numeric" maxlength="2" placeholder="3">
 
-          <div id="cp-datas-parcelas"></div>
+          <div id="contas-pagar-datas-parcelas"></div>
         </div>
 
-        <label for="cp-descricao">Descrição</label>
-        <input type="text" id="cp-descricao" placeholder="Luz" required>
+        <label for="contas-pagar-descricao">Descrição</label>
+        <input type="text" id="contas-pagar-descricao" placeholder="Luz" required>
 
         <button type="submit">Salvar</button>
-        <p id="cp-form-error" class="error" hidden></p>
+        <p id="contas-pagar-formulario-erro" class="error" hidden></p>
       </form>
 
+      <!-- Listas: ocorrências (por semana) e contas cadastradas -->
       <div class="list-group">
         <details class="list">
           <summary>Ocorrências</summary>
-          <ul id="cp-list" class="lancamentos"></ul>
+          <ul id="contas-pagar-lista-ocorrencias" class="lancamentos"></ul>
         </details>
 
         <details class="list">
           <summary>Contas cadastradas</summary>
-          <ul id="cp-contas-list" class="lancamentos"></ul>
+          <ul id="contas-pagar-lista-contas-cadastradas" class="lancamentos"></ul>
         </details>
       </div>
-    </main>
+    </section>
 
-    <!-- ===================== FIADO ===================== -->
-    <main id="view-fiado" class="page view panel" hidden>
+    <!-- ===================== FIADO =====================
+         Vendas fiadas e pagamentos por pessoa, sem ligação com os outros módulos. -->
+    <section id="view-fiado" class="page view panel" aria-label="Fiado" hidden>
+
+      <!-- Cabeçalho: botão de voltar ao início (mobile) e título -->
       <header class="topbar">
-        <button class="btn-icon btn-inicio" data-nav="home" aria-label="Início" title="Início">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 11l9-8 9 8"></path>
-            <path d="M5 10v10h14V10"></path>
-            <path d="M9 20v-6h6v6"></path>
-          </svg>
+        <button class="botao-icone botao-inicio" data-nav="home" aria-label="Início" title="Início">
+          <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-inicio"></use></svg>
         </button>
         <h1>Fiado</h1>
       </header>
       <h2 class="panel-title">Fiado</h2>
 
+      <!-- Total fiado: saldo líquido de todas as pessoas -->
       <section class="balance-box">
         <span class="balance-label">Total fiado</span>
-        <span id="fi-total" class="balance-value">R$ 0,00</span>
+        <span id="fiado-total" class="balance-value">R$ 0,00</span>
       </section>
 
-      <div class="switch-toggle tabs-switch">
-        <input type="radio" name="fi-tab" id="fi-tab-venda" checked>
-        <label for="fi-tab-venda" class="tab-btn" data-tab="venda">Venda</label>
-        <input type="radio" name="fi-tab" id="fi-tab-pagamento">
-        <label for="fi-tab-pagamento" class="tab-btn" data-tab="pagamento">Pagamento</label>
+      <!-- Escolha da aba: venda ou pagamento -->
+      <div class="switch-toggle abas-alternador">
+        <input type="radio" name="fiado-aba" id="fiado-aba-venda" checked>
+        <label for="fiado-aba-venda" class="aba-botao" data-aba="venda">Venda</label>
+        <input type="radio" name="fiado-aba" id="fiado-aba-pagamento">
+        <label for="fiado-aba-pagamento" class="aba-botao" data-aba="pagamento">Pagamento</label>
         <span class="switch-thumb"></span>
       </div>
 
-      <div class="tab-panels">
-        <form id="fi-form" class="card tab-panel tab-panel-active" data-panel="venda">
-          <label for="fi-valor">Valor</label>
-          <input type="text" id="fi-valor" inputmode="decimal" placeholder="0,00" required>
+      <!-- Formulários, um por aba; só o da aba escolhida fica visível -->
+      <div class="abas-paineis">
+        <!-- Aba Venda: aumenta a dívida; o nome novo passa a existir na primeira venda -->
+        <form id="fiado-venda-formulario" class="card aba-painel aba-painel-ativo" data-aba-painel="venda">
+          <label for="fiado-venda-valor">Valor</label>
+          <input type="text" id="fiado-venda-valor" inputmode="decimal" placeholder="0,00" required>
 
-          <label for="fi-data">Data</label>
-          <input type="date" id="fi-data" required>
+          <label for="fiado-venda-data">Data</label>
+          <input type="date" id="fiado-venda-data" required>
 
-          <label for="fi-descricao">Descrição</label>
-          <input type="text" id="fi-descricao" placeholder="2 papéis higiênicos">
+          <label for="fiado-venda-descricao">Descrição</label>
+          <input type="text" id="fiado-venda-descricao" placeholder="2 papéis higiênicos">
 
-          <label for="fi-pessoa">Pessoa</label>
-          <input type="text" id="fi-pessoa" list="fi-pessoas-datalist" placeholder="Bruna Frameschi" required
+          <label for="fiado-venda-pessoa">Pessoa</label>
+          <input type="text" id="fiado-venda-pessoa" list="fiado-pessoas-datalist" placeholder="Bruna Frameschi" required
             autocomplete="off">
 
           <button type="submit">Salvar</button>
-          <p id="fi-form-error" class="error" hidden></p>
+          <p id="fiado-venda-erro" class="error" hidden></p>
         </form>
 
-        <form id="fi-pagamento-form" class="card tab-panel" data-panel="pagamento">
-          <label for="fi-pagamento-valor">Valor</label>
-          <input type="text" id="fi-pagamento-valor" inputmode="decimal" placeholder="0,00" required>
+        <!-- Aba Pagamento: abate a dívida de uma pessoa já existente -->
+        <form id="fiado-pagamento-formulario" class="card aba-painel" data-aba-painel="pagamento">
+          <label for="fiado-pagamento-valor">Valor</label>
+          <input type="text" id="fiado-pagamento-valor" inputmode="decimal" placeholder="0,00" required>
 
-          <label for="fi-pagamento-data">Data</label>
-          <input type="date" id="fi-pagamento-data" required>
+          <label for="fiado-pagamento-data">Data</label>
+          <input type="date" id="fiado-pagamento-data" required>
 
-          <label for="fi-pagamento-descricao">Descrição</label>
-          <input type="text" id="fi-pagamento-descricao" placeholder="Pagamento" value="Pagamento">
+          <label for="fiado-pagamento-descricao">Descrição</label>
+          <input type="text" id="fiado-pagamento-descricao" placeholder="Pagamento" value="Pagamento">
 
-          <label for="fi-pagamento-pessoa">Pessoa</label>
-          <select id="fi-pagamento-pessoa" required>
+          <label for="fiado-pagamento-pessoa">Pessoa</label>
+          <select id="fiado-pagamento-pessoa" required>
             <option value="">Escolha a pessoa</option>
           </select>
 
           <button type="submit">Salvar</button>
-          <p id="fi-pagamento-form-error" class="error" hidden></p>
+          <p id="fiado-pagamento-erro" class="error" hidden></p>
         </form>
       </div>
-      <datalist id="fi-pessoas-datalist"></datalist>
+      <!-- Sugestões de nomes já usados, para o campo Pessoa da aba Venda -->
+      <datalist id="fiado-pessoas-datalist"></datalist>
 
+      <!-- Histórico por pessoa: saldo e lançamentos de cada uma -->
       <details class="list">
         <summary>Pessoas</summary>
-        <ul id="fi-list" class="lancamentos"></ul>
+        <ul id="fiado-lista-pessoas" class="lancamentos"></ul>
       </details>
-    </main>
+    </section>
   </div>
 
-  <aside id="cp-selecao-bar" class="cp-selecao-bar" hidden aria-live="polite">
-    <span id="cp-selecao-resumo"></span>
-    <button type="button" id="cp-selecao-limpar">Limpar</button>
+  <!-- Barra flutuante com a soma das ocorrências selecionadas de Contas a Pagar -->
+  <aside id="contas-pagar-selecao-barra" class="contas-pagar-selecao-barra" hidden aria-live="polite">
+    <span id="contas-pagar-selecao-resumo"></span>
+    <button type="button" id="contas-pagar-selecao-limpar">Limpar</button>
   </aside>
 
-  <dialog id="sal-aviso-dias-sem-venda" class="modal-aviso" aria-labelledby="sal-aviso-dias-sem-venda-titulo">
-    <button type="button" id="sal-aviso-dias-sem-venda-fechar" class="btn-icon modal-aviso-fechar"
+  <!-- Aviso do Salário: dias sem venda registrada, para informar o valor vendido (ou 0 se a loja não abriu) -->
+  <dialog id="salario-aviso-dias-sem-venda" class="modal-aviso" aria-labelledby="salario-aviso-dias-sem-venda-titulo">
+    <button type="button" id="salario-aviso-dias-sem-venda-fechar" class="botao-icone modal-aviso-fechar"
       aria-label="Fechar aviso">×</button>
-    <h2 id="sal-aviso-dias-sem-venda-titulo">Vendas faltando</h2>
-    <p id="sal-aviso-dias-sem-venda-progresso" class="modal-venda-progresso"></p>
-    <form id="sal-aviso-dias-sem-venda-form" class="modal-venda-form">
-      <p>Venda esquecida em <strong id="sal-aviso-dias-sem-venda-data"></strong></p>
-      <label for="sal-aviso-dias-sem-venda-valor">Valor vendido (0 se a loja não abriu)</label>
-      <input type="text" id="sal-aviso-dias-sem-venda-valor" inputmode="decimal" placeholder="0,00" required>
-      <button type="submit" id="sal-aviso-dias-sem-venda-salvar">Salvar</button>
-      <p id="sal-aviso-dias-sem-venda-error" class="error" hidden></p>
+    <h2 id="salario-aviso-dias-sem-venda-titulo">Vendas faltando</h2>
+    <p id="salario-aviso-dias-sem-venda-progresso" class="modal-venda-progresso"></p>
+    <form id="salario-aviso-dias-sem-venda-formulario" class="modal-venda-form">
+      <p>Venda esquecida em <strong id="salario-aviso-dias-sem-venda-data"></strong></p>
+      <label for="salario-aviso-dias-sem-venda-valor">Valor vendido (0 se a loja não abriu)</label>
+      <input type="text" id="salario-aviso-dias-sem-venda-valor" inputmode="decimal" placeholder="0,00" required>
+      <button type="submit" id="salario-aviso-dias-sem-venda-salvar">Salvar</button>
+      <p id="salario-aviso-dias-sem-venda-erro" class="error" hidden></p>
     </form>
   </dialog>
 
-  <dialog id="valor-dialog" class="modal-aviso" aria-labelledby="valor-dialog-titulo">
-    <button type="button" id="valor-dialog-fechar" class="btn-icon modal-aviso-fechar" aria-label="Cancelar">×</button>
-    <h2 id="valor-dialog-titulo"></h2>
-    <form id="valor-dialog-form" class="modal-venda-form">
-      <label for="valor-dialog-input" id="valor-dialog-rotulo">Valor</label>
-      <input type="text" id="valor-dialog-input" inputmode="decimal" placeholder="0,00">
+  <dialog id="valor-janela" class="modal-aviso" aria-labelledby="valor-janela-titulo">
+    <button type="button" id="valor-janela-fechar" class="botao-icone modal-aviso-fechar" aria-label="Cancelar">×</button>
+    <h2 id="valor-janela-titulo"></h2>
+    <form id="valor-janela-formulario" class="modal-venda-form">
+      <label for="valor-janela-campo" id="valor-janela-rotulo">Valor</label>
+      <input type="text" id="valor-janela-campo" inputmode="decimal" placeholder="0,00">
       <button type="submit">Confirmar</button>
-      <p id="valor-dialog-erro" class="error" hidden></p>
+      <p id="valor-janela-erro" class="error" hidden></p>
     </form>
   </dialog>
 
-  <dialog id="cp-pagamento" class="modal-aviso" aria-labelledby="cp-pagamento-titulo">
-    <button type="button" id="cp-pagamento-fechar" class="btn-icon modal-aviso-fechar"
+  <!-- Janela de pagamento de uma ocorrência: valor pago e origem do dinheiro (próprio, Caixa Casa ou Roberta) -->
+  <dialog id="contas-pagar-pagamento-janela" class="modal-aviso" aria-labelledby="contas-pagar-pagamento-titulo">
+    <button type="button" id="contas-pagar-pagamento-fechar" class="botao-icone modal-aviso-fechar"
       aria-label="Cancelar pagamento">×</button>
-    <h2 id="cp-pagamento-titulo">Pagar conta</h2>
-    <p id="cp-pagamento-resumo" class="modal-venda-progresso"></p>
-    <form id="cp-pagamento-form" class="modal-venda-form">
-      <label for="cp-pagamento-valor">Valor deste pagamento</label>
-      <input type="text" id="cp-pagamento-valor" inputmode="decimal" placeholder="0,00" required>
-      <p id="cp-pagamento-aviso" class="cp-pagamento-aviso" hidden></p>
-      <fieldset class="cp-pagamento-origens">
+    <h2 id="contas-pagar-pagamento-titulo">Pagar conta</h2>
+    <p id="contas-pagar-pagamento-resumo" class="modal-venda-progresso"></p>
+    <form id="contas-pagar-pagamento-formulario" class="modal-venda-form">
+      <label for="contas-pagar-pagamento-valor">Valor deste pagamento</label>
+      <input type="text" id="contas-pagar-pagamento-valor" inputmode="decimal" placeholder="0,00" required>
+      <p id="contas-pagar-pagamento-aviso" class="contas-pagar-pagamento-aviso" hidden></p>
+      <fieldset class="contas-pagar-pagamento-origens">
         <legend>Dinheiro usado</legend>
-        <label><input type="radio" name="cp-pagamento-origem" value="proprio" checked> Meu dinheiro</label>
-        <label><input type="radio" name="cp-pagamento-origem" value="caixa"> Caixa Casa</label>
-        <label><input type="radio" name="cp-pagamento-origem" value="roberta"> Dinheiro Roberta</label>
+        <label><input type="radio" name="contas-pagar-pagamento-origem" value="proprio" checked> Meu dinheiro</label>
+        <label><input type="radio" name="contas-pagar-pagamento-origem" value="caixa"> Caixa Casa</label>
+        <label><input type="radio" name="contas-pagar-pagamento-origem" value="roberta"> Dinheiro Roberta</label>
       </fieldset>
       <button type="submit">Pagar</button>
-      <p id="cp-pagamento-error" class="error" hidden></p>
+      <p id="contas-pagar-pagamento-erro" class="error" hidden></p>
     </form>
   </dialog>
 

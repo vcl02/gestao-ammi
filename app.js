@@ -10,17 +10,17 @@ const SUPABASE_ANON_KEY = 'sb_publishable_SHyvOxJ8tz2BMFDJ1nZL0w_hUQbIGUc';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const CC_TABLE = 'caixa_casa_lancamentos';
-const SAL_TABLE = 'salario_lancamentos';
-const CP_TABLE = 'contas_pagar';
-const CP_EXDATES_TABLE = 'contas_pagar_exdates';
-const CP_PARCELAS_TABLE = 'contas_pagar_parcelas';
-const CP_PAGAMENTOS_TABLE = 'contas_pagar_pagamentos';
-const CP_AJUSTES_TABLE = 'contas_pagar_ajustes';
+const CAIXA_CASA_TABELA = 'caixa_casa_lancamentos';
+const SALARIO_TABELA = 'salario_lancamentos';
+const CONTAS_PAGAR_TABELA = 'contas_pagar';
+const CONTAS_PAGAR_EXDATES_TABELA = 'contas_pagar_exdates';
+const CONTAS_PAGAR_PARCELAS_TABELA = 'contas_pagar_parcelas';
+const CONTAS_PAGAR_PAGAMENTOS_TABELA = 'contas_pagar_pagamentos';
+const CONTAS_PAGAR_AJUSTES_TABELA = 'contas_pagar_ajustes';
 const EMPRESTIMO_TABLE = 'emprestimo_lancamentos';
 const CARTAO_CREDITO_TABLE = 'cartao_credito_lancamentos';
 const ROBERTA_TABLE = 'roberta_lancamentos';
-const FI_TABLE = 'fiado_lancamentos';
+const FIADO_TABELA = 'fiado_lancamentos';
 const PERCENTUAL_COMISSAO = 0.15;
 // Teto mensal de comissão: custos da Isabella (~R$ 593) mais uma folga para ela.
 const TETO_COMISSAO_MES = 800;
@@ -48,12 +48,12 @@ function parseMoney(text) {
 // clique duplo/duplo envio. Reabilita mesmo se o handler lançar erro.
 function bloquearDuranteSubmit(form, handler) {
   form.addEventListener('submit', async (e) => {
-    const btn = form.querySelector('button[type="submit"]');
-    btn.disabled = true;
+    const botao = form.querySelector('button[type="submit"]');
+    botao.disabled = true;
     try {
       await handler(e);
     } finally {
-      btn.disabled = false;
+      botao.disabled = false;
     }
   });
 }
@@ -113,7 +113,7 @@ function ultimoDiaDoMesISO(isoDate) {
 }
 
 async function buscarComissaoDoMes(data) {
-  const { data: vendas, error } = await supabase.from(SAL_TABLE)
+  const { data: vendas, error } = await supabase.from(SALARIO_TABELA)
     .select('valor')
     .eq('tipo', 'venda')
     .gte('data', `${data.slice(0, 7)}-01`)
@@ -185,8 +185,8 @@ function calcularValorOcorrenciaAposPagamento(valorOcorrencia, valorPagoAnterior
 
 function gravarValorOcorrencia(contaId, data, tipo, valor) {
   return tipo === 'parcelado'
-    ? supabase.from(CP_PARCELAS_TABLE).update({ valor }).eq('conta_id', contaId).eq('data', data)
-    : supabase.from(CP_AJUSTES_TABLE).upsert({ conta_id: contaId, data, valor });
+    ? supabase.from(CONTAS_PAGAR_PARCELAS_TABELA).update({ valor }).eq('conta_id', contaId).eq('data', data)
+    : supabase.from(CONTAS_PAGAR_AJUSTES_TABELA).upsert({ conta_id: contaId, data, valor });
 }
 
 function dadosDividaRobertaDaConta(contaId, valor, data, descricao) {
@@ -218,7 +218,7 @@ function ehAluguel(conta) {
 function alvoExclusaoLancamento(tabela, lancamento) {
   if (lancamento.conta_pagar_id && lancamento.data_ocorrencia) {
     return {
-      tabela: CP_PAGAMENTOS_TABLE,
+      tabela: CONTAS_PAGAR_PAGAMENTOS_TABELA,
       filtros: { conta_id: lancamento.conta_pagar_id, data: lancamento.data_ocorrencia },
       vinculado: true,
     };
@@ -316,7 +316,7 @@ function dadosAtualizacaoValorDivida(valorAtualInformado, saldoAtual, data = hoj
 }
 
 function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, saldo, valorAtualUnico }) {
-  const aberto = cpGruposAlteradosManualmente.get(grupo) ?? true;
+  const aberto = contasPagarGruposAlteradosManualmente.get(grupo) ?? true;
   const movimentos = lancamentos.map((lancamento) => {
     const divida = lancamento.tipo === 'divida';
     const rotulo = divida ? 'Dívida adicionada' : 'Abatimento';
@@ -327,7 +327,7 @@ function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, 
           <span class="lancamento-data">${formatDataBR(lancamento.data)}</span>
         </div>
         <span class="lancamento-valor ${divida ? 'negativo' : 'positivo'}">${divida ? '+' : '−'} ${formatMoney(lancamento.valor)}</span>
-        <button type="button" class="btn-icon cartao-excluir-btn" data-id="${lancamento.id}" data-tabela="${tabela}" data-nome="${titulo}" data-conta-id="${lancamento.conta_pagar_id || ''}" data-data-ocorrencia="${lancamento.data_ocorrencia || ''}" aria-label="Excluir movimento do ${titulo}" title="Excluir movimento">
+        <button type="button" class="botao-icone cartao-excluir-botao" data-id="${lancamento.id}" data-tabela="${tabela}" data-nome="${titulo}" data-conta-id="${lancamento.conta_pagar_id || ''}" data-data-ocorrencia="${lancamento.data_ocorrencia || ''}" aria-label="Excluir movimento do ${titulo}" title="Excluir movimento">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4h6v2"></path>
           </svg>
@@ -336,18 +336,18 @@ function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, 
   }).join('') || '<li class="empty-state">Nenhum movimento registrado.</li>';
 
   const botoes = valorAtualUnico
-    ? `<button type="button" class="btn-icon btn-icon-neutro divida-valor-atual-btn" data-tabela="${tabela}" data-nome="${titulo}" aria-label="Atualizar valor atual do ${titulo}" title="Atualizar valor atual">
+    ? `<button type="button" class="botao-icone botao-icone-neutro divida-valor-atual-botao" data-tabela="${tabela}" data-nome="${titulo}" aria-label="Atualizar valor atual do ${titulo}" title="Atualizar valor atual">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
               <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
           </button>`
-    : `<button type="button" class="btn-icon btn-aporte divida-movimento-btn" data-tabela="${tabela}" data-tipo="divida" data-nome="${titulo}" aria-label="Adicionar dívida no ${titulo}" title="Adicionar dívida">+</button>
-          <button type="button" class="btn-icon btn-abater divida-movimento-btn" data-tabela="${tabela}" data-tipo="abatimento" data-nome="${titulo}" aria-label="Abater ${titulo}" title="Abater dívida"${saldo <= 0 ? ' disabled' : ''}>−</button>`;
+    : `<button type="button" class="botao-icone botao-aporte divida-movimento-botao" data-tabela="${tabela}" data-tipo="divida" data-nome="${titulo}" aria-label="Adicionar dívida no ${titulo}" title="Adicionar dívida">+</button>
+          <button type="button" class="botao-icone botao-abater divida-movimento-botao" data-tabela="${tabela}" data-tipo="abatimento" data-nome="${titulo}" aria-label="Abater ${titulo}" title="Abater dívida"${saldo <= 0 ? ' disabled' : ''}>−</button>`;
 
   return `
     <li class="semana-grupo ${classe}">
-      <details class="cp-grupo-details" data-grupo="${grupo}"${aberto ? ' open' : ''}>
+      <details class="contas-pagar-grupo-details" data-grupo="${grupo}"${aberto ? ' open' : ''}>
         <summary class="semana-grupo-titulo">
           <span>${titulo}</span>
           <span class="semana-grupo-total">${formatMoney(saldo)}</span>
@@ -490,7 +490,7 @@ const NOMES_MES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
-const cpOcorrenciasSelecionadas = new Map();
+const contasPagarOcorrenciasSelecionadas = new Map();
 
 // ===================== NAVEGAÇÃO ENTRE VIEWS =====================
 
@@ -507,9 +507,9 @@ const views = {
 const desktopGridEl = document.getElementById('desktop-grid');
 
 function selecionarAbaSalario(aba) {
-  document.getElementById(`sal-tab-${aba}`).checked = true;
-  views.salario.querySelectorAll('.tab-panel').forEach((panel) => {
-    panel.classList.toggle('tab-panel-active', panel.dataset.panel === aba);
+  document.getElementById(`salario-aba-${aba}`).checked = true;
+  views.salario.querySelectorAll('.aba-painel').forEach((painel) => {
+    painel.classList.toggle('aba-painel-ativo', painel.dataset.abaPainel === aba);
   });
 }
 
@@ -542,7 +542,7 @@ document.querySelectorAll('[data-nav]').forEach((el) => {
   el.addEventListener('click', () => showView(el.dataset.nav));
 });
 
-document.getElementById('logout-btn-desktop').addEventListener('click', async () => {
+document.getElementById('botao-sair-desktop').addEventListener('click', async () => {
   await supabase.auth.signOut();
   showView('login');
 });
@@ -581,49 +581,49 @@ bloquearDuranteSubmit(loginForm, async (e) => {
   abrirTelaInicialAposLogin();
 });
 
-document.getElementById('logout-btn').addEventListener('click', async () => {
+document.getElementById('botao-sair').addEventListener('click', async () => {
   await supabase.auth.signOut();
   showView('login');
 });
 
 // ===================== CAIXA CASA =====================
 
-const ccSaldoEl = document.getElementById('cc-saldo');
-const ccSaldoTotalEl = document.getElementById('cc-saldo-total');
-const ccListEl = document.getElementById('cc-list');
-const ccForm = document.getElementById('cc-form');
-const ccErrorEl = document.getElementById('cc-form-error');
-const ccDescricaoInput = document.getElementById('cc-descricao');
-const ccDescricaoReq = document.getElementById('cc-descricao-req');
-const ccDataInput = document.getElementById('cc-data');
-aplicarMascaraMoney(document.getElementById('cc-valor'));
+const caixaCasaSaldoAposAluguelElemento = document.getElementById('caixa-casa-saldo-apos-aluguel');
+const caixaCasaSaldoTotalElemento = document.getElementById('caixa-casa-saldo-total');
+const caixaCasaListaLancamentosElemento = document.getElementById('caixa-casa-lista-lancamentos');
+const caixaCasaFormularioElemento = document.getElementById('caixa-casa-formulario');
+const caixaCasaFormularioErroElemento = document.getElementById('caixa-casa-formulario-erro');
+const caixaCasaDescricaoCampo = document.getElementById('caixa-casa-descricao');
+const caixaCasaDescricaoObrigatoriaElemento = document.getElementById('caixa-casa-descricao-obrigatoria');
+const caixaCasaDataCampo = document.getElementById('caixa-casa-data');
+aplicarMascaraMoney(document.getElementById('caixa-casa-valor'));
 
-const CC_DESCRICAO_PADRAO = {
+const CAIXA_CASA_DESCRICAO_PADRAO = {
   entrada: 'Suprimento',
   saida: null,
 };
 
-function updateCcDescricaoRequirement() {
-  const tipo = document.querySelector('input[name="cc-tipo"]:checked').value;
+function atualizarObrigatoriedadeDescricaoCaixaCasa() {
+  const tipo = document.querySelector('input[name="caixa-casa-tipo"]:checked').value;
   const obrigatorio = tipo === 'saida';
-  ccDescricaoInput.required = obrigatorio;
-  ccDescricaoReq.hidden = !obrigatorio;
+  caixaCasaDescricaoCampo.required = obrigatorio;
+  caixaCasaDescricaoObrigatoriaElemento.hidden = !obrigatorio;
 }
 
-document.querySelectorAll('input[name="cc-tipo"]').forEach((el) => {
+document.querySelectorAll('input[name="caixa-casa-tipo"]').forEach((el) => {
   el.addEventListener('change', () => {
-    updateCcDescricaoRequirement();
-    ccDescricaoInput.value = CC_DESCRICAO_PADRAO[el.value];
+    atualizarObrigatoriedadeDescricaoCaixaCasa();
+    caixaCasaDescricaoCampo.value = CAIXA_CASA_DESCRICAO_PADRAO[el.value];
   });
 });
 
 async function carregarCaixaCasa() {
-  ccDataInput.value = ccDataInput.value || hojeISO();
-  if (!ccDescricaoInput.value) {
-    const tipo = document.querySelector('input[name="cc-tipo"]:checked').value;
-    ccDescricaoInput.value = CC_DESCRICAO_PADRAO[tipo];
+  caixaCasaDataCampo.value = caixaCasaDataCampo.value || hojeISO();
+  if (!caixaCasaDescricaoCampo.value) {
+    const tipo = document.querySelector('input[name="caixa-casa-tipo"]:checked').value;
+    caixaCasaDescricaoCampo.value = CAIXA_CASA_DESCRICAO_PADRAO[tipo];
   }
-  updateCcDescricaoRequirement();
+  atualizarObrigatoriedadeDescricaoCaixaCasa();
 
   const [
     { data, error },
@@ -633,36 +633,36 @@ async function carregarCaixaCasa() {
     { data: pagos, error: errPag },
     { data: ajustesRows, error: errAjustes },
   ] = await Promise.all([
-    supabase.from(CC_TABLE)
+    supabase.from(CAIXA_CASA_TABELA)
       .select('*')
       .order('data', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(50),
-    supabase.from(CP_TABLE).select('*').order('data_inicio', { ascending: true }),
-    supabase.from(CP_EXDATES_TABLE).select('*'),
-    supabase.from(CP_PARCELAS_TABLE).select('*'),
-    supabase.from(CP_PAGAMENTOS_TABLE).select('*'),
-    supabase.from(CP_AJUSTES_TABLE).select('*'),
+    supabase.from(CONTAS_PAGAR_TABELA).select('*').order('data_inicio', { ascending: true }),
+    supabase.from(CONTAS_PAGAR_EXDATES_TABELA).select('*'),
+    supabase.from(CONTAS_PAGAR_PARCELAS_TABELA).select('*'),
+    supabase.from(CONTAS_PAGAR_PAGAMENTOS_TABELA).select('*'),
+    supabase.from(CONTAS_PAGAR_AJUSTES_TABELA).select('*'),
   ]);
 
   if (error || errContas || errEx || errParc || errPag || errAjustes) {
-    ccListEl.innerHTML = `<li class="empty-state">Erro ao carregar lançamentos.</li>`;
+    caixaCasaListaLancamentosElemento.innerHTML = `<li class="empty-state">Erro ao carregar lançamentos.</li>`;
     return;
   }
 
   const saldo = calcularSaldoCaixa(data);
   const aluguelAberto = encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos, ajustesRows);
   const saldoAposAluguel = calcularSaldoAposAluguel(saldo, aluguelAberto?.valor);
-  ccSaldoEl.textContent = formatMoney(saldoAposAluguel);
-  ccSaldoTotalEl.textContent = formatMoney(saldo);
-  ccSaldoTotalEl.classList.toggle('negative', saldo < 0);
+  caixaCasaSaldoAposAluguelElemento.textContent = formatMoney(saldoAposAluguel);
+  caixaCasaSaldoTotalElemento.textContent = formatMoney(saldo);
+  caixaCasaSaldoTotalElemento.classList.toggle('negative', saldo < 0);
 
   if (data.length === 0) {
-    ccListEl.innerHTML = `<li class="empty-state">Nenhum lançamento ainda.</li>`;
+    caixaCasaListaLancamentosElemento.innerHTML = `<li class="empty-state">Nenhum lançamento ainda.</li>`;
     return;
   }
 
-  ccListEl.innerHTML = data.map((l) => {
+  caixaCasaListaLancamentosElemento.innerHTML = data.map((l) => {
     const positivo = l.tipo === 'entrada';
     const sinal = positivo ? '+' : '-';
     return `
@@ -672,7 +672,7 @@ async function carregarCaixaCasa() {
           <span class="lancamento-data">${formatDataBR(l.data)}</span>
         </div>
         <span class="lancamento-valor ${positivo ? 'positivo' : 'negativo'}">${sinal} ${formatMoney(l.valor)}</span>
-        <button type="button" class="btn-icon cc-excluir-lancamento" data-id="${l.id}" data-conta-id="${l.conta_pagar_id || ''}" data-data-ocorrencia="${l.data_ocorrencia || ''}" aria-label="Excluir lançamento" title="Excluir lançamento">
+        <button type="button" class="botao-icone caixa-casa-excluir-lancamento" data-id="${l.id}" data-conta-id="${l.conta_pagar_id || ''}" data-data-ocorrencia="${l.data_ocorrencia || ''}" aria-label="Excluir lançamento" title="Excluir lançamento">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline>
             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -683,13 +683,13 @@ async function carregarCaixaCasa() {
   }).join('');
 }
 
-ccListEl.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.cc-excluir-lancamento');
-  if (!btn) return;
+caixaCasaListaLancamentosElemento.addEventListener('click', async (e) => {
+  const botao = e.target.closest('.caixa-casa-excluir-lancamento');
+  if (!botao) return;
   const lancamento = {
-    id: btn.dataset.id,
-    conta_pagar_id: btn.dataset.contaId || null,
-    data_ocorrencia: btn.dataset.dataOcorrencia || null,
+    id: botao.dataset.id,
+    conta_pagar_id: botao.dataset.contaId || null,
+    data_ocorrencia: botao.dataset.dataOcorrencia || null,
   };
   const vinculado = Boolean(lancamento.conta_pagar_id && lancamento.data_ocorrencia);
   const mensagem = vinculado
@@ -697,38 +697,38 @@ ccListEl.addEventListener('click', async (e) => {
     : 'Excluir este lançamento do Caixa Casa?';
   if (!confirm(mensagem)) return;
 
-  btn.disabled = true;
-  const { error } = await excluirLancamentoFinanceiro(CC_TABLE, lancamento);
+  botao.disabled = true;
+  const { error } = await excluirLancamentoFinanceiro(CAIXA_CASA_TABELA, lancamento);
   if (error) {
     alert('Não foi possível excluir o lançamento.');
-    btn.disabled = false;
+    botao.disabled = false;
     return;
   }
   await Promise.all([carregarCaixaCasa(), carregarContasPagar(), carregarSalario()]);
 });
 
-bloquearDuranteSubmit(ccForm, async (e) => {
+bloquearDuranteSubmit(caixaCasaFormularioElemento, async (e) => {
   e.preventDefault();
-  ccErrorEl.hidden = true;
+  caixaCasaFormularioErroElemento.hidden = true;
 
-  const tipo = document.querySelector('input[name="cc-tipo"]:checked').value;
-  const valor = parseMoney(document.getElementById('cc-valor').value);
-  const data = ccDataInput.value;
-  const descricao = ccDescricaoInput.value.trim();
+  const tipo = document.querySelector('input[name="caixa-casa-tipo"]:checked').value;
+  const valor = parseMoney(document.getElementById('caixa-casa-valor').value);
+  const data = caixaCasaDataCampo.value;
+  const descricao = caixaCasaDescricaoCampo.value.trim();
 
   if (!valor || valor <= 0) {
-    ccErrorEl.textContent = 'Informe um valor válido.';
-    ccErrorEl.hidden = false;
+    caixaCasaFormularioErroElemento.textContent = 'Informe um valor válido.';
+    caixaCasaFormularioErroElemento.hidden = false;
     return;
   }
 
   if (tipo === 'saida' && !descricao) {
-    ccErrorEl.textContent = 'Descrição é obrigatória para saídas.';
-    ccErrorEl.hidden = false;
+    caixaCasaFormularioErroElemento.textContent = 'Descrição é obrigatória para saídas.';
+    caixaCasaFormularioErroElemento.hidden = false;
     return;
   }
 
-  const { error } = await supabase.from(CC_TABLE).insert({
+  const { error } = await supabase.from(CAIXA_CASA_TABELA).insert({
     tipo,
     valor,
     data,
@@ -736,115 +736,115 @@ bloquearDuranteSubmit(ccForm, async (e) => {
   });
 
   if (error) {
-    ccErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-    ccErrorEl.hidden = false;
+    caixaCasaFormularioErroElemento.textContent = 'Erro ao salvar. Tente novamente.';
+    caixaCasaFormularioErroElemento.hidden = false;
     return;
   }
 
-  ccForm.reset();
-  ccDataInput.value = hojeISO();
-  ccDescricaoInput.value = CC_DESCRICAO_PADRAO[tipo];
-  updateCcDescricaoRequirement();
+  caixaCasaFormularioElemento.reset();
+  caixaCasaDataCampo.value = hojeISO();
+  caixaCasaDescricaoCampo.value = CAIXA_CASA_DESCRICAO_PADRAO[tipo];
+  atualizarObrigatoriedadeDescricaoCaixaCasa();
   await carregarCaixaCasa();
   await carregarContasPagar();
 });
 
 // ===================== SALÁRIO =====================
 
-const salSaldoEl = document.getElementById('sal-saldo');
-const salListEl = document.getElementById('sal-list');
-const salAvisoDiasSemVendaEl = document.getElementById('sal-aviso-dias-sem-venda');
-const salAvisoDiasSemVendaFecharEl = document.getElementById('sal-aviso-dias-sem-venda-fechar');
-const salAvisoDiasSemVendaProgressoEl = document.getElementById('sal-aviso-dias-sem-venda-progresso');
-const salAvisoDiasSemVendaForm = document.getElementById('sal-aviso-dias-sem-venda-form');
-const salAvisoDiasSemVendaDataEl = document.getElementById('sal-aviso-dias-sem-venda-data');
-const salAvisoDiasSemVendaValorInput = document.getElementById('sal-aviso-dias-sem-venda-valor');
-const salAvisoDiasSemVendaSalvarEl = document.getElementById('sal-aviso-dias-sem-venda-salvar');
-const salAvisoDiasSemVendaErrorEl = document.getElementById('sal-aviso-dias-sem-venda-error');
+const salarioSaldoElemento = document.getElementById('salario-saldo');
+const salarioListaLancamentosElemento = document.getElementById('salario-lista-lancamentos');
+const salarioAvisoDiasSemVendaElemento = document.getElementById('salario-aviso-dias-sem-venda');
+const salarioAvisoDiasSemVendaFecharElemento = document.getElementById('salario-aviso-dias-sem-venda-fechar');
+const salarioAvisoDiasSemVendaProgressoElemento = document.getElementById('salario-aviso-dias-sem-venda-progresso');
+const salarioAvisoDiasSemVendaFormularioElemento = document.getElementById('salario-aviso-dias-sem-venda-formulario');
+const salarioAvisoDiasSemVendaDataElemento = document.getElementById('salario-aviso-dias-sem-venda-data');
+const salarioAvisoDiasSemVendaValorCampo = document.getElementById('salario-aviso-dias-sem-venda-valor');
+const salarioAvisoDiasSemVendaSalvarElemento = document.getElementById('salario-aviso-dias-sem-venda-salvar');
+const salarioAvisoDiasSemVendaErroElemento = document.getElementById('salario-aviso-dias-sem-venda-erro');
 let avisoDiasSemVendaExibido = false;
 let diasSemVendaPendentes = [];
 let totalDiasSemVenda = 0;
-aplicarMascaraMoney(salAvisoDiasSemVendaValorInput);
+aplicarMascaraMoney(salarioAvisoDiasSemVendaValorCampo);
 
-const salVendaForm = document.getElementById('sal-venda-form');
-const salVendaValorInput = document.getElementById('sal-venda-valor');
-const salVendaDataInput = document.getElementById('sal-venda-data');
-const salVendaDescricaoInput = document.getElementById('sal-venda-descricao');
-const salVendaErrorEl = document.getElementById('sal-venda-error');
-const salVendaSubmitEl = document.getElementById('sal-venda-submit');
-aplicarMascaraMoney(salVendaValorInput);
+const salarioVendaFormularioElemento = document.getElementById('salario-venda-formulario');
+const salarioVendaValorCampo = document.getElementById('salario-venda-valor');
+const salarioVendaDataCampo = document.getElementById('salario-venda-data');
+const salarioVendaDescricaoCampo = document.getElementById('salario-venda-descricao');
+const salarioVendaErroElemento = document.getElementById('salario-venda-erro');
+const salarioVendaSalvarElemento = document.getElementById('salario-venda-salvar');
+aplicarMascaraMoney(salarioVendaValorCampo);
 
-const salPagamentoForm = document.getElementById('sal-pagamento-form');
-const salPagamentoValorInput = document.getElementById('sal-pagamento-valor');
-const salPagamentoDataInput = document.getElementById('sal-pagamento-data');
-const salPagamentoDescricaoInput = document.getElementById('sal-pagamento-descricao');
-const salPagamentoErrorEl = document.getElementById('sal-pagamento-error');
+const salarioPagamentoFormularioElemento = document.getElementById('salario-pagamento-formulario');
+const salarioPagamentoValorCampo = document.getElementById('salario-pagamento-valor');
+const salarioPagamentoDataCampo = document.getElementById('salario-pagamento-data');
+const salarioPagamentoDescricaoCampo = document.getElementById('salario-pagamento-descricao');
+const salarioPagamentoErroElemento = document.getElementById('salario-pagamento-erro');
 const DESCRICAO_PADRAO_PAGAMENTO_SALARIO = 'Pagamento';
 let salarioSaldoAtual = 0;
-let salComissaoPorMes = new Map();
-aplicarMascaraMoney(salPagamentoValorInput);
+let salarioComissaoPorMes = new Map();
+aplicarMascaraMoney(salarioPagamentoValorCampo);
 
 function formatarValorCampo(valor) {
   return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-const salPagarTudoEl = document.getElementById('sal-pagar-tudo');
-salPagarTudoEl.addEventListener('click', () => {
-  salPagamentoErrorEl.hidden = true;
-  salPagamentoValorInput.value = formatarValorCampo(salarioSaldoAtual);
+const salarioPagarTudoElemento = document.getElementById('salario-pagar-tudo');
+salarioPagarTudoElemento.addEventListener('click', () => {
+  salarioPagamentoErroElemento.hidden = true;
+  salarioPagamentoValorCampo.value = formatarValorCampo(salarioSaldoAtual);
 });
 
-document.querySelectorAll('.tab-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
-    btn.closest('.panel').querySelectorAll('.tab-panel').forEach((panel) => {
-      panel.classList.toggle('tab-panel-active', panel.dataset.panel === tab);
+document.querySelectorAll('.aba-botao').forEach((botao) => {
+  botao.addEventListener('click', () => {
+    const abaEscolhida = botao.dataset.aba;
+    botao.closest('.panel').querySelectorAll('.aba-painel').forEach((painel) => {
+      painel.classList.toggle('aba-painel-ativo', painel.dataset.abaPainel === abaEscolhida);
     });
   });
 });
 
-function updateSalVendaSubmitLabel() {
-  const valor = parseMoney(salVendaValorInput.value);
+function atualizarRotuloBotaoSalvarVendaSalario() {
+  const valor = parseMoney(salarioVendaValorCampo.value);
   if (!valor || valor <= 0) {
-    salVendaSubmitEl.textContent = 'Salvar';
+    salarioVendaSalvarElemento.textContent = 'Salvar';
     return;
   }
-  const data = salVendaDataInput.value;
-  const comissao = calcularComissao(valor, salComissaoPorMes.get(data.slice(0, 7)) || 0, data);
-  salVendaSubmitEl.textContent = `Salvar — ${formatMoney(comissao)}`;
+  const data = salarioVendaDataCampo.value;
+  const comissao = calcularComissao(valor, salarioComissaoPorMes.get(data.slice(0, 7)) || 0, data);
+  salarioVendaSalvarElemento.textContent = `Salvar — ${formatMoney(comissao)}`;
 }
 
-salVendaValorInput.addEventListener('input', updateSalVendaSubmitLabel);
-salVendaDataInput.addEventListener('change', updateSalVendaSubmitLabel);
+salarioVendaValorCampo.addEventListener('input', atualizarRotuloBotaoSalvarVendaSalario);
+salarioVendaDataCampo.addEventListener('change', atualizarRotuloBotaoSalvarVendaSalario);
 
 function atualizarVendaEsquecidaAtual() {
   const data = diasSemVendaPendentes[0];
   if (!data) {
-    salAvisoDiasSemVendaEl.close();
+    salarioAvisoDiasSemVendaElemento.close();
     return;
   }
 
   const numeroAtual = totalDiasSemVenda - diasSemVendaPendentes.length + 1;
-  salAvisoDiasSemVendaProgressoEl.textContent = `${numeroAtual} de ${totalDiasSemVenda} dia(s) sem venda`;
-  salAvisoDiasSemVendaDataEl.textContent = formatDataBR(data);
-  salAvisoDiasSemVendaValorInput.value = '';
-  salAvisoDiasSemVendaSalvarEl.textContent = 'Salvar';
-  salAvisoDiasSemVendaErrorEl.hidden = true;
-  salAvisoDiasSemVendaValorInput.focus({ preventScroll: true });
+  salarioAvisoDiasSemVendaProgressoElemento.textContent = `${numeroAtual} de ${totalDiasSemVenda} dia(s) sem venda`;
+  salarioAvisoDiasSemVendaDataElemento.textContent = formatDataBR(data);
+  salarioAvisoDiasSemVendaValorCampo.value = '';
+  salarioAvisoDiasSemVendaSalvarElemento.textContent = 'Salvar';
+  salarioAvisoDiasSemVendaErroElemento.hidden = true;
+  salarioAvisoDiasSemVendaValorCampo.focus({ preventScroll: true });
 }
 
-function updateVendaEsquecidaSubmitLabel() {
-  const valor = parseMoney(salAvisoDiasSemVendaValorInput.value);
+function atualizarRotuloBotaoSalvarVendaEsquecida() {
+  const valor = parseMoney(salarioAvisoDiasSemVendaValorCampo.value);
   if (valor > 0) {
     const data = diasSemVendaPendentes[0];
-    const comissaoJaNoMes = salComissaoPorMes.get(data?.slice(0, 7)) || 0;
-    salAvisoDiasSemVendaSalvarEl.textContent = `Salvar — ${formatMoney(calcularComissao(valor, comissaoJaNoMes, data))}`;
+    const comissaoJaNoMes = salarioComissaoPorMes.get(data?.slice(0, 7)) || 0;
+    salarioAvisoDiasSemVendaSalvarElemento.textContent = `Salvar — ${formatMoney(calcularComissao(valor, comissaoJaNoMes, data))}`;
   } else {
-    salAvisoDiasSemVendaSalvarEl.textContent = valor === 0 ? 'Salvar — loja fechada' : 'Salvar';
+    salarioAvisoDiasSemVendaSalvarElemento.textContent = valor === 0 ? 'Salvar — loja fechada' : 'Salvar';
   }
 }
 
-salAvisoDiasSemVendaValorInput.addEventListener('input', updateVendaEsquecidaSubmitLabel);
+salarioAvisoDiasSemVendaValorCampo.addEventListener('input', atualizarRotuloBotaoSalvarVendaEsquecida);
 
 function mostrarAvisoDiasSemVenda(vendas) {
   if (avisoDiasSemVendaExibido) return;
@@ -854,34 +854,34 @@ function mostrarAvisoDiasSemVenda(vendas) {
   avisoDiasSemVendaExibido = true;
   diasSemVendaPendentes = faltantes;
   totalDiasSemVenda = faltantes.length;
-  salAvisoDiasSemVendaEl.showModal();
+  salarioAvisoDiasSemVendaElemento.showModal();
   atualizarVendaEsquecidaAtual();
 }
 
-salAvisoDiasSemVendaFecharEl.addEventListener('click', () => salAvisoDiasSemVendaEl.close());
+salarioAvisoDiasSemVendaFecharElemento.addEventListener('click', () => salarioAvisoDiasSemVendaElemento.close());
 
-bloquearDuranteSubmit(salAvisoDiasSemVendaForm, async (e) => {
+bloquearDuranteSubmit(salarioAvisoDiasSemVendaFormularioElemento, async (e) => {
   e.preventDefault();
-  salAvisoDiasSemVendaErrorEl.hidden = true;
+  salarioAvisoDiasSemVendaErroElemento.hidden = true;
 
-  const vendaBase = parseMoney(salAvisoDiasSemVendaValorInput.value);
+  const vendaBase = parseMoney(salarioAvisoDiasSemVendaValorCampo.value);
   const data = diasSemVendaPendentes[0];
   if (!valorVendaEsquecidaValido(vendaBase)) {
-    salAvisoDiasSemVendaErrorEl.textContent = 'Informe o valor vendido, ou 0 se a loja não abriu.';
-    salAvisoDiasSemVendaErrorEl.hidden = false;
+    salarioAvisoDiasSemVendaErroElemento.textContent = 'Informe o valor vendido, ou 0 se a loja não abriu.';
+    salarioAvisoDiasSemVendaErroElemento.hidden = false;
     return;
   }
 
   const { comissao: comissaoJaNoMes, error: erroComissao } = await buscarComissaoDoMes(data);
   if (erroComissao) {
-    salAvisoDiasSemVendaErrorEl.textContent = 'Erro ao conferir a comissão do mês. Tente novamente.';
-    salAvisoDiasSemVendaErrorEl.hidden = false;
+    salarioAvisoDiasSemVendaErroElemento.textContent = 'Erro ao conferir a comissão do mês. Tente novamente.';
+    salarioAvisoDiasSemVendaErroElemento.hidden = false;
     return;
   }
-  const { error } = await supabase.from(SAL_TABLE).insert(dadosVendaEsquecida(vendaBase, data, comissaoJaNoMes));
+  const { error } = await supabase.from(SALARIO_TABELA).insert(dadosVendaEsquecida(vendaBase, data, comissaoJaNoMes));
   if (error) {
-    salAvisoDiasSemVendaErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-    salAvisoDiasSemVendaErrorEl.hidden = false;
+    salarioAvisoDiasSemVendaErroElemento.textContent = 'Erro ao salvar. Tente novamente.';
+    salarioAvisoDiasSemVendaErroElemento.hidden = false;
     return;
   }
 
@@ -897,7 +897,7 @@ async function carregarLancamentosSalarioParaSaldo() {
 
   while (true) {
     const { data, error } = await supabase
-      .from(SAL_TABLE)
+      .from(SALARIO_TABELA)
       .select('tipo, valor, data')
       .order('id', { ascending: true })
       .range(inicio, inicio + tamanhoPagina - 1);
@@ -911,12 +911,12 @@ async function carregarLancamentosSalarioParaSaldo() {
 }
 
 async function carregarSalario() {
-  salVendaDataInput.value = salVendaDataInput.value || hojeISO();
-  salPagamentoDataInput.value = salPagamentoDataInput.value || hojeISO();
+  salarioVendaDataCampo.value = salarioVendaDataCampo.value || hojeISO();
+  salarioPagamentoDataCampo.value = salarioPagamentoDataCampo.value || hojeISO();
 
   const [{ data, error }, { data: lancamentosSaldo, error: erroSaldo }] = await Promise.all([
     supabase
-      .from(SAL_TABLE)
+      .from(SALARIO_TABELA)
       .select('*')
       .order('data', { ascending: false })
       .order('created_at', { ascending: false })
@@ -925,19 +925,19 @@ async function carregarSalario() {
   ]);
 
   if (error || erroSaldo) {
-    salListEl.innerHTML = `<li class="empty-state">Erro ao carregar lançamentos.</li>`;
+    salarioListaLancamentosElemento.innerHTML = `<li class="empty-state">Erro ao carregar lançamentos.</li>`;
     return;
   }
 
   const saldo = calcularSaldoSalario(lancamentosSaldo);
-  salComissaoPorMes = somarComissoesPorMes(lancamentosSaldo);
+  salarioComissaoPorMes = somarComissoesPorMes(lancamentosSaldo);
   salarioSaldoAtual = saldo;
-  salPagarTudoEl.hidden = saldo <= 0;
-  salSaldoEl.textContent = formatMoney(saldo);
-  salSaldoEl.classList.toggle('negative', saldo < 0);
+  salarioPagarTudoElemento.hidden = saldo <= 0;
+  salarioSaldoElemento.textContent = formatMoney(saldo);
+  salarioSaldoElemento.classList.toggle('negative', saldo < 0);
 
   const { data: vendasHistoricas, error: erroVendasHistoricas } = await supabase
-    .from(SAL_TABLE)
+    .from(SALARIO_TABELA)
     .select('data')
     .eq('tipo', 'venda')
     .order('data', { ascending: true });
@@ -945,11 +945,11 @@ async function carregarSalario() {
   if (!erroVendasHistoricas) mostrarAvisoDiasSemVenda(vendasHistoricas);
 
   if (data.length === 0) {
-    salListEl.innerHTML = `<li class="empty-state">Nenhum lançamento ainda.</li>`;
+    salarioListaLancamentosElemento.innerHTML = `<li class="empty-state">Nenhum lançamento ainda.</li>`;
     return;
   }
 
-  salListEl.innerHTML = data.map((l) => {
+  salarioListaLancamentosElemento.innerHTML = data.map((l) => {
     const positivo = l.tipo === 'venda';
     const sinal = positivo ? '+' : '-';
     const desc = positivo
@@ -962,7 +962,7 @@ async function carregarSalario() {
           <span class="lancamento-data">${formatDataBR(l.data)}</span>
         </div>
         <span class="lancamento-valor ${positivo ? 'positivo' : 'negativo'}">${sinal} ${formatMoney(l.valor)}</span>
-        <button type="button" class="btn-icon sal-excluir-lancamento" data-id="${l.id}" data-conta-id="${l.conta_pagar_id || ''}" data-data-ocorrencia="${l.data_ocorrencia || ''}" aria-label="Excluir lançamento" title="Excluir lançamento">
+        <button type="button" class="botao-icone salario-excluir-lancamento" data-id="${l.id}" data-conta-id="${l.conta_pagar_id || ''}" data-data-ocorrencia="${l.data_ocorrencia || ''}" aria-label="Excluir lançamento" title="Excluir lançamento">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline>
             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -973,13 +973,13 @@ async function carregarSalario() {
   }).join('');
 }
 
-salListEl.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.sal-excluir-lancamento');
-  if (!btn) return;
+salarioListaLancamentosElemento.addEventListener('click', async (e) => {
+  const botao = e.target.closest('.salario-excluir-lancamento');
+  if (!botao) return;
   const lancamento = {
-    id: btn.dataset.id,
-    conta_pagar_id: btn.dataset.contaId || null,
-    data_ocorrencia: btn.dataset.dataOcorrencia || null,
+    id: botao.dataset.id,
+    conta_pagar_id: botao.dataset.contaId || null,
+    data_ocorrencia: botao.dataset.dataOcorrencia || null,
   };
   const vinculado = Boolean(lancamento.conta_pagar_id && lancamento.data_ocorrencia);
   const mensagem = vinculado
@@ -987,67 +987,67 @@ salListEl.addEventListener('click', async (e) => {
     : 'Excluir este lançamento do Salário?';
   if (!confirm(mensagem)) return;
 
-  btn.disabled = true;
-  const { error } = await excluirLancamentoFinanceiro(SAL_TABLE, lancamento);
+  botao.disabled = true;
+  const { error } = await excluirLancamentoFinanceiro(SALARIO_TABELA, lancamento);
   if (error) {
     alert('Não foi possível excluir o lançamento.');
-    btn.disabled = false;
+    botao.disabled = false;
     return;
   }
   await Promise.all([carregarSalario(), carregarContasPagar(), carregarCaixaCasa()]);
 });
 
-bloquearDuranteSubmit(salVendaForm, async (e) => {
+bloquearDuranteSubmit(salarioVendaFormularioElemento, async (e) => {
   e.preventDefault();
-  salVendaErrorEl.hidden = true;
+  salarioVendaErroElemento.hidden = true;
 
-  const vendaBase = parseMoney(salVendaValorInput.value);
-  const data = salVendaDataInput.value;
-  const descricao = salVendaDescricaoInput.value.trim();
+  const vendaBase = parseMoney(salarioVendaValorCampo.value);
+  const data = salarioVendaDataCampo.value;
+  const descricao = salarioVendaDescricaoCampo.value.trim();
 
   if (!vendaBase || vendaBase <= 0) {
-    salVendaErrorEl.textContent = 'Informe um valor de venda válido.';
-    salVendaErrorEl.hidden = false;
+    salarioVendaErroElemento.textContent = 'Informe um valor de venda válido.';
+    salarioVendaErroElemento.hidden = false;
     return;
   }
 
   const { comissao: comissaoJaNoMes, error: erroComissao } = await buscarComissaoDoMes(data);
   if (erroComissao) {
-    salVendaErrorEl.textContent = 'Erro ao conferir a comissão do mês. Tente novamente.';
-    salVendaErrorEl.hidden = false;
+    salarioVendaErroElemento.textContent = 'Erro ao conferir a comissão do mês. Tente novamente.';
+    salarioVendaErroElemento.hidden = false;
     return;
   }
-  const { error } = await supabase.from(SAL_TABLE).insert(
+  const { error } = await supabase.from(SALARIO_TABELA).insert(
     dadosVendaSalario(vendaBase, data, descricao || null, comissaoJaNoMes)
   );
 
   if (error) {
-    salVendaErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-    salVendaErrorEl.hidden = false;
+    salarioVendaErroElemento.textContent = 'Erro ao salvar. Tente novamente.';
+    salarioVendaErroElemento.hidden = false;
     return;
   }
 
-  salVendaForm.reset();
-  salVendaDataInput.value = hojeISO();
-  updateSalVendaSubmitLabel();
+  salarioVendaFormularioElemento.reset();
+  salarioVendaDataCampo.value = hojeISO();
+  atualizarRotuloBotaoSalvarVendaSalario();
   await carregarSalario();
 });
 
-bloquearDuranteSubmit(salPagamentoForm, async (e) => {
+bloquearDuranteSubmit(salarioPagamentoFormularioElemento, async (e) => {
   e.preventDefault();
-  salPagamentoErrorEl.hidden = true;
+  salarioPagamentoErroElemento.hidden = true;
 
-  const valor = parseMoney(salPagamentoValorInput.value);
-  const data = salPagamentoDataInput.value;
-  const descricao = salPagamentoDescricaoInput.value.trim() || DESCRICAO_PADRAO_PAGAMENTO_SALARIO;
+  const valor = parseMoney(salarioPagamentoValorCampo.value);
+  const data = salarioPagamentoDataCampo.value;
+  const descricao = salarioPagamentoDescricaoCampo.value.trim() || DESCRICAO_PADRAO_PAGAMENTO_SALARIO;
 
   if (!valor || valor <= 0) {
-    salPagamentoErrorEl.textContent = 'Informe um valor válido.';
-    salPagamentoErrorEl.hidden = false;
+    salarioPagamentoErroElemento.textContent = 'Informe um valor válido.';
+    salarioPagamentoErroElemento.hidden = false;
     return;
   }
 
-  const { error } = await supabase.from(SAL_TABLE).insert({
+  const { error } = await supabase.from(SALARIO_TABELA).insert({
     tipo: 'pagamento',
     valor,
     data,
@@ -1055,91 +1055,91 @@ bloquearDuranteSubmit(salPagamentoForm, async (e) => {
   });
 
   if (error) {
-    salPagamentoErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-    salPagamentoErrorEl.hidden = false;
+    salarioPagamentoErroElemento.textContent = 'Erro ao salvar. Tente novamente.';
+    salarioPagamentoErroElemento.hidden = false;
     return;
   }
 
-  salPagamentoForm.reset();
-  salPagamentoDataInput.value = hojeISO();
-  salPagamentoDescricaoInput.value = DESCRICAO_PADRAO_PAGAMENTO_SALARIO;
+  salarioPagamentoFormularioElemento.reset();
+  salarioPagamentoDataCampo.value = hojeISO();
+  salarioPagamentoDescricaoCampo.value = DESCRICAO_PADRAO_PAGAMENTO_SALARIO;
   await carregarSalario();
 });
 
 // ===================== CONTAS A PAGAR =====================
 
-const cpTotalMesPagoEl = document.getElementById('cp-total-mes-pago');
-const cpTotalMesGeralEl = document.getElementById('cp-total-mes-geral');
-const cpTotalSemanaAtualEl = document.getElementById('cp-total-semana-atual');
-const cpTotalProximaSemanaEl = document.getElementById('cp-total-proxima-semana');
-const cpLabelSemanaAtualEl = document.getElementById('cp-label-semana-atual');
-const cpLabelProximaSemanaEl = document.getElementById('cp-label-proxima-semana');
-const cpListEl = document.getElementById('cp-list');
-const cpContasListEl = document.getElementById('cp-contas-list');
-const cpSelecaoBarEl = document.getElementById('cp-selecao-bar');
-const cpSelecaoResumoEl = document.getElementById('cp-selecao-resumo');
-const cpSelecaoLimparEl = document.getElementById('cp-selecao-limpar');
-const cpGruposAlteradosManualmente = new Map();
-const cpPagamentoEl = document.getElementById('cp-pagamento');
-const cpPagamentoTituloEl = document.getElementById('cp-pagamento-titulo');
-const cpPagamentoResumoEl = document.getElementById('cp-pagamento-resumo');
-const cpPagamentoForm = document.getElementById('cp-pagamento-form');
-const cpPagamentoValorInput = document.getElementById('cp-pagamento-valor');
-const cpPagamentoErrorEl = document.getElementById('cp-pagamento-error');
-const cpPagamentoAvisoEl = document.getElementById('cp-pagamento-aviso');
+const contasPagarTotalMesPagoElemento = document.getElementById('contas-pagar-total-mes-pago');
+const contasPagarTotalMesGeralElemento = document.getElementById('contas-pagar-total-mes-geral');
+const contasPagarTotalSemanaAtualElemento = document.getElementById('contas-pagar-total-semana-atual');
+const contasPagarTotalProximaSemanaElemento = document.getElementById('contas-pagar-total-proxima-semana');
+const contasPagarRotuloSemanaAtualElemento = document.getElementById('contas-pagar-rotulo-semana-atual');
+const contasPagarRotuloProximaSemanaElemento = document.getElementById('contas-pagar-rotulo-proxima-semana');
+const contasPagarListaOcorrenciasElemento = document.getElementById('contas-pagar-lista-ocorrencias');
+const contasPagarListaContasCadastradasElemento = document.getElementById('contas-pagar-lista-contas-cadastradas');
+const contasPagarSelecaoBarraElemento = document.getElementById('contas-pagar-selecao-barra');
+const contasPagarSelecaoResumoElemento = document.getElementById('contas-pagar-selecao-resumo');
+const contasPagarSelecaoLimparElemento = document.getElementById('contas-pagar-selecao-limpar');
+const contasPagarGruposAlteradosManualmente = new Map();
+const contasPagarPagamentoJanelaElemento = document.getElementById('contas-pagar-pagamento-janela');
+const contasPagarPagamentoTituloElemento = document.getElementById('contas-pagar-pagamento-titulo');
+const contasPagarPagamentoResumoElemento = document.getElementById('contas-pagar-pagamento-resumo');
+const contasPagarPagamentoFormularioElemento = document.getElementById('contas-pagar-pagamento-formulario');
+const contasPagarPagamentoValorCampo = document.getElementById('contas-pagar-pagamento-valor');
+const contasPagarPagamentoErroElemento = document.getElementById('contas-pagar-pagamento-erro');
+const contasPagarPagamentoAvisoElemento = document.getElementById('contas-pagar-pagamento-aviso');
 let cartaoSaldoAtual = 0;
 let emprestimoSaldoAtual = 0;
 let robertaSaldoAtual = 0;
-let cpPagamentoPendente = null;
+let contasPagarPagamentoPendente = null;
 
-aplicarMascaraMoney(cpPagamentoValorInput);
-cpPagamentoValorInput.addEventListener('input', () => atualizarAvisoPagamentoConta());
+aplicarMascaraMoney(contasPagarPagamentoValorCampo);
+contasPagarPagamentoValorCampo.addEventListener('input', () => atualizarAvisoPagamentoConta());
 
 function valorPagamentoContaValido(valor) {
   return Number.isFinite(valor) && round2(valor) > 0;
 }
 
 function atualizarAvisoPagamentoConta() {
-  if (!cpPagamentoPendente) return;
-  const { valorTotal, valorJaPago } = cpPagamentoPendente;
-  const novoValor = calcularValorOcorrenciaAposPagamento(valorTotal, valorJaPago, parseMoney(cpPagamentoValorInput.value) || 0);
-  cpPagamentoAvisoEl.hidden = novoValor === null;
+  if (!contasPagarPagamentoPendente) return;
+  const { valorTotal, valorJaPago } = contasPagarPagamentoPendente;
+  const novoValor = calcularValorOcorrenciaAposPagamento(valorTotal, valorJaPago, parseMoney(contasPagarPagamentoValorCampo.value) || 0);
+  contasPagarPagamentoAvisoElemento.hidden = novoValor === null;
   if (novoValor !== null) {
-    cpPagamentoAvisoEl.textContent = `Acima do valor da conta: ela passa de ${formatMoney(valorTotal)} para ${formatMoney(novoValor)} e fica quitada.`;
+    contasPagarPagamentoAvisoElemento.textContent = `Acima do valor da conta: ela passa de ${formatMoney(valorTotal)} para ${formatMoney(novoValor)} e fica quitada.`;
   }
 }
 
 // Resolve com { valor, origem } ou null se o usuário cancelar.
 function pedirPagamentoConta({ descricao, valorTotal, valorJaPago, origemPadrao }) {
   const valorRestante = calcularSaldoConta(valorTotal, valorJaPago);
-  cpPagamentoTituloEl.textContent = descricao;
-  cpPagamentoResumoEl.textContent = `Falta pagar ${formatMoney(valorRestante)}`;
-  cpPagamentoValorInput.value = valorRestante.toFixed(2).replace('.', ',');
-  cpPagamentoForm.elements['cp-pagamento-origem'].value = origemPadrao;
-  cpPagamentoErrorEl.hidden = true;
-  cpPagamentoAvisoEl.hidden = true;
-  cpPagamentoEl.showModal();
+  contasPagarPagamentoTituloElemento.textContent = descricao;
+  contasPagarPagamentoResumoElemento.textContent = `Falta pagar ${formatMoney(valorRestante)}`;
+  contasPagarPagamentoValorCampo.value = valorRestante.toFixed(2).replace('.', ',');
+  contasPagarPagamentoFormularioElemento.elements['contas-pagar-pagamento-origem'].value = origemPadrao;
+  contasPagarPagamentoErroElemento.hidden = true;
+  contasPagarPagamentoAvisoElemento.hidden = true;
+  contasPagarPagamentoJanelaElemento.showModal();
   return new Promise((resolve) => {
-    cpPagamentoPendente = { resolve, valorTotal, valorJaPago };
+    contasPagarPagamentoPendente = { resolve, valorTotal, valorJaPago };
   });
 }
 
 function concluirPagamentoConta(resultado) {
-  const pendente = cpPagamentoPendente;
-  cpPagamentoPendente = null;
-  if (cpPagamentoEl.open) cpPagamentoEl.close();
+  const pendente = contasPagarPagamentoPendente;
+  contasPagarPagamentoPendente = null;
+  if (contasPagarPagamentoJanelaElemento.open) contasPagarPagamentoJanelaElemento.close();
   pendente?.resolve(resultado);
 }
 
 // Janela de valor com máscara, no lugar do prompt() do navegador.
-const valorDialogEl = document.getElementById('valor-dialog');
-const valorDialogTituloEl = document.getElementById('valor-dialog-titulo');
-const valorDialogRotuloEl = document.getElementById('valor-dialog-rotulo');
-const valorDialogInput = document.getElementById('valor-dialog-input');
-const valorDialogErroEl = document.getElementById('valor-dialog-erro');
-let valorDialogPendente = null;
+const valorJanelaElemento = document.getElementById('valor-janela');
+const valorJanelaTituloElemento = document.getElementById('valor-janela-titulo');
+const valorJanelaRotuloElemento = document.getElementById('valor-janela-rotulo');
+const valorJanelaCampo = document.getElementById('valor-janela-campo');
+const valorJanelaErroElemento = document.getElementById('valor-janela-erro');
+let valorJanelaPendente = null;
 
-aplicarMascaraMoney(valorDialogInput);
+aplicarMascaraMoney(valorJanelaCampo);
 
 function valorInformadoValido(valor, permitirZero) {
   return Number.isFinite(valor) && (permitirZero ? valor >= 0 : round2(valor) > 0);
@@ -1147,58 +1147,58 @@ function valorInformadoValido(valor, permitirZero) {
 
 // Resolve com o número digitado ou null se cancelar.
 function pedirValor({ titulo, rotulo = 'Valor', valorInicial = null, permitirZero = false }) {
-  valorDialogTituloEl.textContent = titulo;
-  valorDialogRotuloEl.textContent = rotulo;
-  valorDialogInput.value = valorInicial === null ? '' : formatarValorCampo(valorInicial);
-  valorDialogErroEl.hidden = true;
-  valorDialogEl.showModal();
-  valorDialogInput.focus({ preventScroll: true });
+  valorJanelaTituloElemento.textContent = titulo;
+  valorJanelaRotuloElemento.textContent = rotulo;
+  valorJanelaCampo.value = valorInicial === null ? '' : formatarValorCampo(valorInicial);
+  valorJanelaErroElemento.hidden = true;
+  valorJanelaElemento.showModal();
+  valorJanelaCampo.focus({ preventScroll: true });
   return new Promise((resolve) => {
-    valorDialogPendente = { resolve, permitirZero };
+    valorJanelaPendente = { resolve, permitirZero };
   });
 }
 
 function concluirPedidoValor(resultado) {
-  const pendente = valorDialogPendente;
-  valorDialogPendente = null;
-  if (valorDialogEl.open) valorDialogEl.close();
+  const pendente = valorJanelaPendente;
+  valorJanelaPendente = null;
+  if (valorJanelaElemento.open) valorJanelaElemento.close();
   pendente?.resolve(resultado);
 }
 
-document.getElementById('valor-dialog-form').addEventListener('submit', (e) => {
+document.getElementById('valor-janela-formulario').addEventListener('submit', (e) => {
   e.preventDefault();
-  if (!valorDialogPendente) return;
-  const valor = parseMoney(valorDialogInput.value);
-  if (!valorInformadoValido(valor, valorDialogPendente.permitirZero)) {
-    valorDialogErroEl.textContent = valorDialogPendente.permitirZero ? 'Informe um valor (pode ser 0,00).' : 'Informe um valor a partir de R$ 0,01.';
-    valorDialogErroEl.hidden = false;
+  if (!valorJanelaPendente) return;
+  const valor = parseMoney(valorJanelaCampo.value);
+  if (!valorInformadoValido(valor, valorJanelaPendente.permitirZero)) {
+    valorJanelaErroElemento.textContent = valorJanelaPendente.permitirZero ? 'Informe um valor (pode ser 0,00).' : 'Informe um valor a partir de R$ 0,01.';
+    valorJanelaErroElemento.hidden = false;
     return;
   }
   concluirPedidoValor(round2(valor));
 });
-document.getElementById('valor-dialog-fechar').addEventListener('click', () => concluirPedidoValor(null));
-valorDialogEl.addEventListener('close', () => concluirPedidoValor(null));
+document.getElementById('valor-janela-fechar').addEventListener('click', () => concluirPedidoValor(null));
+valorJanelaElemento.addEventListener('close', () => concluirPedidoValor(null));
 
-cpPagamentoForm.addEventListener('submit', (e) => {
+contasPagarPagamentoFormularioElemento.addEventListener('submit', (e) => {
   e.preventDefault();
-  if (!cpPagamentoPendente) return;
-  const valor = parseMoney(cpPagamentoValorInput.value);
+  if (!contasPagarPagamentoPendente) return;
+  const valor = parseMoney(contasPagarPagamentoValorCampo.value);
   if (!valorPagamentoContaValido(valor)) {
-    cpPagamentoErrorEl.textContent = 'Informe um valor a partir de R$ 0,01.';
-    cpPagamentoErrorEl.hidden = false;
+    contasPagarPagamentoErroElemento.textContent = 'Informe um valor a partir de R$ 0,01.';
+    contasPagarPagamentoErroElemento.hidden = false;
     return;
   }
-  concluirPagamentoConta({ valor: round2(valor), origem: cpPagamentoForm.elements['cp-pagamento-origem'].value });
+  concluirPagamentoConta({ valor: round2(valor), origem: contasPagarPagamentoFormularioElemento.elements['contas-pagar-pagamento-origem'].value });
 });
-document.getElementById('cp-pagamento-fechar').addEventListener('click', () => concluirPagamentoConta(null));
-cpPagamentoEl.addEventListener('close', () => concluirPagamentoConta(null));
+document.getElementById('contas-pagar-pagamento-fechar').addEventListener('click', () => concluirPagamentoConta(null));
+contasPagarPagamentoJanelaElemento.addEventListener('close', () => concluirPagamentoConta(null));
 
 function limparSelecaoContasPagar() {
-  cpOcorrenciasSelecionadas.clear();
-  const barra = document.getElementById('cp-selecao-bar');
+  contasPagarOcorrenciasSelecionadas.clear();
+  const barra = document.getElementById('contas-pagar-selecao-barra');
   if (barra) barra.hidden = true;
-  document.getElementById('cp-list')?.querySelectorAll('.cp-ocorrencia-selecionada')
-    .forEach((item) => item.classList.remove('cp-ocorrencia-selecionada'));
+  document.getElementById('contas-pagar-lista-ocorrencias')?.querySelectorAll('.contas-pagar-ocorrencia-selecionada')
+    .forEach((item) => item.classList.remove('contas-pagar-ocorrencia-selecionada'));
 }
 
 function textoResumoSelecaoContasPagar(selecionadas) {
@@ -1209,76 +1209,76 @@ function textoResumoSelecaoContasPagar(selecionadas) {
 }
 
 function atualizarBarraSelecaoContasPagar() {
-  const selecionadas = [...cpOcorrenciasSelecionadas.values()];
-  cpSelecaoBarEl.hidden = selecionadas.length === 0;
+  const selecionadas = [...contasPagarOcorrenciasSelecionadas.values()];
+  contasPagarSelecaoBarraElemento.hidden = selecionadas.length === 0;
   if (selecionadas.length === 0) return;
 
-  cpSelecaoResumoEl.textContent = textoResumoSelecaoContasPagar(selecionadas);
-  cpSelecaoLimparEl.hidden = selecionadas.length < 2;
+  contasPagarSelecaoResumoElemento.textContent = textoResumoSelecaoContasPagar(selecionadas);
+  contasPagarSelecaoLimparElemento.hidden = selecionadas.length < 2;
 }
 
 function abrirGrupoPorPadrao(itens, ehSemanaAtual = false) {
   return ehSemanaAtual || itens.some((item) => !item.paga);
 }
 
-cpListEl.addEventListener('click', (e) => {
-  const selecionarBtn = e.target.closest('.cp-selecionar-btn');
-  if (selecionarBtn) {
-    const chave = `${selecionarBtn.dataset.contaId}|${selecionarBtn.dataset.data}`;
-    if (cpOcorrenciasSelecionadas.has(chave)) {
-      cpOcorrenciasSelecionadas.delete(chave);
+contasPagarListaOcorrenciasElemento.addEventListener('click', (e) => {
+  const selecionarBotao = e.target.closest('.contas-pagar-selecionar-botao');
+  if (selecionarBotao) {
+    const chave = `${selecionarBotao.dataset.contaId}|${selecionarBotao.dataset.data}`;
+    if (contasPagarOcorrenciasSelecionadas.has(chave)) {
+      contasPagarOcorrenciasSelecionadas.delete(chave);
     } else {
-      cpOcorrenciasSelecionadas.set(chave, {
-        nome: selecionarBtn.dataset.nome,
-        valor: Number(selecionarBtn.dataset.valor),
+      contasPagarOcorrenciasSelecionadas.set(chave, {
+        nome: selecionarBotao.dataset.nome,
+        valor: Number(selecionarBotao.dataset.valor),
       });
     }
-    selecionarBtn.closest('.lancamento-item').classList.toggle('cp-ocorrencia-selecionada', cpOcorrenciasSelecionadas.has(chave));
+    selecionarBotao.closest('.lancamento-item').classList.toggle('contas-pagar-ocorrencia-selecionada', contasPagarOcorrenciasSelecionadas.has(chave));
     atualizarBarraSelecaoContasPagar();
     return;
   }
 
   const summary = e.target.closest('summary');
   const details = summary?.parentElement;
-  if (!details?.classList.contains('cp-grupo-details')) return;
-  cpGruposAlteradosManualmente.set(details.dataset.grupo, !details.open);
+  if (!details?.classList.contains('contas-pagar-grupo-details')) return;
+  contasPagarGruposAlteradosManualmente.set(details.dataset.grupo, !details.open);
 });
 
-cpSelecaoLimparEl.addEventListener('click', () => {
+contasPagarSelecaoLimparElemento.addEventListener('click', () => {
   limparSelecaoContasPagar();
 });
 
-const cpForm = document.getElementById('cp-form');
-const cpErrorEl = document.getElementById('cp-form-error');
-const cpDescricaoInput = document.getElementById('cp-descricao');
-const cpValorInput = document.getElementById('cp-valor');
-const cpDataInicioInput = document.getElementById('cp-data-inicio');
-const cpCampoDataUnicaEl = document.getElementById('cp-campo-data-unica');
-const cpCampoParcelasEl = document.getElementById('cp-campo-parcelas');
-const cpQtdeParcelasInput = document.getElementById('cp-qtde-parcelas');
-const cpDatasParcelasEl = document.getElementById('cp-datas-parcelas');
-const cpValorModoEl = document.getElementById('cp-valor-modo');
-aplicarMascaraMoney(cpValorInput);
+const contasPagarFormularioElemento = document.getElementById('contas-pagar-formulario');
+const contasPagarFormularioErroElemento = document.getElementById('contas-pagar-formulario-erro');
+const contasPagarDescricaoCampo = document.getElementById('contas-pagar-descricao');
+const contasPagarValorCampo = document.getElementById('contas-pagar-valor');
+const contasPagarDataInicioCampo = document.getElementById('contas-pagar-data-inicio');
+const contasPagarCampoDataUnicaElemento = document.getElementById('contas-pagar-campo-data-unica');
+const contasPagarCampoParcelasElemento = document.getElementById('contas-pagar-campo-parcelas');
+const contasPagarQuantidadeParcelasCampo = document.getElementById('contas-pagar-quantidade-parcelas');
+const contasPagarDatasParcelasElemento = document.getElementById('contas-pagar-datas-parcelas');
+const contasPagarValorModoElemento = document.getElementById('contas-pagar-valor-modo');
+aplicarMascaraMoney(contasPagarValorCampo);
 
 function atualizarCamposTipoContaPagar() {
-  const parcelado = document.querySelector('input[name="cp-tipo"]:checked').value === 'parcelado';
-  cpCampoDataUnicaEl.hidden = parcelado;
-  cpCampoParcelasEl.hidden = !parcelado;
-  cpDataInicioInput.required = !parcelado;
-  cpValorModoEl.hidden = !parcelado;
+  const parcelado = document.querySelector('input[name="contas-pagar-tipo"]:checked').value === 'parcelado';
+  contasPagarCampoDataUnicaElemento.hidden = parcelado;
+  contasPagarCampoParcelasElemento.hidden = !parcelado;
+  contasPagarDataInicioCampo.required = !parcelado;
+  contasPagarValorModoElemento.hidden = !parcelado;
 }
 
-document.querySelectorAll('input[name="cp-tipo"]').forEach((el) => {
+document.querySelectorAll('input[name="contas-pagar-tipo"]').forEach((el) => {
   el.addEventListener('change', () => {
     atualizarCamposTipoContaPagar();
   });
 });
 
-cpQtdeParcelasInput.addEventListener('input', () => {
-  cpQtdeParcelasInput.value = cpQtdeParcelasInput.value.replace(/\D/g, '');
-  const qtde = limitarQuantidadeParcelas(cpQtdeParcelasInput.value);
+contasPagarQuantidadeParcelasCampo.addEventListener('input', () => {
+  contasPagarQuantidadeParcelasCampo.value = contasPagarQuantidadeParcelasCampo.value.replace(/\D/g, '');
+  const qtde = limitarQuantidadeParcelas(contasPagarQuantidadeParcelasCampo.value);
 
-  const existentes = cpDatasParcelasEl.querySelectorAll('input[type="date"]');
+  const existentes = contasPagarDatasParcelasElemento.querySelectorAll('input[type="date"]');
   if (qtde < existentes.length) {
     existentes.forEach((el, i) => { if (i >= qtde) el.closest('.campo-parcela').remove(); });
     return;
@@ -1289,9 +1289,9 @@ cpQtdeParcelasInput.addEventListener('input', () => {
     wrapper.className = 'campo-parcela';
     wrapper.innerHTML = `
       <label>Data da parcela ${i + 1}</label>
-      <input type="date" class="cp-data-parcela" required>
+      <input type="date" class="contas-pagar-data-parcela" required>
     `;
-    cpDatasParcelasEl.appendChild(wrapper);
+    contasPagarDatasParcelasElemento.appendChild(wrapper);
   }
 });
 
@@ -1418,7 +1418,7 @@ function encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos
 }
 
 async function carregarContasPagar() {
-  cpDataInicioInput.value = cpDataInicioInput.value || hojeISO();
+  contasPagarDataInicioCampo.value = contasPagarDataInicioCampo.value || hojeISO();
 
   const [
     { data: contas, error: errContas },
@@ -1431,12 +1431,12 @@ async function carregarContasPagar() {
     { data: cartaoRows, error: errCartao },
     { data: robertaRows, error: errRoberta },
   ] = await Promise.all([
-    supabase.from(CP_TABLE).select('*').order('data_inicio', { ascending: true }),
-    supabase.from(CP_EXDATES_TABLE).select('*'),
-    supabase.from(CP_PARCELAS_TABLE).select('*'),
-    supabase.from(CP_PAGAMENTOS_TABLE).select('*'),
-    supabase.from(CP_AJUSTES_TABLE).select('*'),
-    supabase.from(CC_TABLE)
+    supabase.from(CONTAS_PAGAR_TABELA).select('*').order('data_inicio', { ascending: true }),
+    supabase.from(CONTAS_PAGAR_EXDATES_TABELA).select('*'),
+    supabase.from(CONTAS_PAGAR_PARCELAS_TABELA).select('*'),
+    supabase.from(CONTAS_PAGAR_PAGAMENTOS_TABELA).select('*'),
+    supabase.from(CONTAS_PAGAR_AJUSTES_TABELA).select('*'),
+    supabase.from(CAIXA_CASA_TABELA)
       .select('tipo, valor')
       .order('data', { ascending: false })
       .order('created_at', { ascending: false })
@@ -1447,8 +1447,8 @@ async function carregarContasPagar() {
   ]);
 
   if (errContas || errEx || errParc || errPag || errAjustes || errCaixa || errEmprestimo || errCartao || errRoberta) {
-    cpListEl.innerHTML = `<li class="empty-state">${errEmprestimo ? 'Aplique a migration 012 para habilitar o Empréstimo.' : errCartao ? 'Aplique a migration 010 para habilitar o Cartão de Crédito.' : errRoberta ? 'Aplique a migration 014 para habilitar o Dinheiro Roberta.' : 'Erro ao carregar contas a pagar.'}</li>`;
-    cpContasListEl.innerHTML = '';
+    contasPagarListaOcorrenciasElemento.innerHTML = `<li class="empty-state">${errEmprestimo ? 'Aplique a migration 012 para habilitar o Empréstimo.' : errCartao ? 'Aplique a migration 010 para habilitar o Cartão de Crédito.' : errRoberta ? 'Aplique a migration 014 para habilitar o Dinheiro Roberta.' : 'Erro ao carregar contas a pagar.'}</li>`;
+    contasPagarListaContasCadastradasElemento.innerHTML = '';
     return;
   }
 
@@ -1464,19 +1464,19 @@ async function carregarContasPagar() {
   const saldoCaixa = calcularSaldoCaixa(caixaRows);
   const aluguelAbertoCaixa = encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos, ajustesRows);
   const saldoAposAluguel = calcularSaldoAposAluguel(saldoCaixa, aluguelAbertoCaixa?.valor);
-  ccSaldoEl.textContent = formatMoney(saldoAposAluguel);
-  ccSaldoTotalEl.textContent = formatMoney(saldoCaixa);
-  ccSaldoTotalEl.classList.toggle('negative', saldoCaixa < 0);
+  caixaCasaSaldoAposAluguelElemento.textContent = formatMoney(saldoAposAluguel);
+  caixaCasaSaldoTotalElemento.textContent = formatMoney(saldoCaixa);
+  caixaCasaSaldoTotalElemento.classList.toggle('negative', saldoCaixa < 0);
 
   if (contas.length === 0) {
-    cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + '<li class="empty-state">Nenhuma conta cadastrada.</li>';
-    cpContasListEl.innerHTML = `<li class="empty-state">Nenhuma conta cadastrada.</li>`;
-    cpTotalMesPagoEl.textContent = formatMoney(0);
-    cpTotalMesGeralEl.textContent = formatMoney(0);
-    cpTotalSemanaAtualEl.textContent = formatMoney(0);
-    cpTotalProximaSemanaEl.textContent = formatMoney(0);
-    cpLabelSemanaAtualEl.textContent = 'Esta semana';
-    cpLabelProximaSemanaEl.textContent = 'Próxima semana';
+    contasPagarListaOcorrenciasElemento.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + '<li class="empty-state">Nenhuma conta cadastrada.</li>';
+    contasPagarListaContasCadastradasElemento.innerHTML = `<li class="empty-state">Nenhuma conta cadastrada.</li>`;
+    contasPagarTotalMesPagoElemento.textContent = formatMoney(0);
+    contasPagarTotalMesGeralElemento.textContent = formatMoney(0);
+    contasPagarTotalSemanaAtualElemento.textContent = formatMoney(0);
+    contasPagarTotalProximaSemanaElemento.textContent = formatMoney(0);
+    contasPagarRotuloSemanaAtualElemento.textContent = 'Esta semana';
+    contasPagarRotuloProximaSemanaElemento.textContent = 'Próxima semana';
     return;
   }
 
@@ -1540,8 +1540,8 @@ async function carregarContasPagar() {
     .reduce((acc, ocorrencia) => acc + valorExibidoOcorrencia(ocorrencia), 0);
 
   const totalMesGeral = round2(totalMesPago + totalMesNaoPago);
-  cpTotalMesPagoEl.textContent = formatMoney(totalMesPago);
-  cpTotalMesGeralEl.textContent = formatMoney(totalMesGeral);
+  contasPagarTotalMesPagoElemento.textContent = formatMoney(totalMesPago);
+  contasPagarTotalMesGeralElemento.textContent = formatMoney(totalMesGeral);
 
   const gruposSemanaTodos = agruparPorSemana(ocorrenciasParaExibir);
 
@@ -1592,12 +1592,12 @@ async function carregarContasPagar() {
   const proximaSemana = acharSemanaComPendencia(chaveSemanaSeguinte(semanaAtual.dataRef).data, semanaAtual.saltos + 1);
   const totalAtrasadas = totalAtrasadasNoResumoSemanal(ocorrenciasParaExibir, hoje);
 
-  cpTotalSemanaAtualEl.textContent = formatMoney(round2(semanaAtual.total + totalAtrasadas));
-  cpTotalProximaSemanaEl.textContent = formatMoney(proximaSemana.total);
-  cpLabelSemanaAtualEl.textContent = totalAtrasadas > 0
+  contasPagarTotalSemanaAtualElemento.textContent = formatMoney(round2(semanaAtual.total + totalAtrasadas));
+  contasPagarTotalProximaSemanaElemento.textContent = formatMoney(proximaSemana.total);
+  contasPagarRotuloSemanaAtualElemento.textContent = totalAtrasadas > 0
     ? `Atrasadas + ${rotuloDistanciaSemana(semanaAtual.saltos).toLowerCase()}`
     : rotuloDistanciaSemana(semanaAtual.saltos);
-  cpLabelProximaSemanaEl.textContent = rotuloDistanciaSemana(proximaSemana.saltos);
+  contasPagarRotuloProximaSemanaElemento.textContent = rotuloDistanciaSemana(proximaSemana.saltos);
 
   const anoHoje = semanaAtual.ano;
   const mesHoje = semanaAtual.mes;
@@ -1612,13 +1612,13 @@ async function carregarContasPagar() {
     const valorExibido = valorExibidoOcorrencia(ocorrencia);
     const parcial = valorPago > 0 && !paga;
     const botoesAcao = (paga || valorPago > 0) ? '' : `
-        <button type="button" class="btn-icon btn-icon-neutro cp-editar-btn" data-conta-id="${conta.id}" data-data="${data}" data-tipo="${conta.tipo}" data-valor="${valorOriginal}" aria-label="Editar valor" title="Editar valor">
+        <button type="button" class="botao-icone botao-icone-neutro contas-pagar-editar-botao" data-conta-id="${conta.id}" data-data="${data}" data-tipo="${conta.tipo}" data-valor="${valorOriginal}" aria-label="Editar valor" title="Editar valor">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
             <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
           </svg>
         </button>
-        <button type="button" class="btn-icon cp-pular-btn" data-conta-id="${conta.id}" data-data="${data}" data-tipo="${conta.tipo}" aria-label="Pular esta ocorrência" title="Pular esta ocorrência">
+        <button type="button" class="botao-icone contas-pagar-pular-botao" data-conta-id="${conta.id}" data-data="${data}" data-tipo="${conta.tipo}" aria-label="Pular esta ocorrência" title="Pular esta ocorrência">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1626,14 +1626,14 @@ async function carregarContasPagar() {
         </button>`;
 
     const chaveSelecao = `${conta.id}|${data}`;
-    const selecionada = cpOcorrenciasSelecionadas.has(chaveSelecao);
+    const selecionada = contasPagarOcorrenciasSelecionadas.has(chaveSelecao);
 
     return `
-      <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}${selecionada ? ' cp-ocorrencia-selecionada' : ''}">
+      <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}${selecionada ? ' contas-pagar-ocorrencia-selecionada' : ''}">
         <div class="lancamento-checkbox">
-          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-valor-roberta="${valorRobertaPago}" data-descricao="${conta.descricao}" data-tipo="${conta.tipo}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="cp-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
+          <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-valor-roberta="${valorRobertaPago}" data-descricao="${conta.descricao}" data-tipo="${conta.tipo}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="contas-pagar-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
           <div class="lancamento-info">
-            <div class="lancamento-nome-tags"><button type="button" class="cp-selecionar-btn" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
+            <div class="lancamento-nome-tags"><button type="button" class="contas-pagar-selecionar-botao" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
             <span class="lancamento-data">${formatDataBR(data)}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
           </div>
         </div>
@@ -1649,11 +1649,11 @@ async function carregarContasPagar() {
       const rotuloSemana = `Semana ${grupo.semana}`;
       const totalGrupo = grupo.itens.reduce((acc, item) => acc + valorExibidoOcorrencia(item), 0);
       const chaveSemana = `${grupo.ano}-${grupo.mes}-${grupo.semana}`;
-      const aberta = cpGruposAlteradosManualmente.get(chaveSemana) ?? abrirGrupoPorPadrao(grupo.itens, ehSemanaAtual);
+      const aberta = contasPagarGruposAlteradosManualmente.get(chaveSemana) ?? abrirGrupoPorPadrao(grupo.itens, ehSemanaAtual);
 
       return `
         <li class="semana-grupo">
-          <details class="cp-grupo-details" data-grupo="${chaveSemana}"${aberta ? ' open' : ''}>
+          <details class="contas-pagar-grupo-details" data-grupo="${chaveSemana}"${aberta ? ' open' : ''}>
             <summary class="semana-grupo-titulo${ehSemanaAtual ? ' semana-atual' : ''}">
               <span>${NOMES_MES[grupo.mes - 1]} — ${rotuloSemana}${ehSemanaAtual ? '<span class="semana-atual-dot"></span>' : ''}</span>
               <span class="semana-grupo-total">${formatMoney(totalGrupo)}</span>
@@ -1665,17 +1665,17 @@ async function carregarContasPagar() {
     }).join('');
   }
 
-  cpListEl.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + renderizarGruposSemana(agruparPorSemana(ocorrenciasParaExibir));
-  cpListEl.querySelectorAll('.cp-pago-checkbox[data-parcial="true"]').forEach((checkbox) => {
+  contasPagarListaOcorrenciasElemento.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + renderizarGruposSemana(agruparPorSemana(ocorrenciasParaExibir));
+  contasPagarListaOcorrenciasElemento.querySelectorAll('.contas-pagar-pago-checkbox[data-parcial="true"]').forEach((checkbox) => {
     checkbox.indeterminate = true;
   });
   const chavesDisponiveis = new Set(ocorrenciasParaExibir.map((ocorrencia) => `${ocorrencia.conta.id}|${ocorrencia.data}`));
-  cpOcorrenciasSelecionadas.forEach((_ocorrencia, chave) => {
-    if (!chavesDisponiveis.has(chave)) cpOcorrenciasSelecionadas.delete(chave);
+  contasPagarOcorrenciasSelecionadas.forEach((_ocorrencia, chave) => {
+    if (!chavesDisponiveis.has(chave)) contasPagarOcorrenciasSelecionadas.delete(chave);
   });
   atualizarBarraSelecaoContasPagar();
 
-  cpContasListEl.innerHTML = contas.map((conta) => {
+  contasPagarListaContasCadastradasElemento.innerHTML = contas.map((conta) => {
     const valorExibido = conta.tipo === 'parcelado'
       ? parcelasRows.filter((p) => p.conta_id === conta.id).reduce((acc, p) => acc + Number(p.valor), 0)
       : Number(conta.valor);
@@ -1687,7 +1687,7 @@ async function carregarContasPagar() {
         <span class="lancamento-data">${conta.tipo === 'parcelado' ? 'parcelado' : `mensal — dia ${conta.dia_vencimento}`}</span>
       </div>
       <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>
-      <button type="button" class="btn-icon cp-remover-btn" data-conta-id="${conta.id}" aria-label="Remover conta" title="Remover conta">
+      <button type="button" class="botao-icone contas-pagar-remover-botao" data-conta-id="${conta.id}" aria-label="Remover conta" title="Remover conta">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"></polyline>
           <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -1699,7 +1699,7 @@ async function carregarContasPagar() {
 }
 
 async function alternarPagoContasPagar(e) {
-  if (!e.target.classList.contains('cp-pago-checkbox')) return;
+  if (!e.target.classList.contains('contas-pagar-pago-checkbox')) return;
   const checkbox = e.target;
   const contaId = checkbox.dataset.contaId;
   const data = checkbox.dataset.data;
@@ -1743,7 +1743,7 @@ async function alternarPagoContasPagar(e) {
     const { origem } = escolha;
     const novo = calcularNovoPagamentoConta(anterior, escolha.valor, origem);
     const vinculoOrigem = {
-      caixa: { tabela: CC_TABLE, nome: 'o Caixa Casa', dados: (v) => dadosSaidaCaixaDaConta(contaId, v, data, descricao) },
+      caixa: { tabela: CAIXA_CASA_TABELA, nome: 'o Caixa Casa', dados: (v) => dadosSaidaCaixaDaConta(contaId, v, data, descricao) },
       roberta: { tabela: ROBERTA_TABLE, nome: 'a dívida da Roberta', dados: (v) => dadosDividaRobertaDaConta(contaId, v, data, descricao) },
     }[origem];
     const valorAnteriorOrigem = origem === 'caixa' ? anterior.valorCaixa : anterior.valorRoberta;
@@ -1754,10 +1754,10 @@ async function alternarPagoContasPagar(e) {
       if (erroValor) return { error: erroValor };
 
       if (anterior.valorPago === 0) {
-        return supabase.from(CP_PAGAMENTOS_TABLE).delete().eq('conta_id', contaId).eq('data', data);
+        return supabase.from(CONTAS_PAGAR_PAGAMENTOS_TABELA).delete().eq('conta_id', contaId).eq('data', data);
       }
 
-      const { error: erroPagamento } = await supabase.from(CP_PAGAMENTOS_TABLE).upsert(
+      const { error: erroPagamento } = await supabase.from(CONTAS_PAGAR_PAGAMENTOS_TABELA).upsert(
         dadosPagamentoConta(contaId, data, anterior.valorPago, anterior.valorCaixa, anterior.valorRoberta)
       );
       if (erroPagamento) return { error: erroPagamento };
@@ -1783,7 +1783,7 @@ async function alternarPagoContasPagar(e) {
       await carregarContasPagar();
     };
 
-    const { error: erroPagamento } = await supabase.from(CP_PAGAMENTOS_TABLE).upsert(
+    const { error: erroPagamento } = await supabase.from(CONTAS_PAGAR_PAGAMENTOS_TABELA).upsert(
       dadosPagamentoConta(contaId, data, novo.valorPago, novo.valorCaixa, novo.valorRoberta)
     );
     if (erroPagamento) {
@@ -1807,7 +1807,7 @@ async function alternarPagoContasPagar(e) {
     }
   } else {
     const { error } = await supabase
-      .from(CP_PAGAMENTOS_TABLE)
+      .from(CONTAS_PAGAR_PAGAMENTOS_TABELA)
       .delete()
       .eq('conta_id', contaId)
       .eq('data', data);
@@ -1816,32 +1816,32 @@ async function alternarPagoContasPagar(e) {
   await Promise.all([carregarContasPagar(), carregarSalario(), carregarCaixaCasa()]);
 }
 
-cpListEl.addEventListener('change', alternarPagoContasPagar);
+contasPagarListaOcorrenciasElemento.addEventListener('change', alternarPagoContasPagar);
 
-cpListEl.addEventListener('click', async (e) => {
-  const dividaExcluirBtn = e.target.closest('.cartao-excluir-btn');
-  if (dividaExcluirBtn) {
-    const nome = dividaExcluirBtn.dataset.nome;
+contasPagarListaOcorrenciasElemento.addEventListener('click', async (e) => {
+  const dividaExcluirBotao = e.target.closest('.cartao-excluir-botao');
+  if (dividaExcluirBotao) {
+    const nome = dividaExcluirBotao.dataset.nome;
     const doNome = nome === 'Roberta' ? 'da Roberta' : `do ${nome}`;
     const lancamento = {
-      id: dividaExcluirBtn.dataset.id,
-      conta_pagar_id: dividaExcluirBtn.dataset.contaId || null,
-      data_ocorrencia: dividaExcluirBtn.dataset.dataOcorrencia || null,
+      id: dividaExcluirBotao.dataset.id,
+      conta_pagar_id: dividaExcluirBotao.dataset.contaId || null,
+      data_ocorrencia: dividaExcluirBotao.dataset.dataOcorrencia || null,
     };
     const vinculado = Boolean(lancamento.conta_pagar_id && lancamento.data_ocorrencia);
     const mensagem = vinculado
       ? 'Excluir este movimento e desfazer o pagamento da conta vinculada?'
       : `Excluir este movimento ${doNome}?`;
     if (!confirm(mensagem)) return;
-    const { error } = await excluirLancamentoFinanceiro(dividaExcluirBtn.dataset.tabela, lancamento);
+    const { error } = await excluirLancamentoFinanceiro(dividaExcluirBotao.dataset.tabela, lancamento);
     if (error) alert(`Não foi possível excluir o movimento ${doNome}.`);
     await Promise.all([carregarContasPagar(), carregarSalario(), carregarCaixaCasa()]);
     return;
   }
 
-  const dividaValorAtualBtn = e.target.closest('.divida-valor-atual-btn');
-  if (dividaValorAtualBtn) {
-    const nome = dividaValorAtualBtn.dataset.nome;
+  const dividaValorAtualBotao = e.target.closest('.divida-valor-atual-botao');
+  if (dividaValorAtualBotao) {
+    const nome = dividaValorAtualBotao.dataset.nome;
     const saldoAtual = emprestimoSaldoAtual;
     const valorInformado = await pedirValor({
       titulo: `Valor atual do ${nome}`,
@@ -1854,7 +1854,7 @@ cpListEl.addEventListener('click', async (e) => {
     const dados = dadosAtualizacaoValorDivida(valorInformado, saldoAtual);
     if (!dados) return;
 
-    const { error } = await supabase.from(dividaValorAtualBtn.dataset.tabela).insert(dados);
+    const { error } = await supabase.from(dividaValorAtualBotao.dataset.tabela).insert(dados);
     if (error) {
       alert('Erro ao registrar o movimento. Confira se a migration 012 foi aplicada.');
       return;
@@ -1863,11 +1863,11 @@ cpListEl.addEventListener('click', async (e) => {
     return;
   }
 
-  const dividaMovimentoBtn = e.target.closest('.divida-movimento-btn');
-  if (dividaMovimentoBtn) {
-    const abatimento = dividaMovimentoBtn.dataset.tipo === 'abatimento';
-    const nome = dividaMovimentoBtn.dataset.nome;
-    const roberta = dividaMovimentoBtn.dataset.tabela === ROBERTA_TABLE;
+  const dividaMovimentoBotao = e.target.closest('.divida-movimento-botao');
+  if (dividaMovimentoBotao) {
+    const abatimento = dividaMovimentoBotao.dataset.tipo === 'abatimento';
+    const nome = dividaMovimentoBotao.dataset.nome;
+    const roberta = dividaMovimentoBotao.dataset.tabela === ROBERTA_TABLE;
     const saldoAtual = roberta ? robertaSaldoAtual : cartaoSaldoAtual;
     const valorInformado = await pedirValor({
       titulo: abatimento
@@ -1886,8 +1886,8 @@ cpListEl.addEventListener('click', async (e) => {
       return;
     }
 
-    const { error } = await supabase.from(dividaMovimentoBtn.dataset.tabela).insert(
-      dadosLancamentoDivida(dividaMovimentoBtn.dataset.tipo, valor)
+    const { error } = await supabase.from(dividaMovimentoBotao.dataset.tabela).insert(
+      dadosLancamentoDivida(dividaMovimentoBotao.dataset.tipo, valor)
     );
     if (error) {
       alert(`Erro ao registrar o movimento. Confira se a migration ${roberta ? '014' : '010'} foi aplicada.`);
@@ -1897,20 +1897,20 @@ cpListEl.addEventListener('click', async (e) => {
     return;
   }
 
-  const pularBtn = e.target.closest('.cp-pular-btn');
-  if (pularBtn) {
-    if (pularBtn.dataset.tipo === 'parcelado') {
-      await supabase.from(CP_PARCELAS_TABLE).delete().eq('conta_id', pularBtn.dataset.contaId).eq('data', pularBtn.dataset.data);
+  const pularBotao = e.target.closest('.contas-pagar-pular-botao');
+  if (pularBotao) {
+    if (pularBotao.dataset.tipo === 'parcelado') {
+      await supabase.from(CONTAS_PAGAR_PARCELAS_TABELA).delete().eq('conta_id', pularBotao.dataset.contaId).eq('data', pularBotao.dataset.data);
     } else {
-      await supabase.from(CP_EXDATES_TABLE).insert({ conta_id: pularBtn.dataset.contaId, data: pularBtn.dataset.data });
+      await supabase.from(CONTAS_PAGAR_EXDATES_TABELA).insert({ conta_id: pularBotao.dataset.contaId, data: pularBotao.dataset.data });
     }
     await carregarContasPagar();
     return;
   }
 
-  const editarBtn = e.target.closest('.cp-editar-btn');
-  if (editarBtn) {
-    const { contaId, data, tipo, valor } = editarBtn.dataset;
+  const editarBotao = e.target.closest('.contas-pagar-editar-botao');
+  if (editarBotao) {
+    const { contaId, data, tipo, valor } = editarBotao.dataset;
     const novoValor = await pedirValor({ titulo: 'Editar valor', rotulo: 'Novo valor', valorInicial: Number(valor) });
     if (novoValor === null) return;
 
@@ -1919,38 +1919,38 @@ cpListEl.addEventListener('click', async (e) => {
   }
 });
 
-cpContasListEl.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.cp-remover-btn');
-  if (!btn) return;
+contasPagarListaContasCadastradasElemento.addEventListener('click', async (e) => {
+  const botao = e.target.closest('.contas-pagar-remover-botao');
+  if (!botao) return;
   if (!confirm('Remover esta conta e todo o seu histórico de pagamentos/parcelas/exceções?')) return;
-  await supabase.from(CP_TABLE).delete().eq('id', btn.dataset.contaId);
+  await supabase.from(CONTAS_PAGAR_TABELA).delete().eq('id', botao.dataset.contaId);
   await carregarContasPagar();
 });
 
-bloquearDuranteSubmit(cpForm, async (e) => {
+bloquearDuranteSubmit(contasPagarFormularioElemento, async (e) => {
   e.preventDefault();
-  cpErrorEl.hidden = true;
+  contasPagarFormularioErroElemento.hidden = true;
 
-  const descricao = cpDescricaoInput.value.trim();
-  const valor = parseMoney(cpValorInput.value);
-  const tipo = document.querySelector('input[name="cp-tipo"]:checked').value;
+  const descricao = contasPagarDescricaoCampo.value.trim();
+  const valor = parseMoney(contasPagarValorCampo.value);
+  const tipo = document.querySelector('input[name="contas-pagar-tipo"]:checked').value;
 
   if (!valor || valor <= 0) {
-    cpErrorEl.textContent = 'Informe um valor válido.';
-    cpErrorEl.hidden = false;
+    contasPagarFormularioErroElemento.textContent = 'Informe um valor válido.';
+    contasPagarFormularioErroElemento.hidden = false;
     return;
   }
 
   if (tipo === 'recorrente') {
-    const dataInicio = cpDataInicioInput.value;
+    const dataInicio = contasPagarDataInicioCampo.value;
     if (!dataInicio) {
-      cpErrorEl.textContent = 'Informe a data.';
-      cpErrorEl.hidden = false;
+      contasPagarFormularioErroElemento.textContent = 'Informe a data.';
+      contasPagarFormularioErroElemento.hidden = false;
       return;
     }
 
     const dia = Number(dataInicio.split('-')[2]);
-    const { error } = await supabase.from(CP_TABLE).insert({
+    const { error } = await supabase.from(CONTAS_PAGAR_TABELA).insert({
       descricao,
       valor,
       tipo: 'recorrente',
@@ -1959,93 +1959,93 @@ bloquearDuranteSubmit(cpForm, async (e) => {
     });
 
     if (error) {
-      cpErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-      cpErrorEl.hidden = false;
+      contasPagarFormularioErroElemento.textContent = 'Erro ao salvar. Tente novamente.';
+      contasPagarFormularioErroElemento.hidden = false;
       return;
     }
   } else {
-    const datasParcelas = Array.from(cpDatasParcelasEl.querySelectorAll('.cp-data-parcela')).map((el) => el.value);
+    const datasParcelas = Array.from(contasPagarDatasParcelasElemento.querySelectorAll('.contas-pagar-data-parcela')).map((el) => el.value);
 
     if (datasParcelas.length === 0 || datasParcelas.some((d) => !d)) {
-      cpErrorEl.textContent = 'Informe a quantidade de parcelas e preencha todas as datas.';
-      cpErrorEl.hidden = false;
+      contasPagarFormularioErroElemento.textContent = 'Informe a quantidade de parcelas e preencha todas as datas.';
+      contasPagarFormularioErroElemento.hidden = false;
       return;
     }
 
-    const modoValor = document.querySelector('input[name="cp-valor-modo"]:checked').value;
+    const modoValor = document.querySelector('input[name="contas-pagar-valor-modo"]:checked').value;
     const valoresParcelas = calcularValoresParcelas(valor, datasParcelas.length, modoValor);
     const dataInicio = [...datasParcelas].sort()[0];
 
-    const { data: contaCriada, error } = await supabase.from(CP_TABLE).insert({
+    const { data: contaCriada, error } = await supabase.from(CONTAS_PAGAR_TABELA).insert({
       descricao,
       tipo: 'parcelado',
       data_inicio: dataInicio,
     }).select().single();
 
     if (error) {
-      cpErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-      cpErrorEl.hidden = false;
+      contasPagarFormularioErroElemento.textContent = 'Erro ao salvar. Tente novamente.';
+      contasPagarFormularioErroElemento.hidden = false;
       return;
     }
 
-    const { error: errParcelas } = await supabase.from(CP_PARCELAS_TABLE).insert(
+    const { error: errParcelas } = await supabase.from(CONTAS_PAGAR_PARCELAS_TABELA).insert(
       datasParcelas.map((data, i) => ({ conta_id: contaCriada.id, data, valor: valoresParcelas[i] }))
     );
 
     if (errParcelas) {
-      cpErrorEl.textContent = 'Conta criada, mas houve erro ao salvar as parcelas.';
-      cpErrorEl.hidden = false;
+      contasPagarFormularioErroElemento.textContent = 'Conta criada, mas houve erro ao salvar as parcelas.';
+      contasPagarFormularioErroElemento.hidden = false;
       return;
     }
   }
 
-  cpForm.reset();
-  cpDataInicioInput.value = hojeISO();
-  document.getElementById('cp-tipo-recorrente').checked = true;
+  contasPagarFormularioElemento.reset();
+  contasPagarDataInicioCampo.value = hojeISO();
+  document.getElementById('contas-pagar-tipo-recorrente').checked = true;
   atualizarCamposTipoContaPagar();
-  cpDatasParcelasEl.innerHTML = '';
+  contasPagarDatasParcelasElemento.innerHTML = '';
   await carregarContasPagar();
 });
 
 // ===================== FIADO =====================
 
-const fiTotalEl = document.getElementById('fi-total');
-const fiListEl = document.getElementById('fi-list');
-const fiForm = document.getElementById('fi-form');
-const fiErrorEl = document.getElementById('fi-form-error');
-const fiPessoaInput = document.getElementById('fi-pessoa');
-const fiPessoasDatalistEl = document.getElementById('fi-pessoas-datalist');
-const fiValorInput = document.getElementById('fi-valor');
-const fiDataInput = document.getElementById('fi-data');
-const fiDescricaoInput = document.getElementById('fi-descricao');
-const fiPagamentoForm = document.getElementById('fi-pagamento-form');
-const fiPagamentoErrorEl = document.getElementById('fi-pagamento-form-error');
-const fiPagamentoPessoaSelect = document.getElementById('fi-pagamento-pessoa');
-const fiPagamentoValorInput = document.getElementById('fi-pagamento-valor');
-const fiPagamentoDataInput = document.getElementById('fi-pagamento-data');
-const fiPagamentoDescricaoInput = document.getElementById('fi-pagamento-descricao');
-aplicarMascaraMoney(fiValorInput);
-aplicarMascaraMoney(fiPagamentoValorInput);
+const fiadoTotalElemento = document.getElementById('fiado-total');
+const fiadoListaPessoasElemento = document.getElementById('fiado-lista-pessoas');
+const fiadoVendaFormularioElemento = document.getElementById('fiado-venda-formulario');
+const fiadoVendaErroElemento = document.getElementById('fiado-venda-erro');
+const fiadoVendaPessoaCampo = document.getElementById('fiado-venda-pessoa');
+const fiadoPessoasDatalistElemento = document.getElementById('fiado-pessoas-datalist');
+const fiadoVendaValorCampo = document.getElementById('fiado-venda-valor');
+const fiadoVendaDataCampo = document.getElementById('fiado-venda-data');
+const fiadoVendaDescricaoCampo = document.getElementById('fiado-venda-descricao');
+const fiadoPagamentoFormularioElemento = document.getElementById('fiado-pagamento-formulario');
+const fiadoPagamentoErroElemento = document.getElementById('fiado-pagamento-erro');
+const fiadoPagamentoPessoaSeletorElemento = document.getElementById('fiado-pagamento-pessoa');
+const fiadoPagamentoValorCampo = document.getElementById('fiado-pagamento-valor');
+const fiadoPagamentoDataCampo = document.getElementById('fiado-pagamento-data');
+const fiadoPagamentoDescricaoCampo = document.getElementById('fiado-pagamento-descricao');
+aplicarMascaraMoney(fiadoVendaValorCampo);
+aplicarMascaraMoney(fiadoPagamentoValorCampo);
 
 async function carregarFiado() {
-  fiDataInput.value = fiDataInput.value || hojeISO();
-  fiPagamentoDataInput.value = fiPagamentoDataInput.value || hojeISO();
+  fiadoVendaDataCampo.value = fiadoVendaDataCampo.value || hojeISO();
+  fiadoPagamentoDataCampo.value = fiadoPagamentoDataCampo.value || hojeISO();
 
   const { data: lancamentos, error } = await supabase
-    .from(FI_TABLE).select('*').order('data', { ascending: false }).order('created_at', { ascending: false });
+    .from(FIADO_TABELA).select('*').order('data', { ascending: false }).order('created_at', { ascending: false });
 
   if (error) {
-    fiListEl.innerHTML = `<li class="empty-state">Erro ao carregar fiado.</li>`;
+    fiadoListaPessoasElemento.innerHTML = `<li class="empty-state">Erro ao carregar fiado.</li>`;
     return;
   }
 
   const pessoas = nomesDistintosFiado(lancamentos);
-  fiPessoasDatalistEl.innerHTML = pessoas.map((nome) => `<option value="${nome}">`).join('');
+  fiadoPessoasDatalistElemento.innerHTML = pessoas.map((nome) => `<option value="${nome}">`).join('');
 
   if (pessoas.length === 0) {
-    fiListEl.innerHTML = `<li class="empty-state">Nenhum lançamento de fiado.</li>`;
-    fiTotalEl.textContent = formatMoney(0);
-    fiPagamentoPessoaSelect.innerHTML = `<option value="">Nenhuma pessoa cadastrada</option>`;
+    fiadoListaPessoasElemento.innerHTML = `<li class="empty-state">Nenhum lançamento de fiado.</li>`;
+    fiadoTotalElemento.textContent = formatMoney(0);
+    fiadoPagamentoPessoaSeletorElemento.innerHTML = `<option value="">Nenhuma pessoa cadastrada</option>`;
     return;
   }
 
@@ -2055,16 +2055,16 @@ async function carregarFiado() {
     return [chave, calcularSaldoFiado(lancamentosDaPessoa)];
   }));
 
-  const pessoaSelecionada = fiPagamentoPessoaSelect.value;
-  fiPagamentoPessoaSelect.innerHTML = `
+  const pessoaSelecionada = fiadoPagamentoPessoaSeletorElemento.value;
+  fiadoPagamentoPessoaSeletorElemento.innerHTML = `
     <option value="">Escolha a pessoa</option>
     ${pessoas.map((nome) => `<option value="${nome}">${nome} — ${rotuloSaldoFiado(saldosPorPessoa.get(chavePessoaFiado(nome)))}</option>`).join('')}
   `;
-  fiPagamentoPessoaSelect.value = pessoaSelecionada;
+  fiadoPagamentoPessoaSeletorElemento.value = pessoaSelecionada;
 
   let totalGeral = 0;
 
-  fiListEl.innerHTML = pessoas.map((nome) => {
+  fiadoListaPessoasElemento.innerHTML = pessoas.map((nome) => {
     const chave = chavePessoaFiado(nome);
     const lancamentosDaPessoa = lancamentos.filter((lancamento) => chavePessoaFiado(lancamento.pessoa_nome) === chave);
     const saldoPessoa = saldosPorPessoa.get(chave);
@@ -2083,7 +2083,7 @@ async function carregarFiado() {
             <span class="lancamento-data">${formatDataBR(lancamento.data)}</span>
           </div>
           <span class="lancamento-valor ${pagamento ? 'positivo' : 'negativo'}">${pagamento ? '− ' : ''}${formatMoney(lancamento.valor)}</span>
-          <button type="button" class="btn-icon fi-remover-lancamento-btn" data-id="${lancamento.id}" data-tipo="${lancamento.tipo}" aria-label="${rotuloRemover}" title="${rotuloRemover}">
+          <button type="button" class="botao-icone fiado-remover-lancamento-botao" data-id="${lancamento.id}" data-tipo="${lancamento.tipo}" aria-label="${rotuloRemover}" title="${rotuloRemover}">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -2095,9 +2095,9 @@ async function carregarFiado() {
 
     return `
       <li class="semana-grupo">
-        <details class="fi-pessoa-details">
-          <summary class="fi-pessoa-summary">
-            <span class="fi-pessoa-nome">${nome}</span>
+        <details class="fiado-pessoa-details">
+          <summary class="fiado-pessoa-summary">
+            <span class="fiado-pessoa-nome">${nome}</span>
             <span class="lancamento-valor ${saldoPessoa > 0 ? 'negativo' : 'positivo'}">${rotuloSaldoFiado(saldoPessoa)}</span>
           </summary>
           <ul class="lancamentos">${lancamentosHtml}</ul>
@@ -2106,13 +2106,13 @@ async function carregarFiado() {
     `;
   }).join('');
 
-  fiTotalEl.textContent = formatMoney(round2(totalGeral));
+  fiadoTotalElemento.textContent = formatMoney(round2(totalGeral));
 }
 
-fiListEl.addEventListener('click', async (e) => {
-  const removerBtn = e.target.closest('.fi-remover-lancamento-btn');
-  if (removerBtn) {
-    const { error } = await supabase.from(FI_TABLE).delete().eq('id', removerBtn.dataset.id);
+fiadoListaPessoasElemento.addEventListener('click', async (e) => {
+  const removerBotao = e.target.closest('.fiado-remover-lancamento-botao');
+  if (removerBotao) {
+    const { error } = await supabase.from(FIADO_TABELA).delete().eq('id', removerBotao.dataset.id);
     if (error) {
       alert('Erro ao remover o lançamento. Tente novamente.');
       return;
@@ -2121,34 +2121,34 @@ fiListEl.addEventListener('click', async (e) => {
   }
 });
 
-bloquearDuranteSubmit(fiForm, async (e) => {
+bloquearDuranteSubmit(fiadoVendaFormularioElemento, async (e) => {
   e.preventDefault();
-  fiErrorEl.hidden = true;
+  fiadoVendaErroElemento.hidden = true;
 
-  const nomePessoa = fiPessoaInput.value.trim();
-  const valor = parseMoney(fiValorInput.value);
-  const data = fiDataInput.value;
-  const descricao = fiDescricaoInput.value.trim();
+  const nomePessoa = fiadoVendaPessoaCampo.value.trim();
+  const valor = parseMoney(fiadoVendaValorCampo.value);
+  const data = fiadoVendaDataCampo.value;
+  const descricao = fiadoVendaDescricaoCampo.value.trim();
 
   if (!nomePessoa) {
-    fiErrorEl.textContent = 'Informe o nome da pessoa.';
-    fiErrorEl.hidden = false;
+    fiadoVendaErroElemento.textContent = 'Informe o nome da pessoa.';
+    fiadoVendaErroElemento.hidden = false;
     return;
   }
 
   if (!valor || valor <= 0) {
-    fiErrorEl.textContent = 'Informe um valor válido.';
-    fiErrorEl.hidden = false;
+    fiadoVendaErroElemento.textContent = 'Informe um valor válido.';
+    fiadoVendaErroElemento.hidden = false;
     return;
   }
 
   const { data: nomesExistentes, error: errBusca } = await supabase
-    .from(FI_TABLE)
+    .from(FIADO_TABELA)
     .select('pessoa_nome');
 
   if (errBusca) {
-    fiErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-    fiErrorEl.hidden = false;
+    fiadoVendaErroElemento.textContent = 'Erro ao salvar. Tente novamente.';
+    fiadoVendaErroElemento.hidden = false;
     return;
   }
 
@@ -2156,7 +2156,7 @@ bloquearDuranteSubmit(fiForm, async (e) => {
     return chavePessoaFiado(lancamento.pessoa_nome) === chavePessoaFiado(nomePessoa);
   })?.pessoa_nome;
 
-  const { error } = await supabase.from(FI_TABLE).insert({
+  const { error } = await supabase.from(FIADO_TABELA).insert({
     tipo: 'venda',
     pessoa_nome: pessoaNomeExistente || nomePessoa,
     valor,
@@ -2165,38 +2165,38 @@ bloquearDuranteSubmit(fiForm, async (e) => {
   });
 
   if (error) {
-    fiErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-    fiErrorEl.hidden = false;
+    fiadoVendaErroElemento.textContent = 'Erro ao salvar. Tente novamente.';
+    fiadoVendaErroElemento.hidden = false;
     return;
   }
 
-  fiForm.reset();
-  fiDataInput.value = hojeISO();
+  fiadoVendaFormularioElemento.reset();
+  fiadoVendaDataCampo.value = hojeISO();
   await carregarFiado();
 });
 
-bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
+bloquearDuranteSubmit(fiadoPagamentoFormularioElemento, async (e) => {
   e.preventDefault();
-  fiPagamentoErrorEl.hidden = true;
+  fiadoPagamentoErroElemento.hidden = true;
 
-  const pessoaNome = fiPagamentoPessoaSelect.value;
-  const valor = parseMoney(fiPagamentoValorInput.value);
-  const data = fiPagamentoDataInput.value;
-  const descricao = fiPagamentoDescricaoInput.value.trim() || 'Pagamento';
+  const pessoaNome = fiadoPagamentoPessoaSeletorElemento.value;
+  const valor = parseMoney(fiadoPagamentoValorCampo.value);
+  const data = fiadoPagamentoDataCampo.value;
+  const descricao = fiadoPagamentoDescricaoCampo.value.trim() || 'Pagamento';
 
   if (!pessoaNome) {
-    fiPagamentoErrorEl.textContent = 'Escolha a pessoa que realizou o pagamento.';
-    fiPagamentoErrorEl.hidden = false;
+    fiadoPagamentoErroElemento.textContent = 'Escolha a pessoa que realizou o pagamento.';
+    fiadoPagamentoErroElemento.hidden = false;
     return;
   }
 
   if (!valor || valor <= 0) {
-    fiPagamentoErrorEl.textContent = 'Informe um valor válido.';
-    fiPagamentoErrorEl.hidden = false;
+    fiadoPagamentoErroElemento.textContent = 'Informe um valor válido.';
+    fiadoPagamentoErroElemento.hidden = false;
     return;
   }
 
-  const { error } = await supabase.from(FI_TABLE).insert({
+  const { error } = await supabase.from(FIADO_TABELA).insert({
     tipo: 'pagamento',
     pessoa_nome: pessoaNome,
     valor,
@@ -2205,14 +2205,14 @@ bloquearDuranteSubmit(fiPagamentoForm, async (e) => {
   });
 
   if (error) {
-    fiPagamentoErrorEl.textContent = 'Erro ao salvar. Tente novamente.';
-    fiPagamentoErrorEl.hidden = false;
+    fiadoPagamentoErroElemento.textContent = 'Erro ao salvar. Tente novamente.';
+    fiadoPagamentoErroElemento.hidden = false;
     return;
   }
 
-  fiPagamentoForm.reset();
-  fiPagamentoDataInput.value = hojeISO();
-  fiPagamentoDescricaoInput.value = 'Pagamento';
+  fiadoPagamentoFormularioElemento.reset();
+  fiadoPagamentoDataCampo.value = hojeISO();
+  fiadoPagamentoDescricaoCampo.value = 'Pagamento';
   await carregarFiado();
 });
 
@@ -2314,7 +2314,7 @@ function executarTestes() {
     igualJson(alvoExclusaoLancamento(ROBERTA_TABLE, {
       id: 'r1', conta_pagar_id: 'c1', data_ocorrencia: '2026-10-10',
     }), {
-      tabela: CP_PAGAMENTOS_TABLE,
+      tabela: CONTAS_PAGAR_PAGAMENTOS_TABELA,
       filtros: { conta_id: 'c1', data: '2026-10-10' },
       vinculado: true,
     });
@@ -2338,17 +2338,17 @@ function executarTestes() {
     igual(totalAtrasadasNoResumoSemanal(ocorrencias, '2026-10-06'), 182.93);
   });
   teste('Exclusão — lançamento vinculado desfaz o pagamento da conta', () => {
-    igualJson(alvoExclusaoLancamento(SAL_TABLE, {
+    igualJson(alvoExclusaoLancamento(SALARIO_TABELA, {
       id: 's1', conta_pagar_id: 'c1', data_ocorrencia: '2026-10-06',
     }), {
-      tabela: CP_PAGAMENTOS_TABLE,
+      tabela: CONTAS_PAGAR_PAGAMENTOS_TABELA,
       filtros: { conta_id: 'c1', data: '2026-10-06' },
       vinculado: true,
     });
   });
   teste('Exclusão — lançamento manual apaga somente sua própria linha', () => {
-    igualJson(alvoExclusaoLancamento(CC_TABLE, { id: 'cx1' }), {
-      tabela: CC_TABLE, filtros: { id: 'cx1' }, vinculado: false,
+    igualJson(alvoExclusaoLancamento(CAIXA_CASA_TABELA, { id: 'cx1' }), {
+      tabela: CAIXA_CASA_TABELA, filtros: { id: 'cx1' }, vinculado: false,
     });
   });
   teste('Caixa — saldo após aluguel nunca fica negativo', () => igual(calcularSaldoAposAluguel(300, 500), 0));
@@ -2440,11 +2440,11 @@ function executarTestes() {
     igual(textoResumoSelecaoContasPagar([{ nome: 'Luz', valor: 100 }, { nome: 'Água', valor: 20 }]), `2 itens — ${formatMoney(120)}`);
   });
   teste('Contas a Pagar — sair limpa a seleção visual', () => {
-    cpOcorrenciasSelecionadas.set('c1|2026-09-28', { nome: 'Luz', valor: 10 });
-    cpSelecaoBarEl.hidden = false;
+    contasPagarOcorrenciasSelecionadas.set('c1|2026-09-28', { nome: 'Luz', valor: 10 });
+    contasPagarSelecaoBarraElemento.hidden = false;
     limparSelecaoContasPagar();
-    igual(cpOcorrenciasSelecionadas.size, 0);
-    igual(cpSelecaoBarEl.hidden, true);
+    igual(contasPagarOcorrenciasSelecionadas.size, 0);
+    igual(contasPagarSelecaoBarraElemento.hidden, true);
   });
   teste('Salário — avisa dias sem venda, exceto domingo, até ontem', () => {
     igualJson(datasSemVendaEmDiasUteis([
@@ -2491,13 +2491,13 @@ function executarTestes() {
     igual(round2(calcularValoresParcelas(10, 6, 'dividir').reduce((soma, valor) => soma + valor, 0)), 10);
   });
   teste('Parcelas — seletor de quantidade reaparece ao escolher Parcelado após salvar', () => {
-    document.getElementById('cp-tipo-recorrente').checked = true;
+    document.getElementById('contas-pagar-tipo-recorrente').checked = true;
     atualizarCamposTipoContaPagar();
-    document.getElementById('cp-tipo-parcelado').checked = true;
+    document.getElementById('contas-pagar-tipo-parcelado').checked = true;
     atualizarCamposTipoContaPagar();
-    igual(cpCampoParcelasEl.hidden, false);
-    igual(cpQtdeParcelasInput.hidden, false);
-    document.getElementById('cp-tipo-recorrente').checked = true;
+    igual(contasPagarCampoParcelasElemento.hidden, false);
+    igual(contasPagarQuantidadeParcelasCampo.hidden, false);
+    document.getElementById('contas-pagar-tipo-recorrente').checked = true;
     atualizarCamposTipoContaPagar();
   });
 
@@ -2525,15 +2525,15 @@ function executarTestes() {
     igual(abrirGrupoPorPadrao([{ paga: true }, { paga: false }]), true);
   });
   teste('Ocorrências — preserva o estado escolhido por semana e Empréstimo', () => {
-    cpListEl.innerHTML = '<li><details class="cp-grupo-details" data-grupo="2026-9-1" open><summary>Semana 1</summary></details></li>'
-      + '<li><details class="cp-grupo-details" data-grupo="2026-9-2"><summary>Semana 2</summary></details></li>'
-      + '<li><details class="cp-grupo-details" data-grupo="emprestimo" open><summary>Empréstimo</summary></details></li>';
-    cpListEl.querySelectorAll('.cp-grupo-details > summary').forEach((summary) => summary.click());
-    igual(cpGruposAlteradosManualmente.get('2026-9-1'), false);
-    igual(cpGruposAlteradosManualmente.get('2026-9-2'), true);
-    igual(cpGruposAlteradosManualmente.get('emprestimo'), false);
-    cpGruposAlteradosManualmente.clear();
-    cpListEl.innerHTML = '';
+    contasPagarListaOcorrenciasElemento.innerHTML = '<li><details class="contas-pagar-grupo-details" data-grupo="2026-9-1" open><summary>Semana 1</summary></details></li>'
+      + '<li><details class="contas-pagar-grupo-details" data-grupo="2026-9-2"><summary>Semana 2</summary></details></li>'
+      + '<li><details class="contas-pagar-grupo-details" data-grupo="emprestimo" open><summary>Empréstimo</summary></details></li>';
+    contasPagarListaOcorrenciasElemento.querySelectorAll('.contas-pagar-grupo-details > summary').forEach((summary) => summary.click());
+    igual(contasPagarGruposAlteradosManualmente.get('2026-9-1'), false);
+    igual(contasPagarGruposAlteradosManualmente.get('2026-9-2'), true);
+    igual(contasPagarGruposAlteradosManualmente.get('emprestimo'), false);
+    contasPagarGruposAlteradosManualmente.clear();
+    contasPagarListaOcorrenciasElemento.innerHTML = '';
   });
 
   teste('Recorrência — respeita início, último dia e data-limite', () => {
@@ -2576,19 +2576,19 @@ function executarTestes() {
     igual(document.querySelectorAll('button[data-nav="home"] svg').length, 4);
   });
   teste('Interface — card do Caixa possui os dois saldos', () => {
-    igual(Boolean(document.getElementById('cc-saldo') && document.getElementById('cc-saldo-total')), true);
+    igual(Boolean(document.getElementById('caixa-casa-saldo-apos-aluguel') && document.getElementById('caixa-casa-saldo-total')), true);
   });
   teste('Interface — Caixa não possui mais duplicação explícita no Salário', () => {
-    igual(Boolean(document.getElementById('cc-duplicar-salario')), false);
+    igual(Boolean(document.getElementById('caixa-casa-duplicar-salario')), false);
   });
   teste('Interface — descrição de Contas a Pagar é obrigatória', () => {
-    igual(document.getElementById('cp-descricao').required, true);
+    igual(document.getElementById('contas-pagar-descricao').required, true);
   });
   teste('Interface — mobile inicia no formulário de Pagamento do Salário', () => {
     igual(telaInicialAposLogin(true), 'salario');
     igual(telaInicialAposLogin(false), 'home');
     selecionarAbaSalario('pagamento');
-    igual(document.getElementById('sal-pagamento-form').classList.contains('tab-panel-active'), true);
+    igual(document.getElementById('salario-pagamento-formulario').classList.contains('aba-painel-ativo'), true);
     selecionarAbaSalario('venda');
   });
   teste('Salário — venda esquecida de R$ 0 marca o dia como loja fechada', () => {
@@ -2608,11 +2608,11 @@ function executarTestes() {
     igual(formatarValorCampo(87), '87,00');
   });
   teste('Salário — Pagar tudo some com saldo zerado ou negativo', () => {
-    igual(salPagarTudoEl.hidden || salarioSaldoAtual <= 0, true);
+    igual(salarioPagarTudoElemento.hidden || salarioSaldoAtual <= 0, true);
   });
   teste('Interface — pagamento do Salário tem botão Pagar tudo e descrição padrão Pagamento', () => {
-    igual(document.getElementById('sal-pagar-tudo').type, 'button');
-    igual(document.getElementById('sal-pagamento-descricao').defaultValue, 'Pagamento');
+    igual(document.getElementById('salario-pagar-tudo').type, 'button');
+    igual(document.getElementById('salario-pagamento-descricao').defaultValue, 'Pagamento');
     igual(DESCRICAO_PADRAO_PAGAMENTO_SALARIO, 'Pagamento');
   });
   teste('Interface — CNPJ aparece no início do mobile e no topo do desktop', () => {
@@ -2631,34 +2631,34 @@ function executarTestes() {
     });
   });
   teste('Interface — janela de valor do app aplica máscara ao digitar', () => {
-    const input = document.getElementById('valor-dialog-input');
+    const input = document.getElementById('valor-janela-campo');
     input.value = '156386';
     input.dispatchEvent(new Event('input'));
     igual(input.value, '1.563,86');
     input.value = '';
   });
   teste('Interface — Contas a Pagar não tem mais a opção de conta pessoal', () => {
-    igual(Boolean(document.getElementById('cp-pessoal')), false);
+    igual(Boolean(document.getElementById('contas-pagar-pessoal')), false);
   });
   teste('Interface — Fiado permite escolher sugestão ou digitar nome novo', () => {
-    const pessoa = document.getElementById('fi-pessoa');
-    igual(pessoa.getAttribute('list'), 'fi-pessoas-datalist');
-    igual(Boolean(document.getElementById('fi-pessoas-datalist')), true);
+    const pessoa = document.getElementById('fiado-venda-pessoa');
+    igual(pessoa.getAttribute('list'), 'fiado-pessoas-datalist');
+    igual(Boolean(document.getElementById('fiado-pessoas-datalist')), true);
     igual(pessoa.type, 'text');
     igual(pessoa.readOnly, false);
   });
   teste('Interface — Cartão de Crédito fica visível mesmo sem movimentos', () => {
     const fixture = document.createElement('ul');
     fixture.innerHTML = renderizarCartaoCredito([], 0);
-    igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-btn[data-tipo="divida"]') !== null, true);
-    igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-btn[data-tipo="abatimento"]').disabled, true);
+    igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-botao[data-tipo="divida"]') !== null, true);
+    igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-botao[data-tipo="abatimento"]').disabled, true);
     fixture.remove();
   });
   teste('Interface — Roberta fica visível mesmo sem movimentos', () => {
     const fixture = document.createElement('ul');
     fixture.innerHTML = renderizarRoberta([], 0);
-    igual(fixture.querySelector('.roberta-grupo .divida-movimento-btn[data-tipo="divida"]') !== null, true);
-    igual(fixture.querySelector('.roberta-grupo .divida-movimento-btn[data-tipo="abatimento"]').disabled, true);
+    igual(fixture.querySelector('.roberta-grupo .divida-movimento-botao[data-tipo="divida"]') !== null, true);
+    igual(fixture.querySelector('.roberta-grupo .divida-movimento-botao[data-tipo="abatimento"]').disabled, true);
     fixture.remove();
   });
   teste('Interface — dívida vinculada da Roberta mostra a conta paga', () => {
@@ -2668,38 +2668,38 @@ function executarTestes() {
       conta_pagar_id: 'c1', data_ocorrencia: '2026-10-10',
     }], 120);
     igual(fixture.textContent.includes('Dívida adicionada · Internet'), true);
-    igual(fixture.querySelector('.cartao-excluir-btn').dataset.contaId, 'c1');
+    igual(fixture.querySelector('.cartao-excluir-botao').dataset.contaId, 'c1');
     fixture.remove();
   });
   teste('Interface — janela de pagamento tem aviso para valor acima da conta', () => {
-    igual(document.getElementById('cp-pagamento-aviso').hidden, true);
+    igual(document.getElementById('contas-pagar-pagamento-aviso').hidden, true);
   });
   teste('Interface — ocorrência informa o tipo da conta para atualizar o valor certo', () => {
     igual(carregarContasPagar.toString().includes('data-tipo="${conta.tipo}" data-aluguel='), true);
   });
   teste('Interface — pagamento de conta oferece as três origens do dinheiro', () => {
-    const origens = [...document.querySelectorAll('#cp-pagamento input[name="cp-pagamento-origem"]')]
+    const origens = [...document.querySelectorAll('#contas-pagar-pagamento-janela input[name="contas-pagar-pagamento-origem"]')]
       .map((input) => input.value);
     igualJson(origens, ['proprio', 'caixa', 'roberta']);
   });
   teste('Interface — Empréstimo fica visível mesmo sem movimentos', () => {
     const fixture = document.createElement('ul');
     fixture.innerHTML = renderizarEmprestimo([], 0);
-    igual(fixture.querySelector('.emprestimo-grupo .divida-valor-atual-btn') !== null, true);
-    igual(fixture.querySelector('.emprestimo-grupo .divida-movimento-btn'), null);
+    igual(fixture.querySelector('.emprestimo-grupo .divida-valor-atual-botao') !== null, true);
+    igual(fixture.querySelector('.emprestimo-grupo .divida-movimento-botao'), null);
     fixture.remove();
   });
   teste('Interface — aviso de venda esquecida possui data automática e valor', () => {
-    igual(Boolean(document.getElementById('sal-aviso-dias-sem-venda-data')
-      && document.getElementById('sal-aviso-dias-sem-venda-valor')), true);
+    igual(Boolean(document.getElementById('salario-aviso-dias-sem-venda-data')
+      && document.getElementById('salario-aviso-dias-sem-venda-valor')), true);
   });
   teste('Interface — Caixa e Salário possuem ação para excluir lançamentos', () => {
     const fixture = document.createElement('div');
-    fixture.innerHTML = '<button class="cc-excluir-lancamento"></button><button class="sal-excluir-lancamento"></button>';
-    igual(fixture.querySelectorAll('.cc-excluir-lancamento, .sal-excluir-lancamento').length, 2);
+    fixture.innerHTML = '<button class="caixa-casa-excluir-lancamento"></button><button class="salario-excluir-lancamento"></button>';
+    igual(fixture.querySelectorAll('.caixa-casa-excluir-lancamento, .salario-excluir-lancamento').length, 2);
   });
   teste('Interface — seleção de Contas a Pagar possui barra e ação de limpar', () => {
-    igual(Boolean(document.getElementById('cp-selecao-bar') && document.getElementById('cp-selecao-limpar')), true);
+    igual(Boolean(document.getElementById('contas-pagar-selecao-barra') && document.getElementById('contas-pagar-selecao-limpar')), true);
   });
   teste('Interface — PWA declara manifesto para instalação', () => {
     igual(Boolean(document.querySelector('link[rel="manifest"][href="./manifest.webmanifest"]')), true);

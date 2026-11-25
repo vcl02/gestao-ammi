@@ -45,18 +45,30 @@ explicitamente abstrações prematuras.
 - Três linhas parecidas são melhores que uma abstração prematura
 - Escopo fechado: implemente o que foi pedido, não o que talvez venha depois
 
-### Tudo em três arquivos
+### Organização em arquivos
 
-Não crie arquivos JS/CSS novos para separar módulos — o usuário pediu explicitamente para manter tudo junto.
-A separação é por blocos comentados dentro do `app.js`, no formato
-`// ===================== CAIXA CASA =====================`.
+Hoje a aplicação vive em `index.html`, `style.css` e `app.js`, separada por
+blocos comentados (ex.: `// ===================== CAIXA CASA =====================`).
+Não há mais regra de manter só esses três arquivos: o usuário pode decidir
+dividi-los quando for oportuno. Mesmo assim, **não crie arquivos novos por
+conta própria** — proponha a divisão e espere a decisão. Se novos arquivos
+passarem a ser servidos, inclua-os no cache do `sw.js`.
 
-#### Exceção: arquivos mínimos da PWA
+#### Arquivos de suporte da PWA
 
-A instalação pelo Chrome também depende de `manifest.webmanifest`, `sw.js` e
-dos ícones `pwa-icon-192.png` e `pwa-icon-512.png`. São arquivos de suporte da
-PWA, não módulos novos da aplicação. Mantenha o service worker restrito ao
+A instalação pelo Chrome depende de `manifest.webmanifest`, `sw.js` e
+dos ícones `pwa-icon-192.png` e `pwa-icon-512.png`. Mantenha o service worker restrito ao
 cache da interface: nunca coloque respostas, credenciais ou dados do Supabase no cache.
+
+### Nomes por extenso e HTML semântico
+
+Ids, classes, variáveis e funções novos usam nomes por extenso, sem abreviações,
+com o módulo como prefixo (`caixa-casa-`, `salario-`, `contas-pagar-`, `fiado-`;
+em JS, `caixaCasa`, `salario`, `contasPagar`, `fiado`). Sufixos: `-formulario`,
+`-erro`, `-botao`, `-lista-…`; em JS, `Elemento` para nós do DOM e `Campo` para
+inputs. Cada painel do `index.html` é uma `<section>` com `aria-label`, dividida
+por comentários de subseção na mesma ordem (cabeçalho, saldo, formulário, lista).
+Ícones repetidos ficam como `<symbol>` no topo do `<body>` e entram com `<use>`.
 
 ### Comentários sucintos em funções novas
 

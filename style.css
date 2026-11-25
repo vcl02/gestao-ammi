@@ -63,7 +63,7 @@ body {
   justify-content: flex-end;
 }
 
-.btn-link {
+.botao-link {
   background: none;
   border: none;
   color: var(--primary);
@@ -73,7 +73,7 @@ body {
   padding: 4px 0;
 }
 
-.btn-icon {
+.botao-icone {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -86,19 +86,19 @@ body {
   transition: opacity 0.15s ease;
 }
 
-.btn-icon:hover {
+.botao-icone:hover {
   opacity: 0.75;
 }
 
-.btn-icon-neutro {
+.botao-icone-neutro {
   color: var(--text-muted);
 }
 
-.btn-inicio {
+.botao-inicio {
   color: var(--primary);
 }
 
-.btn-aporte {
+.botao-aporte {
   flex-shrink: 0;
   color: var(--primary-dark);
   font-size: 22px;
@@ -106,7 +106,7 @@ body {
   line-height: 16px;
 }
 
-.btn-abater {
+.botao-abater {
   flex-shrink: 0;
   color: var(--success);
   font-size: 24px;
@@ -114,7 +114,7 @@ body {
   line-height: 16px;
 }
 
-.btn-abater:disabled {
+.botao-abater:disabled {
   color: var(--text-muted);
   cursor: not-allowed;
   opacity: 0.45;
@@ -126,12 +126,12 @@ body {
   margin-bottom: 24px;
 }
 
-.modal-aviso .cp-pagamento-aviso {
+.modal-aviso .contas-pagar-pagamento-aviso {
   font-size: 13px;
   color: var(--text);
 }
 
-.cp-pagamento-origens {
+.contas-pagar-pagamento-origens {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -140,14 +140,14 @@ body {
   border: none;
 }
 
-.cp-pagamento-origens legend {
+.contas-pagar-pagamento-origens legend {
   margin-bottom: 4px;
   padding: 0;
   font-size: 13px;
   color: var(--text-muted);
 }
 
-.cp-pagamento-origens label {
+.contas-pagar-pagamento-origens label {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -157,7 +157,7 @@ body {
   cursor: pointer;
 }
 
-.cp-pagamento-origens input {
+.contas-pagar-pagamento-origens input {
   width: 18px;
   height: 18px;
   margin: 0;
@@ -239,7 +239,7 @@ label {
   margin: 14px 0 4px;
 }
 
-.sr-only {
+.somente-leitor-de-tela {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -323,7 +323,7 @@ button[type="submit"]:disabled {
   text-align: center;
 }
 
-.req {
+.campo-obrigatorio {
   color: var(--danger);
   font-weight: normal;
 }
@@ -414,7 +414,7 @@ button[type="submit"]:disabled {
   order: 2;
 }
 
-#cp-label-semana-atual {
+#contas-pagar-rotulo-semana-atual {
   color: var(--text);
 }
 
@@ -446,7 +446,7 @@ button[type="submit"]:disabled {
   margin-bottom: 4px;
 }
 
-.tabs-switch {
+.abas-alternador {
   margin-bottom: 16px;
 }
 
@@ -522,12 +522,12 @@ button[type="submit"]:disabled {
 }
 
 /* Tab panels sobrepostos: altura travada no maior dos dois */
-.tab-panels {
+.abas-paineis {
   display: grid;
   grid-template-rows: 1fr;
 }
 
-.tab-panels .tab-panel {
+.abas-paineis .aba-painel {
   grid-area: 1 / 1;
   min-height: 0;
   overflow-y: auto;
@@ -536,7 +536,7 @@ button[type="submit"]:disabled {
   pointer-events: none;
 }
 
-.tab-panels .tab-panel.tab-panel-active {
+.abas-paineis .aba-painel.aba-painel-ativo {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
@@ -634,16 +634,16 @@ button[type="submit"]:disabled {
   min-width: 0;
 }
 
-.list .cp-grupo-details:not([open]) .semana-grupo-titulo {
+.list .contas-pagar-grupo-details:not([open]) .semana-grupo-titulo {
   margin-bottom: 0;
 }
 
-.list .cp-grupo-details .semana-grupo-titulo::before {
+.list .contas-pagar-grupo-details .semana-grupo-titulo::before {
   transform: none;
   flex-shrink: 0;
 }
 
-.list .cp-grupo-details[open] .semana-grupo-titulo::before {
+.list .contas-pagar-grupo-details[open] .semana-grupo-titulo::before {
   transform: rotate(90deg);
 }
 
@@ -681,13 +681,13 @@ button[type="submit"]:disabled {
   box-shadow: var(--shadow);
 }
 
-.fi-pessoa-details {
+.fiado-pessoa-details {
   background: var(--card-bg);
   border-radius: 10px;
   box-shadow: var(--shadow);
 }
 
-.fi-pessoa-summary {
+.fiado-pessoa-summary {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -696,11 +696,11 @@ button[type="submit"]:disabled {
   list-style: none;
 }
 
-.fi-pessoa-summary::-webkit-details-marker {
+.fiado-pessoa-summary::-webkit-details-marker {
   display: none;
 }
 
-.fi-pessoa-nome {
+.fiado-pessoa-nome {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -710,11 +710,11 @@ button[type="submit"]:disabled {
   color: var(--text);
 }
 
-.fi-pessoa-details .lancamentos {
+.fiado-pessoa-details .lancamentos {
   padding: 0 14px 12px;
 }
 
-.fi-pessoa-details[open] .fi-pessoa-summary {
+.fiado-pessoa-details[open] .fiado-pessoa-summary {
   padding-bottom: 8px;
 }
 
@@ -782,7 +782,7 @@ button[type="submit"]:disabled {
   color: var(--text);
 }
 
-.cp-selecionar-btn {
+.contas-pagar-selecionar-botao {
   display: inline;
   padding: 0;
   color: var(--text);
@@ -794,15 +794,15 @@ button[type="submit"]:disabled {
   cursor: pointer;
 }
 
-.cp-selecionar-btn:hover {
+.contas-pagar-selecionar-botao:hover {
   color: var(--primary-dark);
 }
 
-.cp-ocorrencia-selecionada {
+.contas-pagar-ocorrencia-selecionada {
   outline: 1px solid var(--primary);
 }
 
-.cp-selecao-bar {
+.contas-pagar-selecao-barra {
   position: fixed;
   right: 16px;
   bottom: 16px;
@@ -821,7 +821,7 @@ button[type="submit"]:disabled {
   font-weight: 600;
 }
 
-.cp-selecao-bar button {
+.contas-pagar-selecao-barra button {
   width: auto;
   margin: 0;
   padding: 7px 10px;
@@ -834,12 +834,12 @@ button[type="submit"]:disabled {
   cursor: pointer;
 }
 
-.cp-selecao-bar button:hover {
+.contas-pagar-selecao-barra button:hover {
   background: var(--primary-dark);
 }
 
 @media (max-width: 899px) {
-  .cp-selecao-bar {
+  .contas-pagar-selecao-barra {
     right: 16px;
     bottom: 16px;
     left: 16px;
@@ -942,7 +942,7 @@ button[type="submit"]:disabled {
   gap: 12px;
 }
 
-.rotulo-com-acao .btn-link {
+.rotulo-com-acao .botao-link {
   padding: 0;
   font-size: 13px;
 }
@@ -1015,10 +1015,10 @@ button[type="submit"]:disabled {
   }
 
   /* Só o filho direto do painel ocupa a linha 4 do subgrid. Os forms dentro
-     de .tab-panels são .card também e herdariam o grid-row, caindo numa linha
-     implícita do próprio .tab-panels em vez de preencherem o card. */
+     de .abas-paineis são .card também e herdariam o grid-row, caindo numa linha
+     implícita do próprio .abas-paineis em vez de preencherem o card. */
   .desktop-grid .panel > .card,
-  .desktop-grid .panel > .tab-panels {
+  .desktop-grid .panel > .abas-paineis {
     grid-row: 4;
   }
 
@@ -1033,7 +1033,7 @@ button[type="submit"]:disabled {
     margin-top: auto;
   }
 
-  .desktop-grid .panel .tab-panels {
+  .desktop-grid .panel .abas-paineis {
     align-self: stretch;
     height: 100%;
   }
@@ -1043,4 +1043,13 @@ button[type="submit"]:disabled {
     grid-row: 5;
     margin-top: 0;
   }
+}
+
+/* Ícones reutilizáveis (<symbol> no topo do index.html): traço herda a cor do texto. */
+.icone {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
