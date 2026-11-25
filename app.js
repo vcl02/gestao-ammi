@@ -333,7 +333,7 @@ function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, 
           </svg>
         </button>
       </li>`;
-  }).join('') || '<li class="empty-state">Nenhum movimento registrado.</li>';
+  }).join('') || '<li class="estado-vazio">Nenhum movimento registrado.</li>';
 
   const botoes = valorAtualUnico
     ? `<button type="button" class="botao-icone botao-icone-neutro divida-valor-atual-botao" data-tabela="${tabela}" data-nome="${titulo}" aria-label="Atualizar valor atual do ${titulo}" title="Atualizar valor atual">
@@ -504,7 +504,7 @@ const views = {
   testes: document.getElementById('view-testes'),
 };
 
-const desktopGridEl = document.getElementById('desktop-grid');
+const gradeDesktopElemento = document.getElementById('grade-desktop');
 
 function selecionarAbaSalario(aba) {
   document.getElementById(`salario-aba-${aba}`).checked = true;
@@ -529,7 +529,7 @@ function showView(name) {
   });
 
   const logado = name !== 'login' && name !== 'testes';
-  desktopGridEl.hidden = !logado;
+  gradeDesktopElemento.hidden = !logado;
   if (!logado) limparSelecaoContasPagar();
 
   if (name === 'caixa-casa' || name === 'home') carregarCaixaCasa();
@@ -559,25 +559,25 @@ supabase.auth.onAuthStateChange((_event, session) => {
   if (!session && !modoTestes) showView('login');
 });
 
-const loginForm = document.getElementById('login-form');
-const loginErrorEl = document.getElementById('login-error');
+const loginFormulario = document.getElementById('login-formulario');
+const loginErroElemento = document.getElementById('login-erro');
 
-bloquearDuranteSubmit(loginForm, async (e) => {
+bloquearDuranteSubmit(loginFormulario, async (e) => {
   e.preventDefault();
-  loginErrorEl.hidden = true;
+  loginErroElemento.hidden = true;
 
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-senha').value;
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    loginErrorEl.textContent = 'E-mail ou senha inválidos.';
-    loginErrorEl.hidden = false;
+    loginErroElemento.textContent = 'E-mail ou senha inválidos.';
+    loginErroElemento.hidden = false;
     return;
   }
 
-  loginForm.reset();
+  loginFormulario.reset();
   abrirTelaInicialAposLogin();
 });
 
@@ -646,7 +646,7 @@ async function carregarCaixaCasa() {
   ]);
 
   if (error || errContas || errEx || errParc || errPag || errAjustes) {
-    caixaCasaListaLancamentosElemento.innerHTML = `<li class="empty-state">Erro ao carregar lançamentos.</li>`;
+    caixaCasaListaLancamentosElemento.innerHTML = `<li class="estado-vazio">Erro ao carregar lançamentos.</li>`;
     return;
   }
 
@@ -655,10 +655,10 @@ async function carregarCaixaCasa() {
   const saldoAposAluguel = calcularSaldoAposAluguel(saldo, aluguelAberto?.valor);
   caixaCasaSaldoAposAluguelElemento.textContent = formatMoney(saldoAposAluguel);
   caixaCasaSaldoTotalElemento.textContent = formatMoney(saldo);
-  caixaCasaSaldoTotalElemento.classList.toggle('negative', saldo < 0);
+  caixaCasaSaldoTotalElemento.classList.toggle('negativo', saldo < 0);
 
   if (data.length === 0) {
-    caixaCasaListaLancamentosElemento.innerHTML = `<li class="empty-state">Nenhum lançamento ainda.</li>`;
+    caixaCasaListaLancamentosElemento.innerHTML = `<li class="estado-vazio">Nenhum lançamento ainda.</li>`;
     return;
   }
 
@@ -797,7 +797,7 @@ salarioPagarTudoElemento.addEventListener('click', () => {
 document.querySelectorAll('.aba-botao').forEach((botao) => {
   botao.addEventListener('click', () => {
     const abaEscolhida = botao.dataset.aba;
-    botao.closest('.panel').querySelectorAll('.aba-painel').forEach((painel) => {
+    botao.closest('.painel').querySelectorAll('.aba-painel').forEach((painel) => {
       painel.classList.toggle('aba-painel-ativo', painel.dataset.abaPainel === abaEscolhida);
     });
   });
@@ -925,7 +925,7 @@ async function carregarSalario() {
   ]);
 
   if (error || erroSaldo) {
-    salarioListaLancamentosElemento.innerHTML = `<li class="empty-state">Erro ao carregar lançamentos.</li>`;
+    salarioListaLancamentosElemento.innerHTML = `<li class="estado-vazio">Erro ao carregar lançamentos.</li>`;
     return;
   }
 
@@ -934,7 +934,7 @@ async function carregarSalario() {
   salarioSaldoAtual = saldo;
   salarioPagarTudoElemento.hidden = saldo <= 0;
   salarioSaldoElemento.textContent = formatMoney(saldo);
-  salarioSaldoElemento.classList.toggle('negative', saldo < 0);
+  salarioSaldoElemento.classList.toggle('negativo', saldo < 0);
 
   const { data: vendasHistoricas, error: erroVendasHistoricas } = await supabase
     .from(SALARIO_TABELA)
@@ -945,7 +945,7 @@ async function carregarSalario() {
   if (!erroVendasHistoricas) mostrarAvisoDiasSemVenda(vendasHistoricas);
 
   if (data.length === 0) {
-    salarioListaLancamentosElemento.innerHTML = `<li class="empty-state">Nenhum lançamento ainda.</li>`;
+    salarioListaLancamentosElemento.innerHTML = `<li class="estado-vazio">Nenhum lançamento ainda.</li>`;
     return;
   }
 
@@ -1447,7 +1447,7 @@ async function carregarContasPagar() {
   ]);
 
   if (errContas || errEx || errParc || errPag || errAjustes || errCaixa || errEmprestimo || errCartao || errRoberta) {
-    contasPagarListaOcorrenciasElemento.innerHTML = `<li class="empty-state">${errEmprestimo ? 'Aplique a migration 012 para habilitar o Empréstimo.' : errCartao ? 'Aplique a migration 010 para habilitar o Cartão de Crédito.' : errRoberta ? 'Aplique a migration 014 para habilitar o Dinheiro Roberta.' : 'Erro ao carregar contas a pagar.'}</li>`;
+    contasPagarListaOcorrenciasElemento.innerHTML = `<li class="estado-vazio">${errEmprestimo ? 'Aplique a migration 012 para habilitar o Empréstimo.' : errCartao ? 'Aplique a migration 010 para habilitar o Cartão de Crédito.' : errRoberta ? 'Aplique a migration 014 para habilitar o Dinheiro Roberta.' : 'Erro ao carregar contas a pagar.'}</li>`;
     contasPagarListaContasCadastradasElemento.innerHTML = '';
     return;
   }
@@ -1466,11 +1466,11 @@ async function carregarContasPagar() {
   const saldoAposAluguel = calcularSaldoAposAluguel(saldoCaixa, aluguelAbertoCaixa?.valor);
   caixaCasaSaldoAposAluguelElemento.textContent = formatMoney(saldoAposAluguel);
   caixaCasaSaldoTotalElemento.textContent = formatMoney(saldoCaixa);
-  caixaCasaSaldoTotalElemento.classList.toggle('negative', saldoCaixa < 0);
+  caixaCasaSaldoTotalElemento.classList.toggle('negativo', saldoCaixa < 0);
 
   if (contas.length === 0) {
-    contasPagarListaOcorrenciasElemento.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + '<li class="empty-state">Nenhuma conta cadastrada.</li>';
-    contasPagarListaContasCadastradasElemento.innerHTML = `<li class="empty-state">Nenhuma conta cadastrada.</li>`;
+    contasPagarListaOcorrenciasElemento.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + '<li class="estado-vazio">Nenhuma conta cadastrada.</li>';
+    contasPagarListaContasCadastradasElemento.innerHTML = `<li class="estado-vazio">Nenhuma conta cadastrada.</li>`;
     contasPagarTotalMesPagoElemento.textContent = formatMoney(0);
     contasPagarTotalMesGeralElemento.textContent = formatMoney(0);
     contasPagarTotalSemanaAtualElemento.textContent = formatMoney(0);
@@ -2035,7 +2035,7 @@ async function carregarFiado() {
     .from(FIADO_TABELA).select('*').order('data', { ascending: false }).order('created_at', { ascending: false });
 
   if (error) {
-    fiadoListaPessoasElemento.innerHTML = `<li class="empty-state">Erro ao carregar fiado.</li>`;
+    fiadoListaPessoasElemento.innerHTML = `<li class="estado-vazio">Erro ao carregar fiado.</li>`;
     return;
   }
 
@@ -2043,7 +2043,7 @@ async function carregarFiado() {
   fiadoPessoasDatalistElemento.innerHTML = pessoas.map((nome) => `<option value="${nome}">`).join('');
 
   if (pessoas.length === 0) {
-    fiadoListaPessoasElemento.innerHTML = `<li class="empty-state">Nenhum lançamento de fiado.</li>`;
+    fiadoListaPessoasElemento.innerHTML = `<li class="estado-vazio">Nenhum lançamento de fiado.</li>`;
     fiadoTotalElemento.textContent = formatMoney(0);
     fiadoPagamentoPessoaSeletorElemento.innerHTML = `<option value="">Nenhuma pessoa cadastrada</option>`;
     return;
@@ -2071,7 +2071,7 @@ async function carregarFiado() {
     totalGeral += saldoPessoa;
 
     const lancamentosHtml = lancamentosDaPessoa.length === 0
-      ? `<li class="empty-state">Nenhum lançamento ainda.</li>`
+      ? `<li class="estado-vazio">Nenhum lançamento ainda.</li>`
       : lancamentosDaPessoa.map((lancamento) => {
         const pagamento = lancamento.tipo === 'pagamento';
         const descricao = lancamento.descricao || (pagamento ? 'Pagamento' : 'Sem descrição');
@@ -2617,7 +2617,7 @@ function executarTestes() {
   });
   teste('Interface — CNPJ aparece no início do mobile e no topo do desktop', () => {
     igual(document.querySelector('#view-home .empresa-cnpj').textContent, 'CNPJ 47.154.673/0001-60');
-    igual(document.querySelector('#desktop-grid > .desktop-empresa').textContent, 'CNPJ 47.154.673/0001-60');
+    igual(document.querySelector('#grade-desktop > .desktop-empresa').textContent, 'CNPJ 47.154.673/0001-60');
   });
   teste('Valores — janela de valor aceita zero só quando permitido', () => {
     igual(valorInformadoValido(0, true), true);

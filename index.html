@@ -31,48 +31,48 @@
   </svg>
 
   <!-- ===================== LOGIN ===================== -->
-  <main id="view-login" class="page page-center view">
-    <form id="login-form" class="card">
-      <div class="login-brand">
+  <main id="view-login" class="pagina pagina-centralizada">
+    <form id="login-formulario" class="bloco">
+      <div class="login-marca">
         <img src="pwa-icon-192.png" alt="Ammi" class="login-logo">
         <h1>Gestão Ammi</h1>
       </div>
 
-      <label for="email" class="somente-leitor-de-tela">E-mail</label>
-      <input type="email" id="email" placeholder="E-mail" required autocomplete="username">
+      <label for="login-email" class="somente-leitor-de-tela">E-mail</label>
+      <input type="email" id="login-email" placeholder="E-mail" required autocomplete="username">
 
-      <label for="password" class="somente-leitor-de-tela">Senha</label>
-      <input type="password" id="password" placeholder="Senha" required autocomplete="current-password">
+      <label for="login-senha" class="somente-leitor-de-tela">Senha</label>
+      <input type="password" id="login-senha" placeholder="Senha" required autocomplete="current-password">
 
       <button type="submit">Entrar</button>
-      <p id="login-error" class="error" hidden></p>
+      <p id="login-erro" class="erro" hidden></p>
     </form>
   </main>
 
   <!-- ===================== HOME (mobile) ===================== -->
-  <main id="view-home" class="page view" hidden>
-    <header class="topbar topbar-end">
+  <main id="view-home" class="pagina" hidden>
+    <header class="barra-topo barra-topo-fim">
       <button id="botao-sair" class="botao-icone" aria-label="Sair" title="Sair">
         <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-sair"></use></svg>
       </button>
     </header>
 
     <nav class="menu">
-      <button class="menu-card" data-nav="caixa-casa">
-        <span class="menu-title">Caixa Casa</span>
-        <span class="menu-sub">Dinheiro guardado em casa</span>
+      <button class="menu-opcao" data-nav="caixa-casa">
+        <span class="menu-titulo">Caixa Casa</span>
+        <span class="menu-subtitulo">Dinheiro guardado em casa</span>
       </button>
-      <button class="menu-card" data-nav="salario">
-        <span class="menu-title">Salário</span>
-        <span class="menu-sub">Comissão e retiradas</span>
+      <button class="menu-opcao" data-nav="salario">
+        <span class="menu-titulo">Salário</span>
+        <span class="menu-subtitulo">Comissão e retiradas</span>
       </button>
-      <button class="menu-card" data-nav="contas-pagar">
-        <span class="menu-title">Contas a Pagar</span>
-        <span class="menu-sub">Mensal ou parcelado</span>
+      <button class="menu-opcao" data-nav="contas-pagar">
+        <span class="menu-titulo">Contas a Pagar</span>
+        <span class="menu-subtitulo">Mensal ou parcelado</span>
       </button>
-      <button class="menu-card" data-nav="fiado">
-        <span class="menu-title">Fiado</span>
-        <span class="menu-sub">Vendas e pagamentos por pessoa</span>
+      <button class="menu-opcao" data-nav="fiado">
+        <span class="menu-titulo">Fiado</span>
+        <span class="menu-subtitulo">Vendas e pagamentos por pessoa</span>
       </button>
     </nav>
 
@@ -80,11 +80,11 @@
   </main>
 
   <!-- ===================== DESKTOP: as duas lado a lado =====================
-       Mobile e desktop compartilham este mesmo HTML. No mobile, #desktop-grid usa
+       Mobile e desktop compartilham este mesmo HTML. No mobile, #grade-desktop usa
        `display: contents` (style.css) e some do layout; acima de 900px vira grid de
        4 colunas. Cuidado ao mexer: já causou tela em branco no mobile. -->
 
-  <div id="desktop-grid" class="desktop-grid" hidden>
+  <div id="grade-desktop" class="grade-desktop" hidden>
     <button id="botao-sair-desktop" class="botao-icone desktop-logout" aria-label="Sair" title="Sair">
       <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-sair"></use></svg>
     </button>
@@ -93,42 +93,42 @@
 
     <!-- ===================== CAIXA CASA =====================
          Dinheiro retirado do caixa da loja e guardado em casa. -->
-    <section id="view-caixa-casa" class="page view panel" aria-label="Caixa Casa" hidden>
+    <section id="view-caixa-casa" class="pagina painel" aria-label="Caixa Casa" hidden>
 
       <!-- Cabeçalho: botão de voltar ao início (mobile) e título -->
-      <header class="topbar">
+      <header class="barra-topo">
         <button class="botao-icone botao-inicio" data-nav="home" aria-label="Início" title="Início">
           <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-inicio"></use></svg>
         </button>
         <h1>Caixa Casa</h1>
       </header>
-      <h2 class="panel-title">Caixa Casa</h2>
+      <h2 class="painel-titulo">Caixa Casa</h2>
 
       <!-- Saldos: principal (após abater o aluguel) e total no caixa -->
-      <section class="balance-box">
-        <div class="balance-semanas">
-          <span class="balance-semana-item">
-            <span id="caixa-casa-saldo-apos-aluguel" class="balance-value">R$ 0,00</span>
-            <span class="balance-label">Após aluguel</span>
+      <section class="saldo-bloco">
+        <div class="saldo-semanas">
+          <span class="saldo-semana-item">
+            <span id="caixa-casa-saldo-apos-aluguel" class="saldo-valor">R$ 0,00</span>
+            <span class="saldo-rotulo">Após aluguel</span>
           </span>
-          <span class="balance-semana-item">
-            <span id="caixa-casa-saldo-total" class="balance-value-secundario">R$ 0,00</span>
-            <span class="balance-label">Total no caixa</span>
+          <span class="saldo-semana-item">
+            <span id="caixa-casa-saldo-total" class="saldo-valor-secundario">R$ 0,00</span>
+            <span class="saldo-rotulo">Total no caixa</span>
           </span>
         </div>
       </section>
 
       <!-- Tipo do lançamento: entrada ou saída -->
-      <div class="switch-toggle">
+      <div class="alternador">
         <input type="radio" name="caixa-casa-tipo" id="caixa-casa-tipo-entrada" value="entrada" checked>
         <label for="caixa-casa-tipo-entrada">Entrada</label>
         <input type="radio" name="caixa-casa-tipo" id="caixa-casa-tipo-saida" value="saida">
         <label for="caixa-casa-tipo-saida">Saída</label>
-        <span class="switch-thumb"></span>
+        <span class="alternador-indicador"></span>
       </div>
 
       <!-- Formulário de novo lançamento -->
-      <form id="caixa-casa-formulario" class="card">
+      <form id="caixa-casa-formulario" class="bloco">
         <label for="caixa-casa-valor">Valor</label>
         <input type="text" id="caixa-casa-valor" inputmode="decimal" placeholder="0,00" required>
 
@@ -139,11 +139,11 @@
         <input type="text" id="caixa-casa-descricao" placeholder="Aluguel">
 
         <button type="submit">Salvar</button>
-        <p id="caixa-casa-formulario-erro" class="error" hidden></p>
+        <p id="caixa-casa-formulario-erro" class="erro" hidden></p>
       </form>
 
       <!-- Histórico dos últimos lançamentos -->
-      <details class="list">
+      <details class="lista">
         <summary>Últimos lançamentos</summary>
         <ul id="caixa-casa-lista-lancamentos" class="lancamentos"></ul>
       </details>
@@ -151,36 +151,36 @@
 
     <!-- ===================== SALÁRIO =====================
          Remuneração da gerente: comissão sobre vendas menos os pagamentos feitos a ela. -->
-    <section id="view-salario" class="page view panel" aria-label="Salário" hidden>
+    <section id="view-salario" class="pagina painel" aria-label="Salário" hidden>
 
       <!-- Cabeçalho: botão de voltar ao início (mobile) e título -->
-      <header class="topbar">
+      <header class="barra-topo">
         <button class="botao-icone botao-inicio" data-nav="home" aria-label="Início" title="Início">
           <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-inicio"></use></svg>
         </button>
         <h1>Salário</h1>
       </header>
-      <h2 class="panel-title">Salário</h2>
+      <h2 class="painel-titulo">Salário</h2>
       <!-- Saldo: quanto ainda é devido à gerente -->
 
-      <section class="balance-box">
-        <span class="balance-label">Saldo da conta</span>
-        <span id="salario-saldo" class="balance-value">R$ 0,00</span>
+      <section class="saldo-bloco">
+        <span class="saldo-rotulo">Saldo da conta</span>
+        <span id="salario-saldo" class="saldo-valor">R$ 0,00</span>
       </section>
 
       <!-- Escolha da aba: venda ou pagamento -->
-      <div class="switch-toggle abas-alternador">
+      <div class="alternador alternador-abas">
         <input type="radio" name="salario-aba" id="salario-aba-venda" checked>
         <label for="salario-aba-venda" class="aba-botao" data-aba="venda">Vendas Hoje</label>
         <input type="radio" name="salario-aba" id="salario-aba-pagamento">
         <label for="salario-aba-pagamento" class="aba-botao" data-aba="pagamento">Pagamento</label>
-        <span class="switch-thumb"></span>
+        <span class="alternador-indicador"></span>
       </div>
 
       <!-- Formulários, um por aba; só o da aba escolhida fica visível -->
       <div class="abas-paineis">
         <!-- Aba Vendas Hoje: o valor vendido gera a comissão -->
-        <form id="salario-venda-formulario" class="card aba-painel aba-painel-ativo" data-aba-painel="venda">
+        <form id="salario-venda-formulario" class="bloco aba-painel aba-painel-ativo" data-aba-painel="venda">
           <label for="salario-venda-valor">Valor</label>
           <input type="text" id="salario-venda-valor" inputmode="decimal" placeholder="0,00" required>
 
@@ -191,11 +191,11 @@
           <input type="text" id="salario-venda-descricao" placeholder="Vendas do dia">
 
           <button type="submit" id="salario-venda-salvar">Salvar</button>
-          <p id="salario-venda-erro" class="error" hidden></p>
+          <p id="salario-venda-erro" class="erro" hidden></p>
         </form>
 
         <!-- Aba Pagamento: dinheiro entregue à gerente, que abate o saldo devido -->
-        <form id="salario-pagamento-formulario" class="card aba-painel" data-aba-painel="pagamento">
+        <form id="salario-pagamento-formulario" class="bloco aba-painel" data-aba-painel="pagamento">
           <div class="rotulo-com-acao">
             <label for="salario-pagamento-valor">Valor</label>
             <button type="button" id="salario-pagar-tudo" class="botao-link">Pagar tudo</button>
@@ -209,12 +209,12 @@
           <input type="text" id="salario-pagamento-descricao" value="Pagamento" required>
 
           <button type="submit">Salvar</button>
-          <p id="salario-pagamento-erro" class="error" hidden></p>
+          <p id="salario-pagamento-erro" class="erro" hidden></p>
         </form>
       </div>
 
       <!-- Histórico dos últimos lançamentos (vendas e pagamentos) -->
-      <details class="list">
+      <details class="lista">
         <summary>Últimos lançamentos</summary>
         <ul id="salario-lista-lancamentos" class="lancamentos"></ul>
       </details>
@@ -222,53 +222,53 @@
 
     <!-- ===================== CONTAS A PAGAR =====================
          Contas futuras: mensais (regra que se repete) ou parceladas (datas escolhidas). -->
-    <section id="view-contas-pagar" class="page view panel" aria-label="Contas a Pagar" hidden>
+    <section id="view-contas-pagar" class="pagina painel" aria-label="Contas a Pagar" hidden>
 
       <!-- Cabeçalho: botão de voltar ao início (mobile) e título -->
-      <header class="topbar">
+      <header class="barra-topo">
         <button class="botao-icone botao-inicio" data-nav="home" aria-label="Início" title="Início">
           <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-inicio"></use></svg>
         </button>
         <h1>Contas a Pagar</h1>
       </header>
-      <h2 class="panel-title">Contas a Pagar</h2>
+      <h2 class="painel-titulo">Contas a Pagar</h2>
 
       <!-- Resumo: pago no mês e pendências da semana atual e da próxima -->
-      <section class="balance-box">
-        <span class="balance-subtitulo"><span id="contas-pagar-total-mes-pago" class="balance-subtitulo-destaque">R$ 0,00</span>
-          <span class="balance-subtitulo-destaque">pago de</span> <span id="contas-pagar-total-mes-geral">R$ 0,00</span> no
+      <section class="saldo-bloco">
+        <span class="saldo-subtitulo"><span id="contas-pagar-total-mes-pago" class="saldo-subtitulo-destaque">R$ 0,00</span>
+          <span class="saldo-subtitulo-destaque">pago de</span> <span id="contas-pagar-total-mes-geral">R$ 0,00</span> no
           mês</span>
-        <div class="balance-semanas">
-          <span class="balance-semana-item">
-            <span id="contas-pagar-total-semana-atual" class="balance-value">R$ 0,00</span>
-            <span id="contas-pagar-rotulo-semana-atual" class="balance-label">Esta semana</span>
+        <div class="saldo-semanas">
+          <span class="saldo-semana-item">
+            <span id="contas-pagar-total-semana-atual" class="saldo-valor">R$ 0,00</span>
+            <span id="contas-pagar-rotulo-semana-atual" class="saldo-rotulo saldo-rotulo-destaque">Esta semana</span>
           </span>
-          <span class="balance-semana-item">
-            <span id="contas-pagar-total-proxima-semana" class="balance-value-secundario">R$ 0,00</span>
-            <span id="contas-pagar-rotulo-proxima-semana" class="balance-label">Próxima semana</span>
+          <span class="saldo-semana-item">
+            <span id="contas-pagar-total-proxima-semana" class="saldo-valor-secundario">R$ 0,00</span>
+            <span id="contas-pagar-rotulo-proxima-semana" class="saldo-rotulo">Próxima semana</span>
           </span>
         </div>
       </section>
 
       <!-- Tipo da conta: mensal (recorrente) ou parcelada -->
-      <div class="switch-toggle">
+      <div class="alternador">
         <input type="radio" name="contas-pagar-tipo" id="contas-pagar-tipo-recorrente" value="recorrente" checked>
         <label for="contas-pagar-tipo-recorrente">Mensal</label>
         <input type="radio" name="contas-pagar-tipo" id="contas-pagar-tipo-parcelado" value="parcelado">
         <label for="contas-pagar-tipo-parcelado">Parcelado</label>
-        <span class="switch-thumb"></span>
+        <span class="alternador-indicador"></span>
       </div>
 
       <!-- Formulário de nova conta -->
-      <form id="contas-pagar-formulario" class="card">
-        <div class="label-com-switch">
+      <form id="contas-pagar-formulario" class="bloco">
+        <div class="rotulo-com-alternador">
           <label for="contas-pagar-valor">Valor</label>
-          <div id="contas-pagar-valor-modo" class="switch-toggle switch-toggle-mini" hidden>
+          <div id="contas-pagar-valor-modo" class="alternador alternador-mini" hidden>
             <input type="radio" name="contas-pagar-valor-modo" id="contas-pagar-valor-modo-repetir" value="repetir" checked>
             <label for="contas-pagar-valor-modo-repetir">Repetir</label>
             <input type="radio" name="contas-pagar-valor-modo" id="contas-pagar-valor-modo-dividir" value="dividir">
             <label for="contas-pagar-valor-modo-dividir">Dividir</label>
-            <span class="switch-thumb"></span>
+            <span class="alternador-indicador"></span>
           </div>
         </div>
         <input type="text" id="contas-pagar-valor" inputmode="decimal" placeholder="0,00" required>
@@ -291,17 +291,17 @@
         <input type="text" id="contas-pagar-descricao" placeholder="Luz" required>
 
         <button type="submit">Salvar</button>
-        <p id="contas-pagar-formulario-erro" class="error" hidden></p>
+        <p id="contas-pagar-formulario-erro" class="erro" hidden></p>
       </form>
 
       <!-- Listas: ocorrências (por semana) e contas cadastradas -->
-      <div class="list-group">
-        <details class="list">
+      <div class="lista-grupo">
+        <details class="lista">
           <summary>Ocorrências</summary>
           <ul id="contas-pagar-lista-ocorrencias" class="lancamentos"></ul>
         </details>
 
-        <details class="list">
+        <details class="lista">
           <summary>Contas cadastradas</summary>
           <ul id="contas-pagar-lista-contas-cadastradas" class="lancamentos"></ul>
         </details>
@@ -310,36 +310,36 @@
 
     <!-- ===================== FIADO =====================
          Vendas fiadas e pagamentos por pessoa, sem ligação com os outros módulos. -->
-    <section id="view-fiado" class="page view panel" aria-label="Fiado" hidden>
+    <section id="view-fiado" class="pagina painel" aria-label="Fiado" hidden>
 
       <!-- Cabeçalho: botão de voltar ao início (mobile) e título -->
-      <header class="topbar">
+      <header class="barra-topo">
         <button class="botao-icone botao-inicio" data-nav="home" aria-label="Início" title="Início">
           <svg class="icone" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#icone-inicio"></use></svg>
         </button>
         <h1>Fiado</h1>
       </header>
-      <h2 class="panel-title">Fiado</h2>
+      <h2 class="painel-titulo">Fiado</h2>
 
       <!-- Total fiado: saldo líquido de todas as pessoas -->
-      <section class="balance-box">
-        <span class="balance-label">Total fiado</span>
-        <span id="fiado-total" class="balance-value">R$ 0,00</span>
+      <section class="saldo-bloco">
+        <span class="saldo-rotulo">Total fiado</span>
+        <span id="fiado-total" class="saldo-valor">R$ 0,00</span>
       </section>
 
       <!-- Escolha da aba: venda ou pagamento -->
-      <div class="switch-toggle abas-alternador">
+      <div class="alternador alternador-abas">
         <input type="radio" name="fiado-aba" id="fiado-aba-venda" checked>
         <label for="fiado-aba-venda" class="aba-botao" data-aba="venda">Venda</label>
         <input type="radio" name="fiado-aba" id="fiado-aba-pagamento">
         <label for="fiado-aba-pagamento" class="aba-botao" data-aba="pagamento">Pagamento</label>
-        <span class="switch-thumb"></span>
+        <span class="alternador-indicador"></span>
       </div>
 
       <!-- Formulários, um por aba; só o da aba escolhida fica visível -->
       <div class="abas-paineis">
         <!-- Aba Venda: aumenta a dívida; o nome novo passa a existir na primeira venda -->
-        <form id="fiado-venda-formulario" class="card aba-painel aba-painel-ativo" data-aba-painel="venda">
+        <form id="fiado-venda-formulario" class="bloco aba-painel aba-painel-ativo" data-aba-painel="venda">
           <label for="fiado-venda-valor">Valor</label>
           <input type="text" id="fiado-venda-valor" inputmode="decimal" placeholder="0,00" required>
 
@@ -354,11 +354,11 @@
             autocomplete="off">
 
           <button type="submit">Salvar</button>
-          <p id="fiado-venda-erro" class="error" hidden></p>
+          <p id="fiado-venda-erro" class="erro" hidden></p>
         </form>
 
         <!-- Aba Pagamento: abate a dívida de uma pessoa já existente -->
-        <form id="fiado-pagamento-formulario" class="card aba-painel" data-aba-painel="pagamento">
+        <form id="fiado-pagamento-formulario" class="bloco aba-painel" data-aba-painel="pagamento">
           <label for="fiado-pagamento-valor">Valor</label>
           <input type="text" id="fiado-pagamento-valor" inputmode="decimal" placeholder="0,00" required>
 
@@ -374,14 +374,14 @@
           </select>
 
           <button type="submit">Salvar</button>
-          <p id="fiado-pagamento-erro" class="error" hidden></p>
+          <p id="fiado-pagamento-erro" class="erro" hidden></p>
         </form>
       </div>
       <!-- Sugestões de nomes já usados, para o campo Pessoa da aba Venda -->
       <datalist id="fiado-pessoas-datalist"></datalist>
 
       <!-- Histórico por pessoa: saldo e lançamentos de cada uma -->
-      <details class="list">
+      <details class="lista">
         <summary>Pessoas</summary>
         <ul id="fiado-lista-pessoas" class="lancamentos"></ul>
       </details>
@@ -405,7 +405,7 @@
       <label for="salario-aviso-dias-sem-venda-valor">Valor vendido (0 se a loja não abriu)</label>
       <input type="text" id="salario-aviso-dias-sem-venda-valor" inputmode="decimal" placeholder="0,00" required>
       <button type="submit" id="salario-aviso-dias-sem-venda-salvar">Salvar</button>
-      <p id="salario-aviso-dias-sem-venda-erro" class="error" hidden></p>
+      <p id="salario-aviso-dias-sem-venda-erro" class="erro" hidden></p>
     </form>
   </dialog>
 
@@ -416,7 +416,7 @@
       <label for="valor-janela-campo" id="valor-janela-rotulo">Valor</label>
       <input type="text" id="valor-janela-campo" inputmode="decimal" placeholder="0,00">
       <button type="submit">Confirmar</button>
-      <p id="valor-janela-erro" class="error" hidden></p>
+      <p id="valor-janela-erro" class="erro" hidden></p>
     </form>
   </dialog>
 
@@ -437,12 +437,12 @@
         <label><input type="radio" name="contas-pagar-pagamento-origem" value="roberta"> Dinheiro Roberta</label>
       </fieldset>
       <button type="submit">Pagar</button>
-      <p id="contas-pagar-pagamento-erro" class="error" hidden></p>
+      <p id="contas-pagar-pagamento-erro" class="erro" hidden></p>
     </form>
   </dialog>
 
   <!-- ===================== TESTES DE REGRESSÃO (?testes=1) ===================== -->
-  <main id="view-testes" class="page view testes-page" hidden>
+  <main id="view-testes" class="pagina testes-pagina" hidden>
     <h1>Testes de regressão</h1>
     <p id="testes-resumo" class="testes-resumo">Executando…</p>
     <ul id="testes-lista" class="testes-lista"></ul>
