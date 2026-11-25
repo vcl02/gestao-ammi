@@ -76,7 +76,7 @@ rápido e prefere corrigir o rumo antes da implementação, não depois.
 
 Ajustes visuais pequenos — espaçamento, alinhamento, cor, troca de ícone,
 tamanho de fonte — e correções simples, pontuais e sem mudança de schema
-podem ser commitados e enviados para `victorcl68/gestao-ammi` **sem pedir
+podem ser commitados e enviados para `vcl02/gestao-ammi` **sem pedir
 confirmação**.
 
 ### Todo o resto: confirme antes do push
