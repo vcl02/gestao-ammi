@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-24 (janelas não rolam mais a página).
+Última revisão: 2026-11-24 (reorganização: sem mudança de regras).
 
 ---
 
@@ -17,18 +17,24 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 - [Módulo: Contas a Pagar](#módulo-contas-a-pagar)
   - [Conta Mensal (recorrente)](#conta-mensal-recorrente)
   - [Conta Parcelada](#conta-parcelada)
-  - [Cartão de Crédito](#cartão-de-crédito)
-  - [Roberta](#roberta)
   - [Seleção para soma](#seleção-para-soma)
   - [Pagamento de ocorrências](#pagamento-de-ocorrências)
   - [Pular ocorrência](#pular-ocorrência)
   - [Ajuste de valor](#ajuste-de-valor)
   - [Atrasadas](#atrasadas)
+  - [Abatimento do Caixa Casa no aluguel](#abatimento-do-caixa-casa-no-aluguel)
   - [Card do topo: esta semana e a próxima](#card-do-topo-esta-semana-e-a-próxima)
   - [Agrupamento por semana](#agrupamento-por-semana)
+- [Blocos independentes: Empréstimo, Cartão de Crédito e Roberta](#blocos-independentes-empréstimo-cartão-de-crédito-e-roberta)
+  - [Empréstimo](#empréstimo)
+  - [Cartão de Crédito](#cartão-de-crédito)
+  - [Roberta](#roberta)
 - [Módulo: Fiado](#módulo-fiado)
+- [Funcionalidades removidas](#funcionalidades-removidas)
 - [Regras transversais](#regras-transversais)
   - [Auditoria do banco](#auditoria-do-banco)
+  - [Edição e exclusão de lançamentos](#edição-e-exclusão-de-lançamentos)
+  - [Exclusão de conta é em cascata](#exclusão-de-conta-é-em-cascata)
 - [Testes de regressão](#testes-de-regressão)
 - [Comportamentos conhecidos e limitações](#comportamentos-conhecidos-e-limitações)
 
@@ -160,7 +166,7 @@ O formulário do Caixa Casa grava apenas no próprio Caixa. A antiga opção
 saldo = Σ(entradas) − Σ(saídas)
 ```
 
-Calculado **sobre os lançamentos carregados**, que são os 50 mais recentes
+Calculado **sobre os 50 lançamentos mais recentes**, não sobre o histórico todo
 (ver [Comportamentos conhecidos](#comportamentos-conhecidos-e-limitações)).
 
 Saldo negativo é exibido em vermelho. Não há bloqueio para saldo negativo —
@@ -314,116 +320,6 @@ São mutuamente exclusivos e o banco garante isso por constraint:
 | `data_inicio` | Data escolhida | Menor data entre as parcelas |
 | Datas das ocorrências | Calculadas da regra | Linhas em `contas_pagar_parcelas` |
 | Onde mora o valor | `contas_pagar.valor` | `contas_pagar_parcelas.valor` |
-
----
-
-### Contas pessoais (removidas)
-
-Existiu uma marcação **Conta pessoal**, com bloco próprio, pagamento automático
-no Salário e botão para somar valor. Ela foi removida em 2026-10-30 (migration
-016): as contas pessoais foram apagadas e a coluna `contas_pagar.pessoal` deixou
-de existir. Os lançamentos que os pagamentos dessas contas tinham criado no
-Salário e no Caixa Casa foram mantidos como lançamentos manuais, sem vínculo,
-para não alterar saldos. Toda conta agora é comum: fica nos grupos semanais,
-pode atrasar e entra nos cards do topo.
-
-As colunas de vínculo `conta_pagar_id`/`data_ocorrencia` de
-`salario_lancamentos` continuam no banco, sem uso pelo aplicativo.
-
----
-
-### Empréstimo
-
-O Empréstimo é independente de Contas a Pagar, igual ao Cartão de Crédito.
-Ele aparece sempre em um bloco próprio nas Ocorrências, antes do Cartão, sem
-vencimento, atraso, data de cadastro, cards semanais ou resumo mensal.
-
-Cada movimento fica em `emprestimo_lancamentos`, com valor sempre positivo e
-um tipo que define o sinal:
-
-| Tipo no banco | Efeito no saldo |
-|---|---|
-| `divida` | aumenta o saldo devedor |
-| `abatimento` | reduz o saldo devedor |
-
-```
-saldo do empréstimo = Σ(dívidas) − Σ(abatimentos)
-```
-
-**Diferente do Cartão de Crédito, o Empréstimo não pede o valor do
-movimento — pede o valor atual da dívida.** O único botão do bloco
-("Atualizar valor atual") sugere o saldo de hoje e pergunta qual é o valor
-atual do empréstimo. O app calcula a diferença entre o valor informado e o
-saldo anterior (`dadosAtualizacaoValorDivida`) e grava, sozinho, um único
-movimento equivalente:
-
-- valor informado **maior** que o saldo → grava `divida` com a diferença;
-- valor informado **menor** que o saldo → grava `abatimento` com a diferença;
-- valor informado **igual** ao saldo → nenhum movimento é gravado.
-
-Isso evita o usuário ter que calcular manualmente quanto pagou ou quanto
-contraiu a mais; ele só informa o total atual da dívida. Cada movimento
-gravado mostra data, tipo e valor no histórico, e pode ser excluído
-individualmente após confirmação — excluir não refaz o cálculo, só remove
-aquele lançamento do histórico. A conversão do modelo antigo preservou cada
-dívida e aporte como movimentos equivalentes.
-
----
-
-### Cartão de Crédito
-
-O Cartão de Crédito aparece **sempre** em um bloco próprio nas Ocorrências,
-logo após o Empréstimo. Ele é independente de Contas a Pagar: não possui
-vencimento, não atrasa, não entra nos cards semanais ou no resumo mensal e
-nasce com saldo `R$ 0,00`.
-
-Cada movimento é registrado em `cartao_credito_lancamentos`, com valor sempre
-positivo e um tipo que define o sinal:
-
-| Ação | Tipo no banco | Efeito no saldo |
-|---|---|---|
-| `+` Adicionar dívida | `divida` | aumenta o saldo devedor |
-| `−` Abater dívida | `abatimento` | reduz o saldo devedor |
-
-```
-saldo do cartão = Σ(dívidas) − Σ(abatimentos)
-```
-
-O botão `−` já traz o saldo atual como sugestão e limita o valor ao necessário
-para zerar; portanto o saldo nunca fica negativo pela interface. Cada
-movimento mostra data, tipo, valor e pode ser excluído individualmente após
-confirmação. Excluir recalcula o saldo; o histórico permanece auditado linha a
-linha como os demais lançamentos.
-
----
-
-### Roberta
-
-O bloco **Roberta** registra quanto se deve à Roberta por ter usado o
-dinheiro dela. Ele aparece **sempre** nas Ocorrências, logo após o Cartão de
-Crédito, e segue as mesmas regras de bloco do Cartão: sem vencimento, sem
-atraso, fora dos cards semanais e do resumo mensal, saldo inicial `R$ 0,00`.
-
-Cada movimento fica em `roberta_lancamentos`, com valor sempre positivo:
-
-| Origem | Tipo no banco | Efeito no saldo |
-|---|---|---|
-| Pagar uma conta com **Dinheiro Roberta** | `divida` vinculada | aumenta o saldo devedor |
-| `+` Adicionar dívida | `divida` manual | aumenta o saldo devedor |
-| `−` Abater dívida (quando você devolve) | `abatimento` | reduz o saldo devedor |
-
-```
-saldo da Roberta = Σ(dívidas) − Σ(abatimentos)
-```
-
-A dívida criada por um pagamento fica vinculada a `(conta_id, data)` da
-ocorrência, como as saídas automáticas do Caixa, e mostra a descrição da conta
-paga. Ela existe no máximo uma vez por ocorrência e guarda o acumulado pago
-com dinheiro da Roberta: dois pagamentos parciais de R$ 40 com esse dinheiro
-viram uma única dívida de R$ 80. Desmarcar a ocorrência apaga a dívida por
-cascata, e excluir essa dívida pela lixeira desmarca a ocorrência.
-
-O botão `−` sugere o saldo atual e limita o valor ao necessário para zerar.
 
 ---
 
@@ -673,9 +569,8 @@ semana. Se a mesma semana estiver em um dos dois números do card do topo, o
 card também usa o valor líquido. Quando o primeiro aluguel aberto pertence ao
 mês corrente, o resumo mensal também usa o valor líquido.
 
-O saldo do Caixa Casa usado no abatimento segue a regra atual do módulo: é
-calculado sobre os 50 lançamentos mais recentes. Nenhum lançamento é criado
-ou alterado automaticamente por esse abatimento.
+O saldo usado é o do Caixa Casa (50 lançamentos mais recentes). Nenhum
+lançamento é criado ou alterado automaticamente por esse abatimento.
 
 ### Card do topo: esta semana e a próxima
 
@@ -812,6 +707,108 @@ não pago — é o total do que está programado para aquela semana.
 
 ---
 
+## Blocos independentes: Empréstimo, Cartão de Crédito e Roberta
+
+Aparecem na tela de Contas a Pagar, dentro das Ocorrências, mas **não são
+contas**: não têm vencimento, não atrasam, não entram nos cards semanais nem no
+resumo mensal, e não dependem das regras de recorrência. Cada um tem a própria
+tabela de movimentos.
+
+### Empréstimo
+
+O Empréstimo é independente de Contas a Pagar, igual ao Cartão de Crédito.
+Ele aparece sempre em um bloco próprio nas Ocorrências, antes do Cartão, sem
+vencimento, atraso, data de cadastro, cards semanais ou resumo mensal.
+
+Cada movimento fica em `emprestimo_lancamentos`, com valor sempre positivo e
+um tipo que define o sinal:
+
+| Tipo no banco | Efeito no saldo |
+|---|---|
+| `divida` | aumenta o saldo devedor |
+| `abatimento` | reduz o saldo devedor |
+
+```
+saldo do empréstimo = Σ(dívidas) − Σ(abatimentos)
+```
+
+**Diferente do Cartão de Crédito, o Empréstimo não pede o valor do
+movimento — pede o valor atual da dívida.** O único botão do bloco
+("Atualizar valor atual") sugere o saldo de hoje e pergunta qual é o valor
+atual do empréstimo. O app calcula a diferença entre o valor informado e o
+saldo anterior (`dadosAtualizacaoValorDivida`) e grava, sozinho, um único
+movimento equivalente:
+
+- valor informado **maior** que o saldo → grava `divida` com a diferença;
+- valor informado **menor** que o saldo → grava `abatimento` com a diferença;
+- valor informado **igual** ao saldo → nenhum movimento é gravado.
+
+Isso evita o usuário ter que calcular manualmente quanto pagou ou quanto
+contraiu a mais; ele só informa o total atual da dívida. Cada movimento
+gravado mostra data, tipo e valor no histórico, e pode ser excluído
+individualmente após confirmação — excluir não refaz o cálculo, só remove
+aquele lançamento do histórico. A conversão do modelo antigo preservou cada
+dívida e aporte como movimentos equivalentes.
+
+---
+
+### Cartão de Crédito
+
+O Cartão de Crédito aparece **sempre** em um bloco próprio nas Ocorrências,
+logo após o Empréstimo. Ele é independente de Contas a Pagar: não possui
+vencimento, não atrasa, não entra nos cards semanais ou no resumo mensal e
+nasce com saldo `R$ 0,00`.
+
+Cada movimento é registrado em `cartao_credito_lancamentos`, com valor sempre
+positivo e um tipo que define o sinal:
+
+| Ação | Tipo no banco | Efeito no saldo |
+|---|---|---|
+| `+` Adicionar dívida | `divida` | aumenta o saldo devedor |
+| `−` Abater dívida | `abatimento` | reduz o saldo devedor |
+
+```
+saldo do cartão = Σ(dívidas) − Σ(abatimentos)
+```
+
+O botão `−` já traz o saldo atual como sugestão e limita o valor ao necessário
+para zerar; portanto o saldo nunca fica negativo pela interface. Cada
+movimento mostra data, tipo, valor e pode ser excluído individualmente após
+confirmação. Excluir recalcula o saldo; o histórico permanece auditado linha a
+linha como os demais lançamentos.
+
+---
+
+### Roberta
+
+O bloco **Roberta** registra quanto se deve à Roberta por ter usado o
+dinheiro dela. Ele aparece **sempre** nas Ocorrências, logo após o Cartão de
+Crédito, e segue as mesmas regras de bloco do Cartão: sem vencimento, sem
+atraso, fora dos cards semanais e do resumo mensal, saldo inicial `R$ 0,00`.
+
+Cada movimento fica em `roberta_lancamentos`, com valor sempre positivo:
+
+| Origem | Tipo no banco | Efeito no saldo |
+|---|---|---|
+| Pagar uma conta com **Dinheiro Roberta** | `divida` vinculada | aumenta o saldo devedor |
+| `+` Adicionar dívida | `divida` manual | aumenta o saldo devedor |
+| `−` Abater dívida (quando você devolve) | `abatimento` | reduz o saldo devedor |
+
+```
+saldo da Roberta = Σ(dívidas) − Σ(abatimentos)
+```
+
+A dívida criada por um pagamento fica vinculada a `(conta_id, data)` da
+ocorrência, como as saídas automáticas do Caixa, e mostra a descrição da conta
+paga. Ela existe no máximo uma vez por ocorrência e guarda o acumulado pago
+com dinheiro da Roberta: dois pagamentos parciais de R$ 40 com esse dinheiro
+viram uma única dívida de R$ 80. Desmarcar a ocorrência apaga a dívida por
+cascata, e excluir essa dívida pela lixeira desmarca a ocorrência.
+
+O botão `−` sugere o saldo atual e limita o valor ao necessário para zerar.
+
+---
+
 ## Módulo: Fiado
 
 Registro de vendas fiadas e pagamentos por pessoa. Existe para documentar
@@ -887,14 +884,26 @@ dívidas.
 
 ---
 
-## Calculadora de preço (removida)
+## Funcionalidades removidas
 
-Existiu uma calculadora de preço que usava o histórico de vendas, contas fixas
-e impostos para sugerir preços por faixa de lucro. Ela foi removida em
-2026-11-15, junto com o campo "Tipo de gasto" do cadastro de contas, que só
-servia para ela. Ficaram no banco, sem uso pelo aplicativo, a coluna
-`contas_pagar.categoria` (padrão `fixa`) e a tabela `calculadora_config`, ambas
-da migration 019.
+Registradas para ninguém estranhar o que sobrou no banco.
+
+### Contas pessoais (2026-10-30, migration 016)
+
+A marcação **Conta pessoal** (bloco próprio, pagamento automático no Salário e
+botão para somar valor) deixou de existir. As contas pessoais foram apagadas e a
+coluna `contas_pagar.pessoal` foi removida. Os lançamentos que os pagamentos
+delas tinham criado no Salário e no Caixa Casa foram mantidos como lançamentos
+manuais, sem vínculo, para não alterar saldos. Toda conta agora é comum. As
+colunas `conta_pagar_id`/`data_ocorrencia` de `salario_lancamentos` continuam no
+banco, sem uso.
+
+### Calculadora de preço (2026-11-15)
+
+Sugeria preços por faixa de lucro a partir do histórico de vendas, contas fixas
+e impostos. Saiu junto com o campo "Tipo de gasto" do cadastro de contas.
+Ficaram no banco, sem uso, a coluna `contas_pagar.categoria` (padrão `fixa`) e a
+tabela `calculadora_config` (migration 019).
 
 ---
 
@@ -967,40 +976,10 @@ https://endereco-da-aplicacao/?testes=1
 Esse modo não autentica, não consulta o Supabase e não altera dados. Ele exibe
 uma lista com cada caso aprovado ou reprovado.
 
-As verificações automatizadas cobrem as regras determinísticas mais sensíveis:
-
-- leitura e arredondamento de dinheiro;
-- saldo do Caixa, abatimento do aluguel, limite em zero e saída vinculada de
-  conta paga com seu dinheiro;
-- comissão e saldo do Salário, teto mensal da comissão, inclusive o payload de uma venda esquecida, o
-  valor preenchido pelo Pagar tudo, a descrição padrão `Pagamento` e a venda
-  esquecida de `R$ 0` marcando loja fechada;
-- limite, saldo restante e payload acumulado dos pagamentos parciais, com a
-  parte de cada origem (próprio, Caixa Casa e Roberta) e a validação do valor
-  digitado na janela de pagamento;
-- atualização do valor da ocorrência quando o pagamento passa do restante;
-- dívida vinculada da Roberta, sua exclusão desfazendo o pagamento e a
-  presença permanente do bloco Roberta;
-- ausência da opção de conta pessoal no cadastro e destino correto da
-  exclusão de lançamentos manuais ou vinculados;
-- saldo, limite de abatimento, payload e presença permanente de Empréstimo e Cartão de Crédito;
-- ocorrências pagas fora dos cards semanais;
-- soma de contas comuns atrasadas no primeiro card semanal;
-- saldo do Fiado, pagamento acima da dívida virando crédito e crédito abatido
-  pela próxima venda;
-- nomes distintos do Fiado, reaproveitamento de grafia e criação direta pela venda;
-- repetição, divisão, centavos, limite de 24 parcelas e reabertura do campo
-  de quantidade após salvar uma conta parcelada;
-- destino inicial no mobile para a aba Pagamento do Salário;
-- datas, meses sem dia 31 e ano bissexto;
-- semanas iniciadas no domingo e corte na virada do mês;
-- abertura inicial por pendência e preservação do estado das semanas e do
-  Empréstimo ao atualizar a lista;
-- recorrências, exdates e ocupação das três vagas futuras;
-- escolha exata do primeiro `Aluguel` aberto;
-- contratos essenciais do HTML, como os ícones de início e os dois saldos do
-  Caixa Casa, o formulário do aviso de venda, as três origens da janela de
-  pagamento e a declaração do manifesto PWA.
+Os casos cobrem as regras determinísticas (dinheiro, saldos, comissão e teto,
+pagamentos parciais, recorrência, semanas, Fiado, Empréstimo/Cartão/Roberta e
+contratos essenciais do HTML). A lista fica nos próprios casos em `app.js`;
+não é repetida aqui para não ficar desatualizada.
 
 Continuam manuais as verificações que dependem do banco ou de interação real:
 RLS, cascatas, constraints e triggers SQL, sessão de 9 horas, cadastro público
@@ -1030,10 +1009,9 @@ separar a lista limitada do cálculo completo, como já ocorre no Salário.
 
 ### Comissão e teto são fixos no código
 
-Alterar exige mudar `PERCENTUAL_COMISSAO` ou `TETO_COMISSAO_MES` e republicar. Lançamentos antigos
-mantêm a comissão já calculada — a mudança não é retroativa, o que é o
-comportamento correto, mas significa que o histórico pode ter percentuais
-mistos sem nenhuma indicação de qual foi usado.
+Alterar exige mudar `PERCENTUAL_COMISSAO` ou `TETO_COMISSAO_MES` e republicar.
+A mudança não é retroativa: o histórico pode ter percentuais mistos sem
+indicação de qual foi usado.
 
 ### Contas mensais não têm fim
 
@@ -1050,12 +1028,6 @@ que ser cadastrada como parcelada com muitas datas (limite de 24).
 
 O ajuste sobrescreve (upsert). Não fica registro do valor anterior nem de
 quando foi alterado.
-
-### Pular parcela é destrutivo
-
-Já mencionado acima, mas vale repetir por ser assimétrico com o
-comportamento de conta mensal: em conta parcelada não existe "exdate", a
-parcela é apagada de verdade.
 
 ### Ajustes órfãos
 
