@@ -1,13 +1,12 @@
 // Rede primeiro para receber manifest e interface atualizados; o cache é só
 // reserva para falta de conexão. Dados do Supabase nunca passam pelo worker.
-const CACHE_NAME = 'gestao-ammi-v3';
+const CACHE_NAME = 'gestao-ammi-v4';
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.webmanifest',
-  './ammi-logo.png',
   './pwa-icon-192.png',
   './pwa-icon-512.png',
 ];

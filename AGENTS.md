@@ -11,7 +11,7 @@ código, documentação e commits).
 - `index.html`, `style.css`, `app.js` — toda a aplicação (e a suíte de testes)
 - `REGRAS.md` — regras de negócio, fonte de verdade
 - `migrations/` — SQL do banco, numerado em sequência
-- `manifest.webmanifest`, `sw.js`, `pwa-icon-*.png`, `ammi-logo.png` — PWA e logo
+- `manifest.webmanifest`, `sw.js`, `pwa-icon-*.png` — PWA e logo (os ícones também são a logo da tela de login)
 
 ## Leia isto antes de mexer em qualquer lógica
 
