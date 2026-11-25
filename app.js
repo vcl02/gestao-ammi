@@ -31,6 +31,8 @@ const modoTestes = new URLSearchParams(window.location.search).has('testes');
 // ===================== HELPERS: dinheiro / data =====================
 
 // Converte texto tipo "1.234,56" ou "1234,56" ou "1234.56" em número.
+// Com vírgula, o ponto é milhar. Sem vírgula, ponto + 1 ou 2 dígitos é decimal
+// ("77.62" = 77,62); ponto + 3 dígitos é milhar ("1.234" = 1234).
 function parseMoney(text) {
   if (typeof text !== 'string') return NaN;
   const valor = text.trim();
@@ -460,7 +462,9 @@ function chaveSemanaSeguinte(isoDate) {
 
 // Agrupa ocorrências (já ordenadas por data) em blocos "Mês / Semana N".
 // Cada mês fecha suas próprias semanas — a última pode ter poucos dias
-// (ex: só 1-3 dias), e ainda assim aparece como bloco próprio.
+// (ex: só 1-3 dias), e ainda assim aparece como bloco próprio. Não existe
+// fusão da semana curta com a anterior: foi removida por decisão do usuário,
+// que prefere a semana curta separada a perder uma ocorrência de vista.
 function agruparPorSemana(ocorrencias) {
   const grupos = [];
   const chaveGrupo = (ano, mes, semana) => `${ano}-${mes}-${semana}`;
@@ -1316,6 +1320,9 @@ function ultimoDiaDoMes(ano, mesIndex) {
   return new Date(ano, mesIndex + 1, 0).getDate();
 }
 
+// Monta a data de uma ocorrência mensal. Só a ocorrência é reduzida ao último
+// dia do mês; o dia_vencimento da conta continua 31, então o mês seguinte
+// de 31 dias volta a cair no dia 31.
 function montarDataOcorrencia(ano, mesIndex, diaVencimento) {
   const dia = Math.min(diaVencimento, ultimoDiaDoMes(ano, mesIndex));
   const mm = String(mesIndex + 1).padStart(2, '0');

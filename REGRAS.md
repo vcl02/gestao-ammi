@@ -80,18 +80,14 @@ Contas a Pagar não cria lançamentos no Salário.
   e mostram o erro na própria janela; fechar (×, Esc) cancela sem gravar. Só o
   valor atual do Empréstimo aceita `0,00`. Todas as janelas do app ficam fixas
   e centralizadas na tela visível: abrir ou fechar não rola a página.
-- A leitura do valor (`parseMoney`) também aceita ponto seguido de uma ou duas
-  casas decimais (`77.62` resulta em `77,62`); um ponto seguido de três casas
-  é milhar (`1.234` resulta em `1.234,00`).
+- A leitura aceita também o formato com ponto decimal (`77.62`); a regra
+  exata está no comentário de `parseMoney`, no `app.js`.
 
 ### Datas
 
-- Datas são sempre `YYYY-MM-DD` (string), nunca objeto `Date` serializado.
-  Isso permite comparar datas com comparação de string (`data < hoje`), que
-  é usada em várias regras.
-- "Hoje" é sempre calculado no fuso **America/Sao_Paulo**, não no fuso do
-  dispositivo. Um celular configurado em outro fuso continua vendo o mesmo
-  "hoje" que o sistema considera.
+- Datas são sempre `YYYY-MM-DD` (string) e "hoje" é sempre o de
+  **America/Sao_Paulo**, não o do aparelho. Os motivos estão no comentário de
+  `hojeISO`, no `app.js`.
 - Exibição é sempre `DD/MM/AAAA`.
 
 ### Acesso
@@ -337,16 +333,9 @@ contraditório.
 
 #### Meses que não têm o dia
 
-Um `dia_vencimento` de 31 não existe em todos os meses. A regra é
-**ancorar no último dia do mês**:
-
-```
-dia_efetivo = min(dia_vencimento, último_dia_do_mês)
-```
-
-Dia 31 vira 30 em abril e 28 (ou 29) em fevereiro. O `dia_vencimento` da
-conta permanece 31 — a redução acontece só no cálculo da ocorrência, então
-março seguinte volta a cair no dia 31.
+Um `dia_vencimento` de 31 é **ancorado no último dia do mês**: vira 30 em
+abril e 28 (ou 29) em fevereiro. A conta continua com dia 31; só a ocorrência
+é reduzida (detalhe no comentário de `montarDataOcorrencia`).
 
 #### Quantas ocorrências aparecem
 
@@ -398,10 +387,8 @@ O switch ao lado do campo Valor define como interpretar o número digitado:
 3 parcelas, valor 100  →  33,33, 33,33, 33,34   (total 100)
 ```
 
-Na divisão, cada parcela recebe o valor truncado para baixo em centavos, e
-**a diferença acumulada vai toda para a última parcela**. Isso garante que
-a soma das parcelas seja exatamente igual ao total informado, sem perder
-nem criar centavos.
+Na divisão, a diferença de centavos vai para a última parcela, para a soma
+bater exatamente com o total (veja `calcularValoresParcelas`).
 
 O modo escolhido **não é gravado**. Após o cálculo, o banco só guarda o
 valor final de cada parcela — não há como saber depois se foi repetido ou
@@ -668,30 +655,19 @@ prevalece durante a sessão, mesmo após atualizar a lista.
 
 #### Definição de semana
 
-Semana de **calendário real, começando no domingo** (não blocos fixos de 7
-dias a partir do dia 1).
-
-Consequência: a Semana 1 pode ter menos de 7 dias. Se o mês começa numa
-terça, a Semana 1 tem 5 dias (terça a sábado), porque o domingo daquela
-semana ficou no mês anterior.
-
-Ao procurar a próxima semana com pendências, o avanço é até o **próximo
-domingo**. Assim, em uma sexta-feira 25/09, a próxima semana é a Semana 5 de
-setembro (27 a 30/09), e não uma semana calculada a partir de 02/10.
+Semana de **calendário real, começando no domingo**; a Semana 1 pode ter menos
+de 7 dias. Ao procurar a próxima semana com pendências, o avanço é até o
+**próximo domingo** (em sexta 25/09, a próxima é a Semana 5 de setembro, 27 a
+30/09). Os detalhes estão nos comentários de `semanaDoMes` e
+`chaveSemanaSeguinte`.
 
 #### Agrupamento é por mês da data
 
-Uma semana que atravessa a virada do mês é **cortada**: uma ocorrência em
-30/09 fica na última semana de *setembro*, mesmo que essa semana continue
-até 03/10. Cada mês fecha suas próprias semanas.
-
-Isso evita que um bloco misture datas de dois meses diferentes. Como
-consequência, a última semana de um mês pode ter poucos dias (às vezes só
-1) — e ainda assim **sempre aparece como bloco próprio**, sem fundir com a
-semana anterior. A antiga regra de fusão (que juntava a última semana com
-a penúltima quando tinha 3 dias ou menos) foi removida por decisão do
-usuário: prefere ver a semana curta separada a arriscar perder alguma
-ocorrência de vista dentro de um bloco maior.
+Uma semana que atravessa a virada do mês é **cortada**: 30/09 fica na última
+semana de *setembro*, e cada mês fecha suas próprias semanas. A última semana
+pode ter poucos dias e **sempre aparece como bloco próprio**. A antiga fusão
+das semanas curtas foi removida por decisão do usuário, que prefere vê-las
+separadas a perder uma ocorrência de vista.
 
 #### Destaque da semana atual
 
