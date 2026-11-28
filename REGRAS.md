@@ -125,18 +125,19 @@ usuário autenticado para qualquer leitura ou escrita.
 
 ## Saldo da InfinitePay
 
-A Home (mobile) e o topo do desktop mostram o **saldo da conta InfinitePay**,
-consultado a cada abertura da Home, com duas linhas abaixo dele:
+A Home (mobile) e o topo do desktop mostram um bloco de 3 linhas:
+**Saldo InfinitePay**, **Precisa vender LÍQUIDO** e a **validade da sessão**.
+O saldo é consultado a cada abertura da Home e também pelo botão ↻ do bloco,
+que busca só o saldo de novo, sem recarregar a página.
 
-- **Precisa vender:** quanto falta para o saldo cobrir o primeiro número do
+- **Precisa vender LÍQUIDO:** quanto falta para o saldo cobrir o primeiro número do
   card de Contas a Pagar (atrasadas + semana mostrada):
 
   ```
   precisa_vender = max(primeiro_card_contas_pagar − saldo_infinitepay, 0)
   ```
 
-  Com zero, a linha diz *Saldo cobre as contas da semana*. Usa o mesmo valor do
-  card, então, se a semana atual já está paga e o card avançou para outra
+  Usa o mesmo valor do card, então, se a semana atual já está paga e o card avançou para outra
   semana, a conta segue o card. Não desconta taxas de venda da InfinitePay.
 - **Validade da sessão:** a data que vence primeiro entre `ifp_token_exp` e
   o `ipdashboard_session`, em verde (mais de 2 dias), amarelo (até 2 dias) ou

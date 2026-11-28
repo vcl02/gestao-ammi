@@ -2402,7 +2402,7 @@ function atualizarPrecisaVenderInfinitepay() {
   infinitepaySaldoBotoes.forEach((botao) => {
     const linha = botao.querySelector('.infinitepay-precisa-vender');
     linha.hidden = !pronto;
-    linha.textContent = valor > 0 ? `Precisa vender ${formatMoney(valor)}` : 'Saldo cobre as contas da semana';
+    linha.textContent = `Precisa vender LÍQUIDO ${formatMoney(valor)}`;
   });
 }
 
@@ -2459,6 +2459,18 @@ infinitepaySaldoBotoes.forEach((botao) => {
   botao.addEventListener('click', () => {
     infinitepayFormularioErroElemento.hidden = true;
     infinitepayJanelaElemento.showModal();
+  });
+});
+
+document.querySelectorAll('.infinitepay-atualizar-botao').forEach((botao) => {
+  botao.addEventListener('click', async () => {
+    document.querySelectorAll('.infinitepay-atualizar-botao').forEach((cada) => { cada.disabled = true; });
+    infinitepaySaldoBotoes.forEach((saldo) => { saldo.querySelector('.infinitepay-saldo-valor').textContent = '…'; });
+    try {
+      await carregarSaldoInfinitepay();
+    } finally {
+      document.querySelectorAll('.infinitepay-atualizar-botao').forEach((cada) => { cada.disabled = false; });
+    }
   });
 });
 
@@ -3057,6 +3069,12 @@ function executarTestes() {
     igual(situacaoValidade('2026-11-29T12:00:00Z', agora, 2 * dia), 'perto');
     igual(situacaoValidade('2026-12-05T12:00:00Z', agora, 2 * dia), 'ok');
     igual(situacaoValidade(null, agora, 2 * dia), null);
+  });
+  teste('Interface — saldo InfinitePay tem botão próprio de atualizar, fora do botão da sessão', () => {
+    document.querySelectorAll('.infinitepay-saldo').forEach((bloco) => {
+      igual(Boolean(bloco.querySelector(':scope > .infinitepay-atualizar-botao')), true);
+      igual(bloco.querySelector('.infinitepay-saldo-botao .infinitepay-atualizar-botao'), null);
+    });
   });
   teste('Parcelas — quantidade é limitada a 24', () => igual(limitarQuantidadeParcelas('99'), 24));
 

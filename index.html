@@ -59,14 +59,17 @@
 
     <!-- Saldo da InfinitePay, quanto falta vender para as contas e validade da sessão.
          O toque abre a janela para colar a sessão -->
-    <button type="button" class="infinitepay-saldo-botao" title="Saldo InfinitePay (toque para atualizar a sessão)">
-      <span class="infinitepay-saldo-linha">
-        <span class="infinitepay-saldo-rotulo">InfinitePay</span>
-        <span class="infinitepay-saldo-valor">…</span>
-      </span>
-      <span class="infinitepay-precisa-vender" hidden></span>
-      <span class="infinitepay-validade" hidden></span>
-    </button>
+    <div class="infinitepay-saldo">
+      <button type="button" class="infinitepay-saldo-botao" title="Saldo InfinitePay (toque para atualizar a sessão)">
+        <span class="infinitepay-saldo-linha">
+          <span class="infinitepay-saldo-rotulo">Saldo InfinitePay</span>
+          <span class="infinitepay-saldo-valor">…</span>
+        </span>
+        <span class="infinitepay-precisa-vender" hidden></span>
+        <span class="infinitepay-validade" hidden></span>
+      </button>
+      <button type="button" class="botao-icone infinitepay-atualizar-botao" aria-label="Atualizar saldo InfinitePay" title="Atualizar saldo">↻</button>
+    </div>
 
     <nav class="menu">
       <button class="menu-opcao" data-nav="caixa-casa">
@@ -102,14 +105,17 @@
 
     <p class="empresa-cnpj desktop-empresa">CNPJ 47.154.673/0001-60</p>
 
-    <button type="button" class="infinitepay-saldo-botao infinitepay-saldo-desktop" title="Saldo InfinitePay (toque para atualizar a sessão)">
-      <span class="infinitepay-saldo-linha">
-        <span class="infinitepay-saldo-rotulo">InfinitePay</span>
-        <span class="infinitepay-saldo-valor">…</span>
-      </span>
-      <span class="infinitepay-precisa-vender" hidden></span>
-      <span class="infinitepay-validade" hidden></span>
-    </button>
+    <div class="infinitepay-saldo infinitepay-saldo-desktop">
+      <button type="button" class="infinitepay-saldo-botao" title="Saldo InfinitePay (toque para atualizar a sessão)">
+        <span class="infinitepay-saldo-linha">
+          <span class="infinitepay-saldo-rotulo">Saldo InfinitePay</span>
+          <span class="infinitepay-saldo-valor">…</span>
+        </span>
+        <span class="infinitepay-precisa-vender" hidden></span>
+        <span class="infinitepay-validade" hidden></span>
+      </button>
+      <button type="button" class="botao-icone infinitepay-atualizar-botao" aria-label="Atualizar saldo InfinitePay" title="Atualizar saldo">↻</button>
+    </div>
 
     <!-- ===================== CAIXA CASA =====================
          Dinheiro retirado do caixa da loja e guardado em casa. -->
