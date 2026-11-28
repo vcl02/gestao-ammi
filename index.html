@@ -66,11 +66,19 @@
 
     <!-- Saldo da InfinitePay e, perto de vencer, a validade da sessão.
          O toque abre a janela para colar a sessão -->
-    <button type="button" class="infinitepay-saldo-botao" title="Saldo InfinitePay (toque para atualizar a sessão)">
-      <span class="infinitepay-saldo-rotulo">Saldo</span>
-      <span class="infinitepay-saldo-valor">…</span>
-      <span class="infinitepay-validade" hidden></span>
-    </button>
+    <div class="infinitepay-blocos">
+      <button type="button" class="infinitepay-saldo-botao" title="Saldo InfinitePay (toque para atualizar a sessão)">
+        <span class="infinitepay-saldo-rotulo">Saldo</span>
+        <span class="infinitepay-saldo-valor">…</span>
+        <span class="infinitepay-validade" hidden></span>
+      </button>
+<!-- A receber: total que cai de amanhã até amanhã + 3 dias -->
+      <div class="infinitepay-receber" title="A receber na InfinitePay">
+        <span class="infinitepay-saldo-rotulo">A receber</span>
+        <span class="infinitepay-receber-valor">…</span>
+        <span class="infinitepay-receber-periodo" hidden></span>
+      </div>
+    </div>
 
     <nav class="menu">
       <button class="menu-opcao" data-nav="caixa-casa">
@@ -109,11 +117,18 @@
 
     <p class="empresa-cnpj desktop-empresa">CNPJ 47.154.673/0001-60</p>
 
-    <button type="button" class="infinitepay-saldo-botao infinitepay-saldo-desktop" title="Saldo InfinitePay (toque para atualizar a sessão)">
-      <span class="infinitepay-saldo-rotulo">Saldo</span>
-      <span class="infinitepay-saldo-valor">…</span>
-      <span class="infinitepay-validade" hidden></span>
-    </button>
+    <div class="infinitepay-blocos infinitepay-blocos-desktop">
+      <button type="button" class="infinitepay-saldo-botao" title="Saldo InfinitePay (toque para atualizar a sessão)">
+        <span class="infinitepay-saldo-rotulo">Saldo</span>
+        <span class="infinitepay-saldo-valor">…</span>
+        <span class="infinitepay-validade" hidden></span>
+      </button>
+      <div class="infinitepay-receber" title="A receber na InfinitePay">
+        <span class="infinitepay-saldo-rotulo">A receber</span>
+        <span class="infinitepay-receber-valor">…</span>
+        <span class="infinitepay-receber-periodo" hidden></span>
+      </div>
+    </div>
 
     <!-- ===================== CAIXA CASA =====================
          Dinheiro retirado do caixa da loja e guardado em casa. -->

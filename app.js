@@ -2367,6 +2367,7 @@ const INFINITEPAY_FUNCAO = 'infinitepay-saldo';
 const INFINITEPAY_ALERTA_SESSAO_MS = 3 * 24 * 60 * 60 * 1000;
 const INFINITEPAY_ALERTA_JWT_MS = 5 * 60 * 1000;
 const infinitepaySaldoBotoes = document.querySelectorAll('.infinitepay-saldo-botao');
+const infinitepayReceberBlocos = document.querySelectorAll('.infinitepay-receber');
 const infinitepayJanelaElemento = document.getElementById('infinitepay-janela');
 const infinitepayJanelaSituacaoElemento = document.getElementById('infinitepay-janela-situacao');
 const infinitepayJanelaValidadesElemento = document.getElementById('infinitepay-janela-validades');
@@ -2387,6 +2388,28 @@ const INFINITEPAY_MENSAGENS = {
 function textoSaldoInfinitepay(resposta) {
   if (resposta?.estado === 'ok') return { texto: formatMoney(resposta.saldo), alerta: false };
   return { texto: INFINITEPAY_MENSAGENS[resposta?.estado] || INFINITEPAY_MENSAGENS.erro, alerta: true };
+}
+
+// Texto do bloco "A receber": valor e período (dd/mm a dd/mm), ou o problema encontrado.
+function textoAReceberInfinitepay(aReceber) {
+  const curta = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+  const periodo = aReceber?.periodo ? `${curta(aReceber.periodo.since)} a ${curta(aReceber.periodo.until)}` : '';
+  if (aReceber?.estado === 'ok') return { texto: formatMoney(aReceber.valor), periodo, alerta: false };
+  if (!aReceber) return { texto: '—', periodo, alerta: false };
+  return { texto: INFINITEPAY_MENSAGENS[aReceber.estado] || INFINITEPAY_MENSAGENS.erro, periodo, alerta: true };
+}
+
+// Mostra o "A receber" (mobile e desktop); com formato desconhecido, a estrutura vai para a janela.
+function exibirAReceberInfinitepay(aReceber) {
+  const { texto, periodo, alerta } = textoAReceberInfinitepay(aReceber);
+  infinitepayReceberBlocos.forEach((bloco) => {
+    bloco.querySelector('.infinitepay-receber-valor').textContent = texto;
+    const linhaPeriodo = bloco.querySelector('.infinitepay-receber-periodo');
+    linhaPeriodo.textContent = periodo;
+    linhaPeriodo.hidden = !periodo;
+    bloco.classList.toggle('infinitepay-receber-alerta', alerta);
+  });
+  if (aReceber?.formato) console.info('InfinitePay a receber — formato:', JSON.stringify(aReceber.formato));
 }
 
 // Desconta o Saldo InfinitePay do primeiro card de Contas a Pagar, como o Caixa Casa faz no aluguel.
@@ -2459,6 +2482,7 @@ function exibirSaldoInfinitepay(resposta) {
   const detalhe = resposta?.chaves ? ` (chaves: ${resposta.chaves.join(', ')})` : '';
   infinitepayJanelaSituacaoElemento.textContent = alerta ? `${texto}${detalhe}` : `Saldo atual: ${texto}`;
   if (resposta?.validades) exibirValidadesInfinitepay(resposta.validades);
+  exibirAReceberInfinitepay(resposta?.a_receber);
   atualizarAbatimentoInfinitepayContasPagar();
 }
 
@@ -2485,6 +2509,7 @@ document.querySelectorAll('.infinitepay-atualizar-botao').forEach((botao) => {
   botao.addEventListener('click', async () => {
     document.querySelectorAll('.infinitepay-atualizar-botao').forEach((cada) => { cada.disabled = true; });
     infinitepaySaldoBotoes.forEach((saldo) => { saldo.querySelector('.infinitepay-saldo-valor').textContent = '…'; });
+    infinitepayReceberBlocos.forEach((bloco) => { bloco.querySelector('.infinitepay-receber-valor').textContent = '…'; });
     try {
       await carregarSaldoInfinitepay();
     } finally {
@@ -3101,6 +3126,18 @@ function executarTestes() {
   teste('InfinitePay — sessão expirada e estados desconhecidos viram alerta', () => {
     igualJson(textoSaldoInfinitepay({ estado: 'sessao_expirada' }), { texto: 'Sessão expirada, cole o cURL de novo', alerta: true });
     igual(textoSaldoInfinitepay(null).alerta, true);
+  });
+  teste('InfinitePay — A receber mostra valor e período curto', () => {
+    const ok = textoAReceberInfinitepay({ estado: 'ok', valor: 1234.5, periodo: { since: '2026-11-29', until: '2026-12-02' } });
+    igual(ok.texto, formatMoney(1234.5));
+    igual(ok.periodo, '29/11 a 02/12');
+    igual(ok.alerta, false);
+    const desconhecido = textoAReceberInfinitepay({ estado: 'formato_desconhecido', periodo: { since: '2026-11-29', until: '2026-12-02' } });
+    igual(desconhecido.alerta, true);
+    igual(textoAReceberInfinitepay(undefined).texto, '—');
+  });
+  teste('Interface — A receber fica ao lado do Saldo no início e no desktop', () => {
+    igual(document.querySelectorAll('.infinitepay-blocos .infinitepay-receber').length, 2);
   });
   teste('InfinitePay — saldo desconta do primeiro card de Contas a Pagar, sem passar de zero', () => {
     igualJson(calcularContasPagarAposSaldoInfinitepay(1000, 300.1), { restante: 699.9, abatimento: 300.1 });

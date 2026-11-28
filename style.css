@@ -1005,13 +1005,21 @@ button[type="submit"]:disabled {
 
 /* ===================== INFINITEPAY ===================== */
 /* Saldo em destaque: no mobile fica acima do menu; no desktop, no topo ao lado dos botões */
-.infinitepay-saldo-botao {
+/* Saldo e A receber lado a lado, no mesmo estilo */
+.infinitepay-blocos {
+  display: flex;
+  gap: var(--espaco-item);
+  margin-bottom: var(--espaco-pagina);
+}
+
+.infinitepay-saldo-botao,
+.infinitepay-receber {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  width: 100%;
-  margin-bottom: var(--espaco-pagina);
   padding: var(--espaco-linha) var(--espaco-pagina);
   font: inherit;
   text-align: left;
@@ -1031,20 +1039,31 @@ button[type="submit"]:disabled {
   color: var(--primaria-clara);
 }
 
-.infinitepay-saldo-valor {
+.infinitepay-receber {
+  cursor: default;
+}
+
+.infinitepay-saldo-valor,
+.infinitepay-receber-valor {
   font-size: var(--fonte-destaque);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.infinitepay-saldo-alerta .infinitepay-saldo-valor {
+.infinitepay-saldo-alerta .infinitepay-saldo-valor,
+.infinitepay-receber-alerta .infinitepay-receber-valor {
   font-size: var(--fonte-rotulo);
   font-weight: 600;
   color: var(--perigo);
 }
 
-.infinitepay-validade {
+.infinitepay-validade,
+.infinitepay-receber-periodo {
   font-size: var(--fonte-pequena);
+}
+
+.infinitepay-receber-periodo {
+  color: var(--texto-suave);
 }
 
 /* Atualizar fica ao lado do Sair, no mesmo estilo, na cor da marca */
@@ -1121,7 +1140,7 @@ button[type="submit"]:disabled {
 
 .desktop-logout,
 .desktop-atualizar,
-.infinitepay-saldo-desktop {
+.infinitepay-blocos-desktop {
   display: none;
 }
 
@@ -1181,14 +1200,17 @@ button[type="submit"]:disabled {
   }
 
   /* À esquerda dos botões Atualizar e Sair; a faixa do CNPJ é alta o bastante para ele */
-  .infinitepay-saldo-desktop {
+  .infinitepay-blocos-desktop {
     display: flex;
     position: absolute;
     top: 20px;
     right: calc(var(--espaco-pagina) + 96px);
-    width: auto;
-    min-width: 180px;
     margin: 0;
+  }
+
+  .infinitepay-blocos-desktop > * {
+    flex: 0 0 auto;
+    min-width: 180px;
     padding: var(--espaco-item) var(--espaco-pagina);
   }
 

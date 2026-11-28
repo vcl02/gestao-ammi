@@ -159,6 +159,16 @@ na cor da marca. Esse botão busca só o saldo de novo, sem recarregar a página
   Sem saldo disponível (sessão vencida, erro), o card mostra o valor cheio e a
   etiqueta some. O segundo número (próxima semana) não muda. Não desconta
   taxas de venda da InfinitePay.
+- **A receber:** ao lado do Saldo, no mesmo estilo, um segundo bloco mostra
+  quanto a InfinitePay vai depositar **de amanhã até amanhã + 3 dias** (4 dias
+  corridos, no fuso de São Paulo), com o período abaixo (*29/11 a 02/12*). Os
+  4 dias cobrem o pior caso: a venda de sexta cai 3 dias depois. Usa o mesmo
+  token do saldo, sem colar nada novo; vem da requisição `payments_overview`
+  do painel (`since` = amanhã, `until` = amanhã + 3). **Pendente:** o formato
+  da resposta ainda não foi confirmado; até lá o bloco mostra *Resposta em
+  formato desconhecido* e a função registra a estrutura (só chaves e tipos)
+  no log. Também não foi confirmado se o `until` inclui o último dia. Não
+  entra no desconto de Contas a Pagar.
 - **Validade da sessão:** abaixo do saldo, só aparece quando a sessão vence em
   até 3 dias (amarelo) ou já venceu (vermelho); usa a data que vence primeiro
   entre `ifp_token_exp` e o `ipdashboard_session`. A janela da sessão lista as

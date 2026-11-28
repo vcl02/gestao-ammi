@@ -7,13 +7,14 @@
 // o app recebe só o saldo e as datas de expiração.
 //
 // Fluxo: cURL do read-token (cookie) → JWT (~30 min, guardado em cache) →
-// cURL do balance com o Bearer trocado pelo JWT atual.
+// cURL do balance com o Bearer trocado pelo JWT atual. Com o mesmo JWT, busca
+// também o valor a receber nos próximos dias (payments_overview).
 //
 // Corpo aceito (POST):
 //   { acao: 'saldo' }
 //   { acao: 'salvar', curl }  um ou os dois cURLs no mesmo texto (bash ou cmd)
 //
-// Resposta: { estado, saldo?, validades?, erros?, chaves? }, com estado em
+// Resposta: { estado, saldo?, a_receber?, validades?, erros?, chaves? }, com estado em
 //   ok | sem_sessao | curl_invalido | sessao_expirada | bloqueado_cloudflare | formato_desconhecido | erro
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -21,6 +22,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const INFINITEPAY_HOST = 'app.infinitepay.io';
 const CAMINHO_READ_TOKEN = '/api/session/read-token';
 const CAMINHO_BALANCE = '/api/balance';
+const RECEBIVEIS_URL = 'https://infinitepay-api-v2.services.production.infinitepay.io/transaction_payments/payments_overview';
+const RECEBIVEIS_DIAS = 4;
+const FUSO = 'America/Sao_Paulo';
 const TABELA = 'infinitepay_sessao';
 const TAMANHO_MAXIMO_CURL = 100_000;
 
@@ -260,6 +264,65 @@ function extrairSaldo(corpo: Record<string, any>): number | null {
   return Math.round(free) / 100;
 }
 
+// Período do "a receber": de amanhã até amanhã + 3 (4 dias corridos), no fuso de
+// São Paulo. No pior caso, a venda de sexta cai 3 dias depois.
+// SUPOSIÇÃO: o until da API inclui o último dia.
+function periodoAReceber(agora = new Date()) {
+  const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: FUSO }).format(agora); // AAAA-MM-DD
+  const somarDias = (dias: number) => {
+    const data = new Date(`${hoje}T12:00:00Z`);
+    data.setUTCDate(data.getUTCDate() + dias);
+    return data.toISOString().slice(0, 10);
+  };
+  return { since: somarDias(1), until: somarDias(RECEBIVEIS_DIAS) };
+}
+
+// Descreve o formato da resposta (chaves e tipos, sem valores) para ajustar a leitura depois.
+function estrutura(valor: unknown, profundidade = 0): unknown {
+  if (Array.isArray(valor)) return profundidade > 2 ? 'array' : [valor.length ? estrutura(valor[0], profundidade + 1) : 'vazio'];
+  if (valor && typeof valor === 'object') {
+    if (profundidade > 2) return 'objeto';
+    return Object.fromEntries(Object.entries(valor).map(([chave, item]) => [chave, estrutura(item, profundidade + 1)]));
+  }
+  return typeof valor;
+}
+
+// O formato do payments_overview ainda não foi confirmado: por enquanto devolve
+// a estrutura (sem valores) e o estado formato_desconhecido.
+function extrairAReceber(_corpo: unknown): number | null {
+  return null;
+}
+
+// Busca o total a receber no período, com o mesmo JWT do saldo. Nunca derruba o saldo.
+async function buscarAReceber(jwt: string, cabecalhosBalance: Record<string, string>) {
+  const periodo = periodoAReceber();
+  try {
+    const url = `${RECEBIVEIS_URL}?since=${periodo.since}&until=${periodo.until}`;
+    const headers: Record<string, string> = {
+      accept: '*/*',
+      origin: `https://${INFINITEPAY_HOST}`,
+      referer: `https://${INFINITEPAY_HOST}/`,
+      authorization: `Bearer ${jwt}`,
+    };
+    if (cabecalhosBalance['user-agent']) headers['user-agent'] = cabecalhosBalance['user-agent'];
+    const resposta = await fetch(url, { headers });
+    if (bloqueioCloudflare(resposta)) return { estado: 'bloqueado_cloudflare', periodo };
+    if (resposta.status === 401 || resposta.status === 403) return { estado: 'sessao_expirada', status: resposta.status, periodo };
+    if (!resposta.ok) return { estado: 'erro', status: resposta.status, periodo };
+    const corpo = await resposta.json();
+    const valor = extrairAReceber(corpo);
+    if (valor === null) {
+      const formato = estrutura(corpo);
+      console.log('payments_overview formato', JSON.stringify(formato));
+      return { estado: 'formato_desconhecido', formato, periodo };
+    }
+    return { estado: 'ok', valor, periodo };
+  } catch (erro) {
+    console.error('payments_overview', erro);
+    return { estado: 'erro', periodo };
+  }
+}
+
 // Reproduz o cURL do read-token guardado e salva o JWT novo no cache.
 async function renovarJwt(readToken: Requisicao) {
   const resposta = await fetch(readToken.url, { method: readToken.metodo, headers: readToken.headers, body: readToken.corpo });
@@ -315,7 +378,8 @@ async function buscarSaldo() {
     const corpo = await resposta.json();
     const saldo = extrairSaldo(corpo);
     if (saldo === null) return { estado: 'formato_desconhecido', chaves: Object.keys(corpo ?? {}), validades: validades() };
-    return { estado: 'ok', saldo, validades: validades() };
+    const aReceber = await buscarAReceber(jwt, balance.headers);
+    return { estado: 'ok', saldo, a_receber: aReceber, validades: validades() };
   }
   return { estado: 'sessao_expirada', validades: validades() };
 }
