@@ -121,6 +121,19 @@ A chave usada no frontend é a pública (*anon* / *publishable*) e pode ficar
 exposta no código — a proteção real vem das políticas de RLS, que exigem
 usuário autenticado para qualquer leitura ou escrita.
 
+### Cards do topo dos módulos
+
+Os cards de saldo no topo de Caixa Casa, Salário, Contas a Pagar e Fiado
+seguem um só padrão visual:
+
+- **Valor em cima, rótulo cinza embaixo**, centralizados.
+- O valor principal tem sempre o mesmo tamanho. Quando há um segundo valor
+  (Caixa Casa e Contas a Pagar), ele fica ao lado, menor e em cinza.
+- Etiquetas de desconto (*−R$ X do Aluguel*, *−R$ X do Saldo*) e o resumo
+  "pago no mês" ficam no **rodapé** do card, abaixo dos valores.
+- Todos os cards têm a mesma altura mínima. Se faltar largura, o segundo
+  valor desce inteiro para a linha de baixo; o número nunca quebra no meio.
+
 ---
 
 ## Saldo da InfinitePay
@@ -132,8 +145,8 @@ na cor da marca. Esse botão busca só o saldo de novo, sem recarregar a página
 
 - **Desconto em Contas a Pagar:** do mesmo jeito que o Caixa Casa abate o
   primeiro aluguel aberto, o Saldo é descontado do **primeiro número** do card
-  de Contas a Pagar (o que está em destaque: atrasadas + semana mostrada). Logo
-  abaixo do número, uma etiqueta mostra quanto foi descontado
+  de Contas a Pagar (o que está em destaque: atrasadas + semana mostrada). No
+  rodapé do card, abaixo dos números, uma etiqueta mostra quanto foi descontado
   (*−R$ X do Saldo*):
 
   ```
@@ -227,7 +240,7 @@ o sistema registra o que aconteceu, não impede lançamentos.
 O card mostra dois valores:
 
 - **Após aluguel** — valor principal, calculado como
-  `max(saldo − primeiro aluguel aberto, 0)`. Abaixo dele, uma etiqueta no
+  `max(saldo − primeiro aluguel aberto, 0)`. No rodapé do card, uma etiqueta no
   mesmo estilo da de Contas a Pagar mostra quanto foi descontado
   (*−R$ X do Aluguel*, que é `min(max(saldo, 0), aluguel)`); some quando não
   há aluguel aberto ou o caixa não tem saldo positivo.
@@ -625,9 +638,10 @@ O topo do módulo mostra dois números lado a lado, ambos representando
 **quanto falta pagar** (ocorrências não pagas):
 
 - **Primeiro número** — em destaque, é o principal.
-- **Segundo número** — ao lado, em cinza, secundário.
+- **Segundo número** — ao lado, menor e em cinza, secundário.
 
-Abaixo, um subtítulo menor mostra o resumo do mês inteiro:
+No rodapé, abaixo da etiqueta do Saldo (quando houver), um subtítulo menor
+mostra o resumo do mês inteiro:
 
 ```
 R$ X pago de R$ Y no mês
