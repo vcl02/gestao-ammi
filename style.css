@@ -1049,9 +1049,11 @@ button[type="submit"]:disabled {
   cursor: wait;
 }
 
-/* Etiqueta de desconto: Saldo no primeiro número de Contas a Pagar e aluguel no Caixa Casa */
+/* Etiqueta de desconto: Saldo no primeiro número de Contas a Pagar, aluguel no Caixa Casa
+   e Caixa Casa na ocorrência do aluguel */
 .contas-pagar-abatimento-infinitepay,
-.caixa-casa-abatimento-aluguel {
+.caixa-casa-abatimento-aluguel,
+.contas-pagar-abatimento-caixa {
   white-space: nowrap;
   margin-top: var(--espaco-minimo);
   padding: 2px var(--espaco-item);

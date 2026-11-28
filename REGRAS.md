@@ -611,7 +611,8 @@ aluguel_exibido = max(valor_do_aluguel − saldo_do_caixa, 0)
 ```
 
 Esse valor líquido aparece na linha da ocorrência e no total do seu bloco de
-semana. Se a mesma semana estiver em um dos dois números do card do topo, o
+semana. Na linha, ao lado da data, uma etiqueta no mesmo estilo das outras
+mostra quanto foi descontado (*−R$ X do Caixa Casa*). Se a mesma semana estiver em um dos dois números do card do topo, o
 card também usa o valor líquido. Quando o primeiro aluguel aberto pertence ao
 mês corrente, o resumo mensal também usa o valor líquido.
 
