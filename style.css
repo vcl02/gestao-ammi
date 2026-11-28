@@ -356,10 +356,15 @@ button[type="submit"]:disabled {
 }
 
 /* ===================== SALDO ===================== */
+/* Todos os cards do topo seguem o mesmo padrão: valor em cima, rótulo cinza
+   embaixo, etiqueta (se houver) abaixo do rótulo, mesma altura mínima e
+   conteúdo centralizado. O segundo valor, quando existe, é menor. */
 .saldo-bloco {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  min-height: 160px;
   padding: var(--espaco-bloco);
   margin-bottom: var(--espaco-pagina);
   border-radius: var(--raio-grande);
@@ -370,21 +375,19 @@ button[type="submit"]:disabled {
   color: var(--texto-suave);
 }
 
-.saldo-rotulo-destaque {
-  color: var(--texto);
-}
-
 .saldo-valor,
 .saldo-valor-secundario {
-  font-size: var(--fonte-saldo);
   font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .saldo-valor {
-  margin-top: var(--espaco-minimo);
+  font-size: var(--fonte-saldo);
 }
 
 .saldo-valor-secundario {
+  font-size: var(--fonte-destaque);
   color: var(--texto-suave);
 }
 
@@ -393,10 +396,13 @@ button[type="submit"]:disabled {
   color: var(--perigo);
 }
 
+/* Quebra item inteiro (valor + rótulo), nunca o número no meio */
 .saldo-semanas {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: baseline;
-  gap: var(--espaco-secao);
+  gap: var(--espaco-item) var(--espaco-secao);
 }
 
 .saldo-semana-item {
@@ -406,12 +412,14 @@ button[type="submit"]:disabled {
   gap: var(--espaco-minimo);
 }
 
-.saldo-semana-item .saldo-rotulo {
-  order: 2;
+/* Rodapé do card: etiquetas de abatimento e o "pago no mês" */
+.saldo-bloco > .caixa-casa-abatimento-aluguel,
+.saldo-bloco > .contas-pagar-abatimento-infinitepay,
+.saldo-subtitulo {
+  margin-top: var(--espaco-linha);
 }
 
 .saldo-subtitulo {
-  margin-bottom: var(--espaco-linha);
   font-size: var(--fonte-rotulo);
   color: var(--texto-suave);
 }
@@ -1187,7 +1195,7 @@ button[type="submit"]:disabled {
   /* !important: no desktop todos os painéis aparecem, mesmo com o atributo hidden */
   .grade-desktop .painel {
     display: grid !important;
-    grid-template-rows: auto minmax(140px, auto) 44px minmax(430px, auto) auto;
+    grid-template-rows: auto minmax(160px, auto) 44px minmax(430px, auto) auto;
     row-gap: var(--espaco-pagina);
     align-self: start;
     max-width: none;
@@ -1204,11 +1212,6 @@ button[type="submit"]:disabled {
     font-size: var(--fonte-titulo);
     margin: 0;
     text-align: left;
-  }
-
-  #view-contas-pagar > .saldo-bloco {
-    padding-top: 13px;
-    padding-bottom: 13px;
   }
 
   .grade-desktop .painel .alternador {

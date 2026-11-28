@@ -2944,6 +2944,18 @@ function executarTestes() {
   teste('Interface — card do Caixa possui os dois saldos', () => {
     igual(Boolean(document.getElementById('caixa-casa-saldo-apos-aluguel') && document.getElementById('caixa-casa-saldo-total')), true);
   });
+  teste('Interface — os quatro cards do topo seguem o mesmo padrão (valor em cima, rótulo embaixo, etiqueta no rodapé)', () => {
+    const ids = ['caixa-casa-saldo-apos-aluguel', 'salario-saldo', 'contas-pagar-total-semana-atual', 'fiado-total'];
+    ids.forEach((id) => {
+      const valor = document.getElementById(id);
+      igual(valor.parentElement.classList.contains('saldo-semana-item'), true);
+      igual(valor.nextElementSibling.classList.contains('saldo-rotulo'), true);
+    });
+    igual(document.querySelectorAll('.saldo-rotulo-destaque').length, 0);
+    ['caixa-casa-abatimento-aluguel', 'contas-pagar-abatimento-infinitepay'].forEach((id) => {
+      igual(document.getElementById(id).parentElement.classList.contains('saldo-bloco'), true);
+    });
+  });
   teste('Interface — Caixa não possui mais duplicação explícita no Salário', () => {
     igual(Boolean(document.getElementById('caixa-casa-duplicar-salario')), false);
   });

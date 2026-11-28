@@ -134,14 +134,14 @@
           <span class="saldo-semana-item">
             <span id="caixa-casa-saldo-apos-aluguel" class="saldo-valor">R$ 0,00</span>
             <span class="saldo-rotulo">Após aluguel</span>
-            <!-- Quanto do aluguel aberto já foi descontado do caixa -->
-            <span id="caixa-casa-abatimento-aluguel" class="caixa-casa-abatimento-aluguel" hidden></span>
           </span>
           <span class="saldo-semana-item">
             <span id="caixa-casa-saldo-total" class="saldo-valor-secundario">R$ 0,00</span>
             <span class="saldo-rotulo">Total no caixa</span>
           </span>
         </div>
+        <!-- Rodapé: quanto do aluguel aberto já foi descontado do valor principal -->
+        <span id="caixa-casa-abatimento-aluguel" class="caixa-casa-abatimento-aluguel" hidden></span>
       </section>
 
       <!-- Tipo do lançamento: entrada ou saída -->
@@ -190,8 +190,12 @@
       <!-- Saldo: quanto ainda é devido à gerente -->
 
       <section class="saldo-bloco">
-        <span class="saldo-rotulo">Saldo da conta</span>
-        <span id="salario-saldo" class="saldo-valor">R$ 0,00</span>
+        <div class="saldo-semanas">
+          <span class="saldo-semana-item">
+            <span id="salario-saldo" class="saldo-valor">R$ 0,00</span>
+            <span class="saldo-rotulo">Saldo da conta</span>
+          </span>
+        </div>
       </section>
 
       <!-- Escolha da aba: venda ou pagamento -->
@@ -259,23 +263,23 @@
       </header>
       <h2 class="painel-titulo">Contas a Pagar</h2>
 
-      <!-- Resumo: pago no mês e pendências da semana atual e da próxima -->
+      <!-- Resumo: pendências da semana em destaque e da seguinte; pago no mês no rodapé -->
       <section class="saldo-bloco">
-        <span class="saldo-subtitulo"><span id="contas-pagar-total-mes-pago" class="saldo-subtitulo-destaque">R$ 0,00</span>
-          <span class="saldo-subtitulo-destaque">pago de</span> <span id="contas-pagar-total-mes-geral">R$ 0,00</span> no
-          mês</span>
         <div class="saldo-semanas">
           <span class="saldo-semana-item">
             <span id="contas-pagar-total-semana-atual" class="saldo-valor">R$ 0,00</span>
-            <span id="contas-pagar-rotulo-semana-atual" class="saldo-rotulo saldo-rotulo-destaque">Esta semana</span>
-            <!-- Quanto do Saldo InfinitePay já foi descontado do número acima -->
-            <span id="contas-pagar-abatimento-infinitepay" class="contas-pagar-abatimento-infinitepay" hidden></span>
+            <span id="contas-pagar-rotulo-semana-atual" class="saldo-rotulo">Esta semana</span>
           </span>
           <span class="saldo-semana-item">
             <span id="contas-pagar-total-proxima-semana" class="saldo-valor-secundario">R$ 0,00</span>
             <span id="contas-pagar-rotulo-proxima-semana" class="saldo-rotulo">Próxima semana</span>
           </span>
         </div>
+        <!-- Rodapé: quanto do Saldo InfinitePay já foi descontado do valor principal, e o pago no mês -->
+        <span id="contas-pagar-abatimento-infinitepay" class="contas-pagar-abatimento-infinitepay" hidden></span>
+        <span class="saldo-subtitulo"><span id="contas-pagar-total-mes-pago" class="saldo-subtitulo-destaque">R$ 0,00</span>
+          <span class="saldo-subtitulo-destaque">pago de</span> <span id="contas-pagar-total-mes-geral">R$ 0,00</span> no
+          mês</span>
       </section>
 
       <!-- Tipo da conta: mensal (recorrente) ou parcelada -->
@@ -351,8 +355,12 @@
 
       <!-- Total fiado: saldo líquido de todas as pessoas -->
       <section class="saldo-bloco">
-        <span class="saldo-rotulo">Total fiado</span>
-        <span id="fiado-total" class="saldo-valor">R$ 0,00</span>
+        <div class="saldo-semanas">
+          <span class="saldo-semana-item">
+            <span id="fiado-total" class="saldo-valor">R$ 0,00</span>
+            <span class="saldo-rotulo">Total fiado</span>
+          </span>
+        </div>
       </section>
 
       <!-- Escolha da aba: venda ou pagamento -->
