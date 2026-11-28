@@ -5,13 +5,14 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-28 (Empréstimo e Cartão viram linha nas Ocorrências; Cartão por valor atual).
+Última revisão: 2026-11-28 (saldo da InfinitePay na Home).
 
 ---
 
 ## Índice
 
 - [Conceitos gerais](#conceitos-gerais)
+- [Saldo da InfinitePay](#saldo-da-infinitepay)
 - [Módulo: Caixa Casa](#módulo-caixa-casa)
 - [Módulo: Salário](#módulo-salário)
 - [Módulo: Contas a Pagar](#módulo-contas-a-pagar)
@@ -119,6 +120,32 @@ versão de 192 px também é usada como favicon no navegador.
 A chave usada no frontend é a pública (*anon* / *publishable*) e pode ficar
 exposta no código — a proteção real vem das políticas de RLS, que exigem
 usuário autenticado para qualquer leitura ou escrita.
+
+---
+
+## Saldo da InfinitePay
+
+A Home (mobile) e o topo do desktop mostram o **saldo da conta InfinitePay**,
+consultado a cada abertura da Home. Por enquanto é só exibição: o saldo não
+entra em nenhum cálculo.
+
+A InfinitePay não tem API pública para isso. A Edge Function
+`infinitepay-saldo` usa as mesmas chamadas do painel web: com o **cookie de
+sessão** pede um token de leitura (`read-token`, vale ~30 min e fica em cache
+no servidor) e com ele consulta o saldo.
+
+- **Atualizar a sessão:** tocar no saldo abre a janela *Sessão InfinitePay*.
+  Cola-se o valor do cabeçalho `Cookie` da requisição `read-token` (DevTools →
+  Network) e, na primeira vez, o `user_id` do corpo dessa requisição. O Bearer
+  é opcional. Campo vazio mantém o valor já guardado.
+- **Sigilo:** o cookie e o token ficam só na tabela `infinitepay_sessao`, que o
+  app não consegue ler (RLS sem policy e sem permissões para os usuários) e
+  que fica fora da auditoria. A função devolve só o saldo. Os campos são do
+  tipo senha e são limpos após salvar.
+- **Expiração:** a sessão da InfinitePay dura cerca de 7 a 14 dias. Quando ela
+  recusa o cookie, o lugar do saldo mostra em vermelho *Sessão expirada, cole o
+  cookie de novo*. Outros avisos possíveis: bloqueio pela Cloudflare, resposta
+  em formato desconhecido ou erro na consulta.
 
 ---
 

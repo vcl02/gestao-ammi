@@ -595,6 +595,7 @@ function showView(name) {
   if (name === 'salario' || name === 'home') carregarSalario();
   if (name === 'contas-pagar' || name === 'home') carregarContasPagar();
   if (name === 'fiado' || name === 'home') carregarFiado();
+  if (name === 'home') carregarSaldoInfinitepay();
 }
 
 document.querySelectorAll('[data-nav]').forEach((el) => {
@@ -2340,6 +2341,85 @@ bloquearDuranteSubmit(fiadoPagamentoFormularioElemento, async (e) => {
   await carregarFiado();
 });
 
+// ===================== INFINITEPAY =====================
+// Saldo da conta InfinitePay, buscado pela Edge Function infinitepay-saldo.
+// O cookie de sessão só é enviado (nunca lido): fica guardado no servidor.
+
+const INFINITEPAY_FUNCAO = 'infinitepay-saldo';
+const infinitepaySaldoBotoes = document.querySelectorAll('.infinitepay-saldo-botao');
+const infinitepayJanelaElemento = document.getElementById('infinitepay-janela');
+const infinitepayJanelaSituacaoElemento = document.getElementById('infinitepay-janela-situacao');
+const infinitepayFormularioElemento = document.getElementById('infinitepay-formulario');
+const infinitepayFormularioErroElemento = document.getElementById('infinitepay-formulario-erro');
+
+const INFINITEPAY_MENSAGENS = {
+  sem_sessao: 'Cole o cookie e o user_id',
+  sessao_expirada: 'Sessão expirada, cole o cookie de novo',
+  bloqueado_cloudflare: 'Bloqueado pela Cloudflare',
+  formato_desconhecido: 'Resposta em formato desconhecido',
+  erro: 'Erro ao consultar',
+};
+
+// Converte a resposta da função no texto do botão; alerta = precisa de atenção do usuário.
+function textoSaldoInfinitepay(resposta) {
+  if (resposta?.estado === 'ok') return { texto: formatMoney(resposta.saldo), alerta: false };
+  return { texto: INFINITEPAY_MENSAGENS[resposta?.estado] || INFINITEPAY_MENSAGENS.erro, alerta: true };
+}
+
+// Mostra a resposta no botão do saldo (mobile e desktop) e na janela da sessão.
+function exibirSaldoInfinitepay(resposta) {
+  const { texto, alerta } = textoSaldoInfinitepay(resposta);
+  infinitepaySaldoBotoes.forEach((botao) => {
+    botao.querySelector('.infinitepay-saldo-valor').textContent = texto;
+    botao.classList.toggle('infinitepay-saldo-alerta', alerta);
+  });
+  const detalhe = resposta?.chaves ? ` (chaves: ${resposta.chaves.join(', ')})` : '';
+  infinitepayJanelaSituacaoElemento.textContent = alerta ? `${texto}${detalhe}` : `Saldo atual: ${texto}`;
+}
+
+// Chama a Edge Function; erros de rede ou de deploy viram o estado "erro".
+async function chamarInfinitepay(corpo) {
+  const { data, error } = await supabase.functions.invoke(INFINITEPAY_FUNCAO, { body: corpo });
+  if (error) console.warn('InfinitePay:', error);
+  return error ? { estado: 'erro' } : data;
+}
+
+// Busca o saldo atual ao abrir a Home.
+async function carregarSaldoInfinitepay() {
+  exibirSaldoInfinitepay(await chamarInfinitepay({ acao: 'saldo' }));
+}
+
+infinitepaySaldoBotoes.forEach((botao) => {
+  botao.addEventListener('click', () => {
+    infinitepayFormularioErroElemento.hidden = true;
+    infinitepayJanelaElemento.showModal();
+  });
+});
+
+document.getElementById('infinitepay-janela-fechar').addEventListener('click', () => infinitepayJanelaElemento.close());
+
+bloquearDuranteSubmit(infinitepayFormularioElemento, async (e) => {
+  e.preventDefault();
+  const campos = {
+    cookie: document.getElementById('infinitepay-cookie').value.trim(),
+    user_id: document.getElementById('infinitepay-user-id').value.trim(),
+    bearer: document.getElementById('infinitepay-bearer').value.trim(),
+  };
+  if (!campos.cookie && !campos.user_id && !campos.bearer) {
+    infinitepayFormularioErroElemento.textContent = 'Preencha ao menos um campo.';
+    infinitepayFormularioErroElemento.hidden = false;
+    return;
+  }
+
+  const resposta = await chamarInfinitepay({ acao: 'salvar', ...campos });
+  // Limpa sempre: o valor colado não fica na tela nem na memória do formulário.
+  infinitepayFormularioElemento.reset();
+  exibirSaldoInfinitepay(resposta);
+  infinitepayFormularioErroElemento.hidden = resposta?.estado === 'ok';
+  infinitepayFormularioErroElemento.textContent = textoSaldoInfinitepay(resposta).texto;
+  if (resposta?.estado === 'ok') infinitepayJanelaElemento.close();
+});
+
 // ===================== INIT =====================
 
 function executarTestes() {
@@ -2888,6 +2968,17 @@ function executarTestes() {
   });
   teste('Interface — PWA declara ícone para instalação', () => {
     igual(Boolean(document.querySelector('link[rel="apple-touch-icon"][href="pwa-icon-192.png"]')), true);
+  });
+  teste('InfinitePay — saldo ok vira valor em reais, sem alerta', () => {
+    igualJson(textoSaldoInfinitepay({ estado: 'ok', saldo: 1234.5 }), { texto: formatMoney(1234.5), alerta: false });
+  });
+  teste('InfinitePay — sessão expirada e estados desconhecidos viram alerta', () => {
+    igualJson(textoSaldoInfinitepay({ estado: 'sessao_expirada' }), { texto: 'Sessão expirada, cole o cookie de novo', alerta: true });
+    igual(textoSaldoInfinitepay(null).alerta, true);
+  });
+  teste('Interface — campos da sessão InfinitePay não exibem o valor colado', () => {
+    igual(document.getElementById('infinitepay-cookie').type, 'password');
+    igual(document.getElementById('infinitepay-bearer').type, 'password');
   });
   teste('Parcelas — quantidade é limitada a 24', () => igual(limitarQuantidadeParcelas('99'), 24));
 

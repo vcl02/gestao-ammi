@@ -57,6 +57,12 @@
       </button>
     </header>
 
+    <!-- Saldo da InfinitePay; o toque abre a janela para colar a sessão -->
+    <button type="button" class="infinitepay-saldo-botao" title="Saldo InfinitePay (toque para atualizar a sessão)">
+      <span class="infinitepay-saldo-rotulo">InfinitePay</span>
+      <span class="infinitepay-saldo-valor">…</span>
+    </button>
+
     <nav class="menu">
       <button class="menu-opcao" data-nav="caixa-casa">
         <span class="menu-titulo">Caixa Casa</span>
@@ -90,6 +96,11 @@
     </button>
 
     <p class="empresa-cnpj desktop-empresa">CNPJ 47.154.673/0001-60</p>
+
+    <button type="button" class="infinitepay-saldo-botao infinitepay-saldo-desktop" title="Saldo InfinitePay (toque para atualizar a sessão)">
+      <span class="infinitepay-saldo-rotulo">InfinitePay</span>
+      <span class="infinitepay-saldo-valor">…</span>
+    </button>
 
     <!-- ===================== CAIXA CASA =====================
          Dinheiro retirado do caixa da loja e guardado em casa. -->
@@ -443,6 +454,23 @@
       </fieldset>
       <button type="submit">Pagar</button>
       <p id="contas-pagar-pagamento-erro" class="erro" hidden></p>
+    </form>
+  </dialog>
+
+  <!-- Sessão da InfinitePay: só escrita. O cookie vai para o servidor e nunca volta ao app -->
+  <dialog id="infinitepay-janela" class="modal-aviso" aria-labelledby="infinitepay-janela-titulo">
+    <button type="button" id="infinitepay-janela-fechar" class="botao-icone modal-aviso-fechar" aria-label="Fechar">×</button>
+    <h2 id="infinitepay-janela-titulo">Sessão InfinitePay</h2>
+    <p id="infinitepay-janela-situacao" class="modal-venda-progresso"></p>
+    <form id="infinitepay-formulario" class="modal-venda-form">
+      <label for="infinitepay-cookie">Cookie</label>
+      <input type="password" id="infinitepay-cookie" autocomplete="off" placeholder="Vazio mantém o atual">
+      <label for="infinitepay-user-id">user_id</label>
+      <input type="text" id="infinitepay-user-id" inputmode="numeric" autocomplete="off" placeholder="Vazio mantém o atual">
+      <label for="infinitepay-bearer">Bearer (opcional)</label>
+      <input type="password" id="infinitepay-bearer" autocomplete="off" placeholder="Opcional">
+      <button type="submit">Salvar</button>
+      <p id="infinitepay-formulario-erro" class="erro" hidden></p>
     </form>
   </dialog>
 
