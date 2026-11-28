@@ -649,6 +649,15 @@ document.getElementById('botao-sair').addEventListener('click', async () => {
 // ===================== CAIXA CASA =====================
 
 const caixaCasaSaldoAposAluguelElemento = document.getElementById('caixa-casa-saldo-apos-aluguel');
+const caixaCasaAbatimentoAluguelElemento = document.getElementById('caixa-casa-abatimento-aluguel');
+
+// Mostra o saldo do caixa após o aluguel aberto e, na etiqueta, quanto do aluguel foi descontado.
+function exibirSaldoAposAluguelCaixaCasa(saldoCaixa, valorAluguel) {
+  caixaCasaSaldoAposAluguelElemento.textContent = formatMoney(calcularSaldoAposAluguel(saldoCaixa, valorAluguel));
+  const abatimento = valorAluguel ? calcularAbatimentoAluguel(saldoCaixa, valorAluguel) : 0;
+  caixaCasaAbatimentoAluguelElemento.hidden = abatimento <= 0;
+  caixaCasaAbatimentoAluguelElemento.textContent = `−${formatMoney(abatimento)} do Aluguel`;
+}
 const caixaCasaSaldoTotalElemento = document.getElementById('caixa-casa-saldo-total');
 const caixaCasaListaLancamentosElemento = document.getElementById('caixa-casa-lista-lancamentos');
 const caixaCasaFormularioElemento = document.getElementById('caixa-casa-formulario');
@@ -712,8 +721,7 @@ async function carregarCaixaCasa() {
 
   const saldo = calcularSaldoCaixa(data);
   const aluguelAberto = encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos, ajustesRows);
-  const saldoAposAluguel = calcularSaldoAposAluguel(saldo, aluguelAberto?.valor);
-  caixaCasaSaldoAposAluguelElemento.textContent = formatMoney(saldoAposAluguel);
+  exibirSaldoAposAluguelCaixaCasa(saldo, aluguelAberto?.valor);
   caixaCasaSaldoTotalElemento.textContent = formatMoney(saldo);
   caixaCasaSaldoTotalElemento.classList.toggle('negativo', saldo < 0);
 
@@ -1553,8 +1561,7 @@ async function carregarContasPagar() {
   const robertaHtml = renderizarRoberta(robertaRows, robertaSaldoAtual);
   const saldoCaixa = calcularSaldoCaixa(caixaRows);
   const aluguelAbertoCaixa = encontrarPrimeiroAluguelAberto(contas, exdatesRows, parcelasRows, pagos, ajustesRows);
-  const saldoAposAluguel = calcularSaldoAposAluguel(saldoCaixa, aluguelAbertoCaixa?.valor);
-  caixaCasaSaldoAposAluguelElemento.textContent = formatMoney(saldoAposAluguel);
+  exibirSaldoAposAluguelCaixaCasa(saldoCaixa, aluguelAbertoCaixa?.valor);
   caixaCasaSaldoTotalElemento.textContent = formatMoney(saldoCaixa);
   caixaCasaSaldoTotalElemento.classList.toggle('negativo', saldoCaixa < 0);
 
@@ -2647,6 +2654,14 @@ function executarTestes() {
   teste('Caixa — saldo após aluguel preserva a sobra', () => igual(calcularSaldoAposAluguel(800, 500), 300));
   teste('Aluguel — abatimento não ultrapassa o aluguel', () => igual(calcularAbatimentoAluguel(800, 500), 500));
   teste('Aluguel — saldo negativo não gera abatimento', () => igual(calcularAbatimentoAluguel(-10, 500), 0));
+  teste('Caixa — etiqueta mostra quanto do aluguel saiu do caixa e some sem desconto', () => {
+    const etiqueta = document.getElementById('caixa-casa-abatimento-aluguel');
+    exibirSaldoAposAluguelCaixaCasa(800, 500);
+    igual(etiqueta.hidden, false);
+    igual(etiqueta.textContent, `−${formatMoney(500)} do Aluguel`);
+    exibirSaldoAposAluguelCaixaCasa(-10, 500);
+    igual(etiqueta.hidden, true);
+  });
   teste('Aluguel — valor líquido alimenta linha, semana e resumo mensal', () => {
     igual(valorExibidoOcorrencia({ valor: 1000, abatimentoCaixa: 300 }), 700);
   });
