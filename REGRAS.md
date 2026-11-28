@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-28 (saldo da InfinitePay na Home).
+Última revisão: 2026-11-28 (saldo da InfinitePay descontado do card de Contas a Pagar).
 
 ---
 
@@ -125,24 +125,32 @@ usuário autenticado para qualquer leitura ou escrita.
 
 ## Saldo da InfinitePay
 
-A Home (mobile) e o topo do desktop mostram um bloco de 3 linhas:
-**Saldo InfinitePay**, **Precisa vender LÍQUIDO** e a **validade da sessão**.
-O saldo é consultado a cada abertura da Home e também pelo botão ↻ do bloco,
-que busca só o saldo de novo, sem recarregar a página.
+A Home (mobile) e o topo do desktop mostram o **Saldo** da conta InfinitePay
+num bloco em destaque. Ele é consultado ao abrir a Home ou Contas a Pagar e
+pelo botão de atualizar, que fica ao lado esquerdo do Sair, no mesmo estilo e
+na cor da marca. Esse botão busca só o saldo de novo, sem recarregar a página.
 
-- **Precisa vender LÍQUIDO:** quanto falta para o saldo cobrir o primeiro número do
-  card de Contas a Pagar (atrasadas + semana mostrada):
+- **Desconto em Contas a Pagar:** do mesmo jeito que o Caixa Casa abate o
+  primeiro aluguel aberto, o Saldo é descontado do **primeiro número** do card
+  de Contas a Pagar (o que está em destaque: atrasadas + semana mostrada). Logo
+  abaixo do número, uma etiqueta mostra quanto foi descontado
+  (*−R$ X do Saldo*):
 
   ```
-  precisa_vender = max(primeiro_card_contas_pagar − saldo_infinitepay, 0)
+  desconto  = min(max(saldo_infinitepay, 0), primeiro_card)
+  exibido   = primeiro_card − desconto
   ```
 
-  Usa o mesmo valor do card, então, se a semana atual já está paga e o card avançou para outra
-  semana, a conta segue o card. Não desconta taxas de venda da InfinitePay.
-- **Validade da sessão:** a data que vence primeiro entre `ifp_token_exp` e
-  o `ipdashboard_session`, em verde (mais de 2 dias), amarelo (até 2 dias) ou
-  vermelho (vencida). A janela da sessão lista as duas e a do JWT (que renova
-  sozinho; amarelo a menos de 5 minutos).
+  O número que fica é quanto a loja ainda precisa vender. Como usa o mesmo
+  valor do card, se o card avançou para outra semana, o desconto acompanha.
+  Sem saldo disponível (sessão vencida, erro), o card mostra o valor cheio e a
+  etiqueta some. O segundo número (próxima semana) não muda. Não desconta
+  taxas de venda da InfinitePay.
+- **Validade da sessão:** abaixo do saldo, só aparece quando a sessão vence em
+  até 3 dias (amarelo) ou já venceu (vermelho); usa a data que vence primeiro
+  entre `ifp_token_exp` e o `ipdashboard_session`. A janela da sessão lista as
+  duas (verde com mais de 3 dias) e a do JWT (que renova sozinho; amarelo a
+  menos de 5 minutos).
 
 A InfinitePay não tem API pública para isso. A Edge Function
 `infinitepay-saldo` reproduz as requisições do painel web: a do `read-token`
@@ -643,6 +651,9 @@ mostrada até hoje:
 Isso existe porque, quando o card avança (ver abaixo), continuar chamando
 uma semana distante de "Esta semana" seria enganoso. O rótulo sempre diz a
 verdade sobre quão longe está o que ele mostra.
+
+O primeiro número já sai com o Saldo InfinitePay descontado (ver [Saldo da
+InfinitePay](#saldo-da-infinitepay)).
 
 Pendências **atrasadas** de contas comuns são somadas ao primeiro número,
 junto com a semana encontrada. Havendo alguma, o rótulo passa a começar por
