@@ -251,12 +251,13 @@ function bloqueioCloudflare(resposta: Response) {
     || (!resposta.ok && (resposta.headers.get('content-type') ?? '').includes('text/html'));
 }
 
-// SUPOSIÇÃO: o formato do /api/balance ainda não foi confirmado. Tenta os nomes
-// mais prováveis; se nenhum servir, a resposta traz as chaves para ajustarmos.
+// O /api/balance devolve { total, free, premint, frozen, restricted, ... } em
+// centavos; o saldo disponível (o "Seu saldo" do painel) é o free. Confirmado
+// no teste real: free 47901 = R$ 479,01. O app recebe em reais.
 function extrairSaldo(corpo: Record<string, any>): number | null {
-  const candidatos = [corpo?.balance, corpo?.available_balance, corpo?.data?.balance, corpo?.data?.available_balance];
-  const valor = candidatos.find((candidato) => typeof candidato === 'number');
-  return valor ?? null;
+  const free = typeof corpo?.free === 'string' ? Number(corpo.free) : corpo?.free;
+  if (typeof free !== 'number' || !Number.isFinite(free)) return null;
+  return Math.round(free) / 100;
 }
 
 // Reproduz o cURL do read-token guardado e salva o JWT novo no cache.
