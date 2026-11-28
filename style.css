@@ -1052,6 +1052,7 @@ button[type="submit"]:disabled {
 /* Etiqueta de desconto: Saldo no primeiro número de Contas a Pagar e aluguel no Caixa Casa */
 .contas-pagar-abatimento-infinitepay,
 .caixa-casa-abatimento-aluguel {
+  white-space: nowrap;
   margin-top: var(--espaco-minimo);
   padding: 2px var(--espaco-item);
   font-size: var(--fonte-pequena);
