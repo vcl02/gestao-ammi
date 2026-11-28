@@ -267,7 +267,8 @@ async function renovarJwt(readToken: Requisicao) {
   if (!resposta.ok) return { estado: 'erro', status: resposta.status };
 
   const corpo = await resposta.json();
-  const jwt = corpo?.jwtReadToken;
+  // O read-token devolve { token }; jwtReadToken fica como alternativa.
+  const jwt = corpo?.token ?? corpo?.jwtReadToken;
   if (typeof jwt !== 'string') return { estado: 'formato_desconhecido', chaves: Object.keys(corpo ?? {}) };
 
   const jwtExpiraEm = expiracaoDoJwt(jwt);
