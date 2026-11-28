@@ -57,6 +57,17 @@
       </button>
     </header>
 
+    <!-- Saldo da InfinitePay, quanto falta vender para as contas e validade da sessão.
+         O toque abre a janela para colar a sessão -->
+    <button type="button" class="infinitepay-saldo-botao" title="Saldo InfinitePay (toque para atualizar a sessão)">
+      <span class="infinitepay-saldo-linha">
+        <span class="infinitepay-saldo-rotulo">InfinitePay</span>
+        <span class="infinitepay-saldo-valor">…</span>
+      </span>
+      <span class="infinitepay-precisa-vender" hidden></span>
+      <span class="infinitepay-validade" hidden></span>
+    </button>
+
     <nav class="menu">
       <button class="menu-opcao" data-nav="caixa-casa">
         <span class="menu-titulo">Caixa Casa</span>
@@ -90,6 +101,15 @@
     </button>
 
     <p class="empresa-cnpj desktop-empresa">CNPJ 47.154.673/0001-60</p>
+
+    <button type="button" class="infinitepay-saldo-botao infinitepay-saldo-desktop" title="Saldo InfinitePay (toque para atualizar a sessão)">
+      <span class="infinitepay-saldo-linha">
+        <span class="infinitepay-saldo-rotulo">InfinitePay</span>
+        <span class="infinitepay-saldo-valor">…</span>
+      </span>
+      <span class="infinitepay-precisa-vender" hidden></span>
+      <span class="infinitepay-validade" hidden></span>
+    </button>
 
     <!-- ===================== CAIXA CASA =====================
          Dinheiro retirado do caixa da loja e guardado em casa. -->
@@ -443,6 +463,21 @@
       </fieldset>
       <button type="submit">Pagar</button>
       <p id="contas-pagar-pagamento-erro" class="erro" hidden></p>
+    </form>
+  </dialog>
+
+  <!-- Sessão da InfinitePay: só escrita. Os cURLs vão para o servidor e nunca voltam ao app -->
+  <dialog id="infinitepay-janela" class="modal-aviso" aria-labelledby="infinitepay-janela-titulo">
+    <button type="button" id="infinitepay-janela-fechar" class="botao-icone modal-aviso-fechar" aria-label="Fechar">×</button>
+    <h2 id="infinitepay-janela-titulo">Sessão InfinitePay</h2>
+    <p id="infinitepay-janela-situacao" class="modal-venda-progresso"></p>
+    <ul id="infinitepay-janela-validades" class="infinitepay-janela-validades"></ul>
+    <form id="infinitepay-formulario" class="modal-venda-form">
+      <label for="infinitepay-curl">cURL do read-token e/ou do balance</label>
+      <textarea id="infinitepay-curl" class="infinitepay-curl" rows="6" autocomplete="off" spellcheck="false"
+        placeholder="DevTools → Network → botão direito na requisição → Copy as cURL (bash ou cmd). Pode colar as duas juntas."></textarea>
+      <button type="submit">Salvar</button>
+      <ul id="infinitepay-formulario-erro" class="erro infinitepay-erros" hidden></ul>
     </form>
   </dialog>
 

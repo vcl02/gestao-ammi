@@ -11,6 +11,7 @@
   --texto-sobre-primaria: #ffffff;
   --sucesso: #4ade80;
   --perigo: #f87171;
+  --alerta: #facc15;
   --borda: #3a3646;
 
   /* Sombras */
@@ -994,6 +995,84 @@ button[type="submit"]:disabled {
   color: var(--perigo);
 }
 
+/* ===================== INFINITEPAY ===================== */
+/* Saldo discreto: no mobile fica acima do menu; no desktop, no topo ao lado do Sair */
+.infinitepay-saldo-botao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-minimo);
+  width: 100%;
+  margin-bottom: var(--espaco-pagina);
+  padding: var(--espaco-linha) var(--espaco-pagina);
+  font: inherit;
+  text-align: left;
+  color: var(--texto);
+  background: var(--fundo-bloco);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-medio);
+  cursor: pointer;
+}
+
+.infinitepay-saldo-linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espaco-item);
+}
+
+.infinitepay-saldo-rotulo,
+.infinitepay-precisa-vender,
+.infinitepay-validade {
+  font-size: var(--fonte-rotulo);
+  color: var(--texto-suave);
+}
+
+.infinitepay-saldo-valor {
+  font-weight: 600;
+}
+
+.infinitepay-saldo-alerta .infinitepay-saldo-valor {
+  font-size: var(--fonte-rotulo);
+  color: var(--perigo);
+}
+
+/* Cores da validade: verde com folga, amarelo perto de vencer, vermelho vencida */
+.infinitepay-validade-ok {
+  color: var(--sucesso);
+}
+
+.infinitepay-validade-perto {
+  color: var(--alerta);
+}
+
+.infinitepay-validade-vencida {
+  color: var(--perigo);
+}
+
+.infinitepay-janela-validades {
+  margin: 0 0 var(--espaco-pagina);
+  padding: 0;
+  list-style: none;
+  font-size: var(--fonte-rotulo);
+}
+
+.infinitepay-curl {
+  width: 100%;
+  padding: 12px;
+  font-family: monospace;
+  font-size: var(--fonte-pequena);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--fundo-bloco);
+  color: var(--texto);
+  resize: vertical;
+}
+
+.infinitepay-erros {
+  padding-left: var(--espaco-bloco);
+  text-align: left;
+}
+
 /* ===================== DESKTOP (a partir de 900px) ===================== */
 /* No celular estes elementos ficam escondidos ou "transparentes" */
 .painel-titulo {
@@ -1004,7 +1083,8 @@ button[type="submit"]:disabled {
   display: contents;
 }
 
-.desktop-logout {
+.desktop-logout,
+.infinitepay-saldo-desktop {
   display: none;
 }
 
@@ -1052,6 +1132,21 @@ button[type="submit"]:disabled {
     top: 32px;
     right: var(--espaco-pagina);
     z-index: 1;
+  }
+
+  /* À esquerda do botão Sair (36px de largura + folga) */
+  .infinitepay-saldo-desktop {
+    display: flex;
+    position: absolute;
+    top: 32px;
+    right: calc(var(--espaco-pagina) + 48px);
+    flex-direction: row;
+    align-items: center;
+    gap: var(--espaco-linha);
+    width: auto;
+    min-height: 36px;
+    margin: 0;
+    padding: 0 var(--espaco-linha);
   }
 
   /* !important: no desktop todos os painéis aparecem, mesmo com o atributo hidden */
