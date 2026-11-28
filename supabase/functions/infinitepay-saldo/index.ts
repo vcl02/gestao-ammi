@@ -251,14 +251,13 @@ function bloqueioCloudflare(resposta: Response) {
     || (!resposta.ok && (resposta.headers.get('content-type') ?? '').includes('text/html'));
 }
 
-// O /api/balance devolve { total, free, premint, frozen, restricted, ... }; o saldo
-// disponível (o "Seu saldo" do painel) é o free. SUPOSIÇÃO a confirmar: vem em reais.
-// O log registra só se o número é inteiro (nunca o valor), para conferir a unidade.
+// O /api/balance devolve { total, free, premint, frozen, restricted, ... } em
+// centavos; o saldo disponível (o "Seu saldo" do painel) é o free. Confirmado
+// no teste real: free 47901 = R$ 479,01. O app recebe em reais.
 function extrairSaldo(corpo: Record<string, any>): number | null {
   const free = typeof corpo?.free === 'string' ? Number(corpo.free) : corpo?.free;
   if (typeof free !== 'number' || !Number.isFinite(free)) return null;
-  console.log(`infinitepay balance: free ${typeof corpo.free}, inteiro = ${Number.isInteger(free)}`);
-  return free;
+  return Math.round(free) / 100;
 }
 
 // Reproduz o cURL do read-token guardado e salva o JWT novo no cache.

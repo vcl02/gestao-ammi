@@ -147,7 +147,8 @@ A InfinitePay não tem API pública para isso. A Edge Function
 `infinitepay-saldo` reproduz as requisições do painel web: a do `read-token`
 (com o cookie de sessão) gera um token de leitura de ~30 min, guardado em
 cache no servidor, e a do `balance` usa esse token como Bearer. O saldo
-exibido é o campo `free` do `balance`, que corresponde ao *Seu saldo* do painel.
+exibido é o campo `free` do `balance`, que corresponde ao *Seu saldo* do painel;
+a API devolve em centavos e a função converte para reais.
 
 - **Atualizar a sessão:** tocar no saldo abre a janela *Sessão InfinitePay*.
   Cola-se no campo de texto o cURL das requisições `read-token` e/ou `balance`
