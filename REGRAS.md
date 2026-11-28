@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-28 (Empréstimo e Cartão entram nos cards semanais pelo vencimento).
+Última revisão: 2026-11-28 (Empréstimo e Cartão viram linha nas Ocorrências; Cartão por valor atual).
 
 ---
 
@@ -689,19 +689,29 @@ não pago — é o total do que está programado para aquela semana.
 ## Blocos independentes: Empréstimo, Cartão de Crédito e Roberta
 
 Aparecem na tela de Contas a Pagar, dentro das Ocorrências, mas **não são
-contas**: não entram na lista de semanas nem no resumo mensal, e não dependem
-das regras de recorrência. Cada um tem a própria tabela de movimentos. A única
-ligação com as contas é o vencimento de Empréstimo e Cartão nos dois cards
-semanais, descrito abaixo; a Roberta não tem vencimento.
+contas**: não entram no resumo mensal e não dependem das regras de
+recorrência. Cada um tem a própria tabela de movimentos. A ligação com as
+contas é o vencimento de Empréstimo e Cartão, descrito abaixo; a Roberta não
+tem vencimento.
 
 ### Vencimento de Empréstimo e Cartão nos cards semanais
 
-Empréstimo e Cartão com saldo maior que zero entram nos dois números do topo
-(esta semana / próxima) com o **saldo inteiro**, na semana em que cai o
-vencimento (`pendenciasDividasNoResumoSemanal`). Sem vencimento preenchido,
-não entram. Eles não aparecem como itens da lista de semanas nem no resumo
-"pago de … no mês", e também contam para o card avançar até a próxima semana
-com pendência.
+Empréstimo e Cartão com saldo maior que zero entram com o **saldo inteiro** na
+semana em que cai o vencimento (`pendenciasDividasNoResumoSemanal`): viram uma
+linha nessa semana da lista de Ocorrências, somam no total do cabeçalho da
+semana e entram nos dois números do topo (esta semana / próxima), inclusive
+para o card avançar até a próxima semana com pendência. Sem vencimento
+preenchido ou com saldo zero, não entram. Continuam fora do resumo "pago de …
+no mês".
+
+A linha (`renderizarItemDividaOcorrencia`) segue o visual das outras contas:
+
+- **Checkbox:** quita o saldo inteiro, após confirmação, gravando um
+  `abatimento` desse valor. Não pergunta a origem do dinheiro e não lança nada
+  no Caixa nem na Roberta. Com o saldo zerado, a linha some.
+- **Lápis:** abre o mesmo "Atualizar valor atual" do bloco (valor total da
+  dívida).
+- Empréstimo com data já passada mostra a tag "Atrasada".
 
 - **Cartão:** vence todo mês no mesmo dia. O dia fica em
   `cartao_credito_lancamentos.dia_vencimento` e o app usa o do movimento mais
@@ -721,8 +731,8 @@ Os movimentos anteriores à migration 020 ficam com os dois campos nulos.
 
 O Empréstimo é independente de Contas a Pagar, igual ao Cartão de Crédito.
 Ele aparece sempre em um bloco próprio nas Ocorrências, antes do Cartão, sem
-data de cadastro nem resumo mensal. Só a data de finalização o liga aos cards
-semanais.
+data de cadastro nem resumo mensal. Só a data de finalização o liga à lista de
+semanas e aos cards semanais.
 
 Cada movimento fica em `emprestimo_lancamentos`, com valor sempre positivo e
 um tipo que define o sinal:
@@ -768,25 +778,24 @@ dívida e aporte como movimentos equivalentes.
 O Cartão de Crédito aparece **sempre** em um bloco próprio nas Ocorrências,
 logo após o Empréstimo. Ele é independente de Contas a Pagar: não atrasa, não
 entra no resumo mensal e nasce com saldo `R$ 0,00`. O dia de vencimento mensal
-só o liga aos cards semanais.
+só o liga à lista de semanas e aos cards semanais.
 
 Cada movimento é registrado em `cartao_credito_lancamentos`, com valor sempre
-positivo e um tipo que define o sinal:
-
-| Ação | Tipo no banco | Efeito no saldo |
-|---|---|---|
-| `+` Adicionar dívida | `divida` | aumenta o saldo devedor |
-| `−` Abater dívida | `abatimento` | reduz o saldo devedor |
+positivo e um tipo que define o sinal (`divida` aumenta, `abatimento` reduz):
 
 ```
 saldo do cartão = Σ(dívidas) − Σ(abatimentos)
 ```
 
-O botão `−` já traz o saldo atual como sugestão e limita o valor ao necessário
-para zerar; portanto o saldo nunca fica negativo pela interface. Cada
-movimento mostra data, tipo, valor e pode ser excluído individualmente após
-confirmação. Excluir recalcula o saldo; o histórico permanece auditado linha a
-linha como os demais lançamentos.
+**Igual ao Empréstimo, o Cartão pede o valor total atual da fatura**, não o
+valor do movimento. O único botão do bloco é "Atualizar valor atual", e a
+diferença para o saldo vira um único movimento pela mesma regra do Empréstimo
+(`dadosAtualizacaoValorDivida`). Diferente do Empréstimo, ele **nunca pede
+data**: o vencimento é o dia fixo do mês. Os antigos botões `+`/`−` foram
+removidos para padronizar; compras individuais não ficam mais registradas uma
+a uma, só os ajustes do total. Cada movimento mostra data, tipo, valor e pode
+ser excluído individualmente após confirmação. Excluir recalcula o saldo; o
+histórico permanece auditado linha a linha como os demais lançamentos.
 
 ---
 

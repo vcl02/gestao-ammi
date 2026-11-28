@@ -335,17 +335,18 @@ function proximoVencimentoCartao(diaVencimento, hoje = hojeISO()) {
     : montarDataOcorrencia(ano, mes, diaVencimento);
 }
 
-// Empréstimo e Cartão em aberto viram pendências dos cards semanais: o saldo
-// inteiro cai na data de vencimento. Sem vencimento preenchido, não entram.
+// Empréstimo e Cartão em aberto viram uma linha nas Ocorrências e entram nos
+// cards semanais: o saldo inteiro cai na data de vencimento. Sem vencimento
+// preenchido, não entram.
 function pendenciasDividasNoResumoSemanal({ emprestimoLancamentos, emprestimoSaldo, cartaoLancamentos, cartaoSaldo, hoje = hojeISO() }) {
   const pendencias = [];
   const dataEmprestimo = vencimentoMaisRecente(emprestimoLancamentos, 'data_vencimento');
   if (emprestimoSaldo > 0 && dataEmprestimo) {
-    pendencias.push({ data: dataEmprestimo, valor: round2(emprestimoSaldo) });
+    pendencias.push({ data: dataEmprestimo, valor: round2(emprestimoSaldo), tabela: EMPRESTIMO_TABLE, titulo: 'Empréstimo' });
   }
   const diaCartao = vencimentoMaisRecente(cartaoLancamentos, 'dia_vencimento');
   if (cartaoSaldo > 0 && diaCartao) {
-    pendencias.push({ data: proximoVencimentoCartao(Number(diaCartao), hoje), valor: round2(cartaoSaldo) });
+    pendencias.push({ data: proximoVencimentoCartao(Number(diaCartao), hoje), valor: round2(cartaoSaldo), tabela: CARTAO_CREDITO_TABLE, titulo: 'Cartão de Crédito' });
   }
   return pendencias;
 }
@@ -402,10 +403,33 @@ function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, 
     </li>`;
 }
 
+// Linha de Empréstimo ou Cartão dentro da semana do vencimento: o checkbox
+// quita o saldo inteiro e o lápis abre o "Atualizar valor atual".
+function renderizarItemDividaOcorrencia({ data, valor, tabela, titulo }, hoje = hojeISO()) {
+  const atrasada = data < hoje;
+  return `
+      <li class="lancamento-item${atrasada ? ' lancamento-atrasada' : ''}">
+        <div class="lancamento-checkbox">
+          <input type="checkbox" class="contas-pagar-divida-quitar-checkbox" data-tabela="${tabela}" data-nome="${titulo}" data-valor="${valor}" aria-label="Quitar ${titulo}">
+          <div class="lancamento-info">
+            <div class="lancamento-nome-tags"><span>${titulo}</span>${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
+            <span class="lancamento-data">${formatDataBR(data)}</span>
+          </div>
+        </div>
+        <span class="lancamento-valor negativo">${formatMoney(valor)}</span>
+        <button type="button" class="botao-icone botao-icone-neutro divida-valor-atual-botao" data-tabela="${tabela}" data-nome="${titulo}" aria-label="Alterar valor total do ${titulo}" title="Alterar valor total">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </button>
+      </li>`;
+}
+
 function renderizarCartaoCredito(lancamentos, saldo) {
   return renderizarDividaEspecial({
     grupo: 'cartao-credito', classe: 'cartao-credito-grupo', titulo: 'Cartão de Crédito',
-    tabela: CARTAO_CREDITO_TABLE, lancamentos, saldo,
+    tabela: CARTAO_CREDITO_TABLE, lancamentos, saldo, valorAtualUnico: true,
   });
 }
 
@@ -1606,8 +1630,8 @@ async function carregarContasPagar() {
   contasPagarTotalMesPagoElemento.textContent = formatMoney(totalMesPago);
   contasPagarTotalMesGeralElemento.textContent = formatMoney(totalMesGeral);
 
-  // Empréstimo e Cartão só entram nos dois cards semanais, nunca na lista
-  // nem no resumo do mês.
+  // Empréstimo e Cartão entram na lista de semanas e nos dois cards, mas não
+  // no resumo do mês.
   const ocorrenciasResumoSemanal = ocorrenciasParaExibir.concat(pendenciasDividasNoResumoSemanal({
     emprestimoLancamentos: emprestimoRows,
     emprestimoSaldo: emprestimoSaldoAtual,
@@ -1717,7 +1741,9 @@ async function carregarContasPagar() {
   function renderizarGruposSemana(grupos) {
     return grupos.map((grupo) => {
       const ehSemanaAtual = ehGrupoDaSemanaAtual(grupo);
-      const itensHtml = grupo.itens.map(renderizarItemOcorrencia).join('');
+      const itensHtml = grupo.itens
+        .map((item) => (item.tabela ? renderizarItemDividaOcorrencia(item, hoje) : renderizarItemOcorrencia(item)))
+        .join('');
       const rotuloSemana = `Semana ${grupo.semana}`;
       const totalGrupo = grupo.itens.reduce((acc, item) => acc + valorExibidoOcorrencia(item), 0);
       const chaveSemana = `${grupo.ano}-${grupo.mes}-${grupo.semana}`;
@@ -1737,7 +1763,7 @@ async function carregarContasPagar() {
     }).join('');
   }
 
-  contasPagarListaOcorrenciasElemento.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + renderizarGruposSemana(agruparPorSemana(ocorrenciasParaExibir));
+  contasPagarListaOcorrenciasElemento.innerHTML = emprestimoHtml + cartaoCreditoHtml + robertaHtml + renderizarGruposSemana(agruparPorSemana(ocorrenciasResumoSemanal));
   contasPagarListaOcorrenciasElemento.querySelectorAll('.contas-pagar-pago-checkbox[data-parcial="true"]').forEach((checkbox) => {
     checkbox.indeterminate = true;
   });
@@ -1889,6 +1915,27 @@ async function alternarPagoContasPagar(e) {
 }
 
 contasPagarListaOcorrenciasElemento.addEventListener('change', alternarPagoContasPagar);
+contasPagarListaOcorrenciasElemento.addEventListener('change', quitarDividaContasPagar);
+
+// Checkbox da linha de Empréstimo/Cartão: grava um abatimento do saldo
+// inteiro, e a linha some da lista por ficar sem saldo.
+async function quitarDividaContasPagar(e) {
+  if (!e.target.classList.contains('contas-pagar-divida-quitar-checkbox')) return;
+  const checkbox = e.target;
+  const { tabela, nome } = checkbox.dataset;
+  const saldoAtual = tabela === EMPRESTIMO_TABLE ? emprestimoSaldoAtual : cartaoSaldoAtual;
+  if (saldoAtual <= 0 || !confirm(`Quitar ${nome} (${formatMoney(saldoAtual)})?`)) {
+    checkbox.checked = false;
+    return;
+  }
+  const { error } = await supabase.from(tabela).insert(dadosLancamentoDivida('abatimento', saldoAtual));
+  if (error) {
+    checkbox.checked = false;
+    alert(`Erro ao quitar o ${nome}.`);
+    return;
+  }
+  await carregarContasPagar();
+}
 
 contasPagarListaOcorrenciasElemento.addEventListener('click', async (e) => {
   const dividaExcluirBotao = e.target.closest('.cartao-excluir-botao');
@@ -1914,22 +1961,26 @@ contasPagarListaOcorrenciasElemento.addEventListener('click', async (e) => {
   const dividaValorAtualBotao = e.target.closest('.divida-valor-atual-botao');
   if (dividaValorAtualBotao) {
     const nome = dividaValorAtualBotao.dataset.nome;
-    const saldoAtual = emprestimoSaldoAtual;
+    // Só o Empréstimo pede data de finalização; o Cartão vence num dia fixo.
+    const emprestimo = dividaValorAtualBotao.dataset.tabela === EMPRESTIMO_TABLE;
+    const saldoAtual = emprestimo ? emprestimoSaldoAtual : cartaoSaldoAtual;
     const resposta = await pedirValor({
       titulo: `Valor atual do ${nome}`,
       rotulo: 'Quanto a dívida vale hoje',
       valorInicial: saldoAtual,
       permitirZero: true,
-      pedirDataAcimaDe: saldoAtual,
+      pedirDataAcimaDe: emprestimo ? saldoAtual : null,
     });
     if (resposta === null) return;
 
-    const dados = dadosAtualizacaoValorDivida(resposta.valor, saldoAtual, hojeISO(), resposta.dataVencimento);
+    const valorInformado = emprestimo ? resposta.valor : resposta;
+    const dataVencimento = emprestimo ? resposta.dataVencimento : null;
+    const dados = dadosAtualizacaoValorDivida(valorInformado, saldoAtual, hojeISO(), dataVencimento);
     if (!dados) return;
 
     const { error } = await supabase.from(dividaValorAtualBotao.dataset.tabela).insert(dados);
     if (error) {
-      alert('Erro ao registrar o movimento. Confira se as migrations 012 e 020 foram aplicadas.');
+      alert('Erro ao registrar o movimento. Confira se as migrations 010, 012 e 020 foram aplicadas.');
       return;
     }
     await carregarContasPagar();
@@ -2524,8 +2575,8 @@ function executarTestes() {
       cartaoSaldo: 80,
       hoje: '2026-11-28',
     }), [
-      { data: '2026-12-05', valor: 250 },
-      { data: '2026-12-03', valor: 80 },
+      { data: '2026-12-05', valor: 250, tabela: EMPRESTIMO_TABLE, titulo: 'Empréstimo' },
+      { data: '2026-12-03', valor: 80, tabela: CARTAO_CREDITO_TABLE, titulo: 'Cartão de Crédito' },
     ]);
   });
   teste('Resumo semanal — sem vencimento ou sem saldo, Empréstimo e Cartão ficam fora', () => {
@@ -2771,8 +2822,18 @@ function executarTestes() {
   teste('Interface — Cartão de Crédito fica visível mesmo sem movimentos', () => {
     const fixture = document.createElement('ul');
     fixture.innerHTML = renderizarCartaoCredito([], 0);
-    igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-botao[data-tipo="divida"]') !== null, true);
-    igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-botao[data-tipo="abatimento"]').disabled, true);
+    igual(fixture.querySelector('.cartao-credito-grupo .divida-valor-atual-botao') !== null, true);
+    igual(fixture.querySelector('.cartao-credito-grupo .divida-movimento-botao'), null);
+    fixture.remove();
+  });
+  teste('Interface — linha do Empréstimo nas Ocorrências tem checkbox de quitar e lápis', () => {
+    const fixture = document.createElement('ul');
+    fixture.innerHTML = renderizarItemDividaOcorrencia({
+      data: '2026-11-02', valor: 200, tabela: EMPRESTIMO_TABLE, titulo: 'Empréstimo',
+    }, '2026-11-28');
+    igual(fixture.querySelector('.contas-pagar-divida-quitar-checkbox').dataset.tabela, EMPRESTIMO_TABLE);
+    igual(fixture.querySelector('.divida-valor-atual-botao') !== null, true);
+    igual(fixture.querySelector('.tag-atrasada') !== null, true);
     fixture.remove();
   });
   teste('Interface — Roberta fica visível mesmo sem movimentos', () => {
