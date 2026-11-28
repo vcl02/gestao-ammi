@@ -415,6 +415,11 @@
     <form id="valor-janela-formulario" class="modal-venda-form">
       <label for="valor-janela-campo" id="valor-janela-rotulo">Valor</label>
       <input type="text" id="valor-janela-campo" inputmode="decimal" placeholder="0,00">
+      <!-- Data de finalização: só aparece quando o valor digitado passa do saldo devido (Empréstimo) -->
+      <div id="valor-janela-data-vencimento" class="valor-janela-data-vencimento" hidden>
+        <label for="valor-janela-data-vencimento-campo">Data de finalização</label>
+        <input type="date" id="valor-janela-data-vencimento-campo">
+      </div>
       <button type="submit">Confirmar</button>
       <p id="valor-janela-erro" class="erro" hidden></p>
     </form>

@@ -309,10 +309,45 @@ function dadosLancamentoDivida(tipo, valor, data = hojeISO()) {
   return { tipo, valor: round2(Number(valor)), data };
 }
 
-function dadosAtualizacaoValorDivida(valorAtualInformado, saldoAtual, data = hojeISO()) {
+function dadosAtualizacaoValorDivida(valorAtualInformado, saldoAtual, data = hojeISO(), dataVencimento = null) {
   const delta = round2(Number(valorAtualInformado) - Number(saldoAtual));
   if (delta === 0) return null;
-  return dadosLancamentoDivida(delta > 0 ? 'divida' : 'abatimento', Math.abs(delta), data);
+  const dados = dadosLancamentoDivida(delta > 0 ? 'divida' : 'abatimento', Math.abs(delta), data);
+  if (delta > 0 && dataVencimento) dados.data_vencimento = dataVencimento;
+  return dados;
+}
+
+// Primeiro valor preenchido de `campo` nos movimentos, que já vêm do mais
+// recente para o mais antigo. Serve para achar o vencimento vigente.
+function vencimentoMaisRecente(lancamentos, campo) {
+  const lancamento = lancamentos.find((item) => item[campo] !== null && item[campo] !== undefined);
+  return lancamento ? lancamento[campo] : null;
+}
+
+// Próxima data (hoje inclusive) em que cai o dia de vencimento do cartão.
+// Dia que não existe no mês é ancorado no último dia, como nas contas mensais.
+function proximoVencimentoCartao(diaVencimento, hoje = hojeISO()) {
+  const [ano, mes] = hoje.split('-').map(Number);
+  const dataNoMes = montarDataOcorrencia(ano, mes - 1, diaVencimento);
+  if (dataNoMes >= hoje) return dataNoMes;
+  return mes === 12
+    ? montarDataOcorrencia(ano + 1, 0, diaVencimento)
+    : montarDataOcorrencia(ano, mes, diaVencimento);
+}
+
+// Empréstimo e Cartão em aberto viram pendências dos cards semanais: o saldo
+// inteiro cai na data de vencimento. Sem vencimento preenchido, não entram.
+function pendenciasDividasNoResumoSemanal({ emprestimoLancamentos, emprestimoSaldo, cartaoLancamentos, cartaoSaldo, hoje = hojeISO() }) {
+  const pendencias = [];
+  const dataEmprestimo = vencimentoMaisRecente(emprestimoLancamentos, 'data_vencimento');
+  if (emprestimoSaldo > 0 && dataEmprestimo) {
+    pendencias.push({ data: dataEmprestimo, valor: round2(emprestimoSaldo) });
+  }
+  const diaCartao = vencimentoMaisRecente(cartaoLancamentos, 'dia_vencimento');
+  if (cartaoSaldo > 0 && diaCartao) {
+    pendencias.push({ data: proximoVencimentoCartao(Number(diaCartao), hoje), valor: round2(cartaoSaldo) });
+  }
+  return pendencias;
 }
 
 function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, saldo, valorAtualUnico }) {
@@ -324,7 +359,7 @@ function renderizarDividaEspecial({ grupo, classe, titulo, tabela, lancamentos, 
       <li class="lancamento-item">
         <div class="lancamento-info">
           <span class="lancamento-desc">${lancamento.descricao ? `${rotulo} · ${lancamento.descricao}` : rotulo}</span>
-          <span class="lancamento-data">${formatDataBR(lancamento.data)}</span>
+          <span class="lancamento-data">${formatDataBR(lancamento.data)}${lancamento.data_vencimento ? ` · vence ${formatDataBR(lancamento.data_vencimento)}` : ''}</span>
         </div>
         <span class="lancamento-valor ${divida ? 'negativo' : 'positivo'}">${divida ? '+' : '−'} ${formatMoney(lancamento.valor)}</span>
         <button type="button" class="botao-icone cartao-excluir-botao" data-id="${lancamento.id}" data-tabela="${tabela}" data-nome="${titulo}" data-conta-id="${lancamento.conta_pagar_id || ''}" data-data-ocorrencia="${lancamento.data_ocorrencia || ''}" aria-label="Excluir movimento do ${titulo}" title="Excluir movimento">
@@ -1137,24 +1172,42 @@ const valorJanelaTituloElemento = document.getElementById('valor-janela-titulo')
 const valorJanelaRotuloElemento = document.getElementById('valor-janela-rotulo');
 const valorJanelaCampo = document.getElementById('valor-janela-campo');
 const valorJanelaErroElemento = document.getElementById('valor-janela-erro');
+const valorJanelaDataVencimentoElemento = document.getElementById('valor-janela-data-vencimento');
+const valorJanelaDataVencimentoCampo = document.getElementById('valor-janela-data-vencimento-campo');
 let valorJanelaPendente = null;
 
 aplicarMascaraMoney(valorJanelaCampo);
+
+// Mostra o campo de data de finalização só enquanto o valor digitado passa
+// do saldo devido (Empréstimo quitado e contraído de novo, ou saindo do zero).
+function atualizarDataVencimentoValorJanela() {
+  const limite = valorJanelaPendente?.pedirDataAcimaDe;
+  const valor = parseMoney(valorJanelaCampo.value);
+  valorJanelaDataVencimentoElemento.hidden = limite === null || limite === undefined
+    || !(Number.isFinite(valor) && round2(valor) > round2(limite));
+}
+
+valorJanelaCampo.addEventListener('input', atualizarDataVencimentoValorJanela);
 
 function valorInformadoValido(valor, permitirZero) {
   return Number.isFinite(valor) && (permitirZero ? valor >= 0 : round2(valor) > 0);
 }
 
-// Resolve com o número digitado ou null se cancelar.
-function pedirValor({ titulo, rotulo = 'Valor', valorInicial = null, permitirZero = false }) {
+// Resolve com o número digitado ou null se cancelar. Com `pedirDataAcimaDe`,
+// resolve com { valor, dataVencimento }: a data só é pedida quando o valor
+// passa desse limite, senão vem null.
+function pedirValor({ titulo, rotulo = 'Valor', valorInicial = null, permitirZero = false, pedirDataAcimaDe = null }) {
   valorJanelaTituloElemento.textContent = titulo;
   valorJanelaRotuloElemento.textContent = rotulo;
   valorJanelaCampo.value = valorInicial === null ? '' : formatarValorCampo(valorInicial);
+  valorJanelaDataVencimentoCampo.value = '';
   valorJanelaErroElemento.hidden = true;
+  valorJanelaPendente = { resolve: null, permitirZero, pedirDataAcimaDe };
+  atualizarDataVencimentoValorJanela();
   valorJanelaElemento.showModal();
   valorJanelaCampo.focus({ preventScroll: true });
   return new Promise((resolve) => {
-    valorJanelaPendente = { resolve, permitirZero };
+    valorJanelaPendente.resolve = resolve;
   });
 }
 
@@ -1174,7 +1227,17 @@ document.getElementById('valor-janela-formulario').addEventListener('submit', (e
     valorJanelaErroElemento.hidden = false;
     return;
   }
-  concluirPedidoValor(round2(valor));
+  if (valorJanelaPendente.pedirDataAcimaDe === null) {
+    concluirPedidoValor(round2(valor));
+    return;
+  }
+  const pedeData = !valorJanelaDataVencimentoElemento.hidden;
+  if (pedeData && !valorJanelaDataVencimentoCampo.value) {
+    valorJanelaErroElemento.textContent = 'Informe a data de finalização.';
+    valorJanelaErroElemento.hidden = false;
+    return;
+  }
+  concluirPedidoValor({ valor: round2(valor), dataVencimento: pedeData ? valorJanelaDataVencimentoCampo.value : null });
 });
 document.getElementById('valor-janela-fechar').addEventListener('click', () => concluirPedidoValor(null));
 valorJanelaElemento.addEventListener('close', () => concluirPedidoValor(null));
@@ -1543,7 +1606,16 @@ async function carregarContasPagar() {
   contasPagarTotalMesPagoElemento.textContent = formatMoney(totalMesPago);
   contasPagarTotalMesGeralElemento.textContent = formatMoney(totalMesGeral);
 
-  const gruposSemanaTodos = agruparPorSemana(ocorrenciasParaExibir);
+  // Empréstimo e Cartão só entram nos dois cards semanais, nunca na lista
+  // nem no resumo do mês.
+  const ocorrenciasResumoSemanal = ocorrenciasParaExibir.concat(pendenciasDividasNoResumoSemanal({
+    emprestimoLancamentos: emprestimoRows,
+    emprestimoSaldo: emprestimoSaldoAtual,
+    cartaoLancamentos: cartaoRows,
+    cartaoSaldo: cartaoSaldoAtual,
+    hoje,
+  })).sort((a, b) => a.data.localeCompare(b.data));
+  const gruposSemanaTodos = agruparPorSemana(ocorrenciasResumoSemanal);
 
   function totalPendenteDaSemana(ano, mes, semana) {
     const grupo = gruposSemanaTodos.find((g) => g.ano === ano && g.mes === mes && g.semana === semana);
@@ -1558,7 +1630,7 @@ async function carregarContasPagar() {
   // a semana já está toda paga (ou vazia), avança semana a semana até
   // achar uma com pendência — sem limite.
   function acharSemanaComPendencia(dataRef, saltos) {
-    const datasPendentes = ocorrenciasParaExibir
+    const datasPendentes = ocorrenciasResumoSemanal
       .filter(entraNoResumoSemanal)
       .map((ocorrencia) => ocorrencia.data)
       .sort();
@@ -1590,7 +1662,7 @@ async function carregarContasPagar() {
 
   const semanaAtual = acharSemanaComPendencia(hoje, 0);
   const proximaSemana = acharSemanaComPendencia(chaveSemanaSeguinte(semanaAtual.dataRef).data, semanaAtual.saltos + 1);
-  const totalAtrasadas = totalAtrasadasNoResumoSemanal(ocorrenciasParaExibir, hoje);
+  const totalAtrasadas = totalAtrasadasNoResumoSemanal(ocorrenciasResumoSemanal, hoje);
 
   contasPagarTotalSemanaAtualElemento.textContent = formatMoney(round2(semanaAtual.total + totalAtrasadas));
   contasPagarTotalProximaSemanaElemento.textContent = formatMoney(proximaSemana.total);
@@ -1843,20 +1915,21 @@ contasPagarListaOcorrenciasElemento.addEventListener('click', async (e) => {
   if (dividaValorAtualBotao) {
     const nome = dividaValorAtualBotao.dataset.nome;
     const saldoAtual = emprestimoSaldoAtual;
-    const valorInformado = await pedirValor({
+    const resposta = await pedirValor({
       titulo: `Valor atual do ${nome}`,
       rotulo: 'Quanto a dívida vale hoje',
       valorInicial: saldoAtual,
       permitirZero: true,
+      pedirDataAcimaDe: saldoAtual,
     });
-    if (valorInformado === null) return;
+    if (resposta === null) return;
 
-    const dados = dadosAtualizacaoValorDivida(valorInformado, saldoAtual);
+    const dados = dadosAtualizacaoValorDivida(resposta.valor, saldoAtual, hojeISO(), resposta.dataVencimento);
     if (!dados) return;
 
     const { error } = await supabase.from(dividaValorAtualBotao.dataset.tabela).insert(dados);
     if (error) {
-      alert('Erro ao registrar o movimento. Confira se a migration 012 foi aplicada.');
+      alert('Erro ao registrar o movimento. Confira se as migrations 012 e 020 foram aplicadas.');
       return;
     }
     await carregarContasPagar();
@@ -2425,6 +2498,54 @@ function executarTestes() {
     igualJson(dadosAtualizacaoValorDivida(0, 225.5, '2026-10-06'), {
       tipo: 'abatimento', valor: 225.5, data: '2026-10-06',
     });
+  });
+  teste('Empréstimo — data de finalização só é gravada quando o valor aumenta', () => {
+    igualJson(dadosAtualizacaoValorDivida(300, 0, '2026-10-06', '2027-03-10'), {
+      tipo: 'divida', valor: 300, data: '2026-10-06', data_vencimento: '2027-03-10',
+    });
+    igualJson(dadosAtualizacaoValorDivida(100, 225.5, '2026-10-06', '2027-03-10'), {
+      tipo: 'abatimento', valor: 125.5, data: '2026-10-06',
+    });
+  });
+  teste('Cartão — vencimento é o próximo dia do mês, virando mês e ano', () => {
+    igual(proximoVencimentoCartao(28, '2026-11-28'), '2026-11-28');
+    igual(proximoVencimentoCartao(10, '2026-12-20'), '2027-01-10');
+    igual(proximoVencimentoCartao(31, '2027-02-05'), '2027-02-28');
+  });
+  teste('Resumo semanal — Empréstimo e Cartão entram com o saldo na data de vencimento', () => {
+    igualJson(pendenciasDividasNoResumoSemanal({
+      emprestimoLancamentos: [
+        { tipo: 'abatimento', valor: 50, data_vencimento: null },
+        { tipo: 'divida', valor: 200, data_vencimento: '2026-12-05' },
+        { tipo: 'divida', valor: 100, data_vencimento: '2026-10-01' },
+      ],
+      emprestimoSaldo: 250,
+      cartaoLancamentos: [{ tipo: 'divida', valor: 80, dia_vencimento: 3 }],
+      cartaoSaldo: 80,
+      hoje: '2026-11-28',
+    }), [
+      { data: '2026-12-05', valor: 250 },
+      { data: '2026-12-03', valor: 80 },
+    ]);
+  });
+  teste('Resumo semanal — sem vencimento ou sem saldo, Empréstimo e Cartão ficam fora', () => {
+    igualJson(pendenciasDividasNoResumoSemanal({
+      emprestimoLancamentos: [{ tipo: 'divida', valor: 200, data_vencimento: null }],
+      emprestimoSaldo: 200,
+      cartaoLancamentos: [{ tipo: 'divida', valor: 80, dia_vencimento: 3 }],
+      cartaoSaldo: 0,
+      hoje: '2026-11-28',
+    }), []);
+  });
+  teste('Resumo semanal — Empréstimo vencido com saldo entra nas atrasadas', () => {
+    const pendencias = pendenciasDividasNoResumoSemanal({
+      emprestimoLancamentos: [{ tipo: 'divida', valor: 200, data_vencimento: '2026-11-02' }],
+      emprestimoSaldo: 200,
+      cartaoLancamentos: [],
+      cartaoSaldo: 0,
+      hoje: '2026-11-28',
+    });
+    igual(totalAtrasadasNoResumoSemanal(pendencias, '2026-11-28'), 200);
   });
   teste('Salário — vendas somam e pagamentos subtraem', () => {
     igual(calcularSaldoSalario([{ tipo: 'venda', valor: 80 }, { tipo: 'pagamento', valor: 30 }]), 50);

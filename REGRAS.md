@@ -5,7 +5,7 @@ Não trata de stack, setup ou como rodar — só do que o sistema faz e por quê
 O objetivo é que essas regras não se percam com o tempo, já que boa parte
 delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
 
-Última revisão: 2026-11-24 (reorganização: sem mudança de regras).
+Última revisão: 2026-11-28 (Empréstimo e Cartão entram nos cards semanais pelo vencimento).
 
 ---
 
@@ -26,6 +26,7 @@ delas não é óbvia lendo o código e nenhuma está registrada em outro lugar.
   - [Card do topo: esta semana e a próxima](#card-do-topo-esta-semana-e-a-próxima)
   - [Agrupamento por semana](#agrupamento-por-semana)
 - [Blocos independentes: Empréstimo, Cartão de Crédito e Roberta](#blocos-independentes-empréstimo-cartão-de-crédito-e-roberta)
+  - [Vencimento de Empréstimo e Cartão nos cards semanais](#vencimento-de-empréstimo-e-cartão-nos-cards-semanais)
   - [Empréstimo](#empréstimo)
   - [Cartão de Crédito](#cartão-de-crédito)
   - [Roberta](#roberta)
@@ -598,8 +599,10 @@ verdade sobre quão longe está o que ele mostra.
 
 Pendências **atrasadas** de contas comuns são somadas ao primeiro número,
 junto com a semana encontrada. Havendo alguma, o rótulo passa a começar por
-"Atrasadas +". Empréstimo, Cartão de Crédito e Roberta continuam fora dos
-dois cards.
+"Atrasadas +". Empréstimo e Cartão de Crédito entram pelo vencimento (ver
+[Vencimento de Empréstimo e Cartão nos cards
+semanais](#vencimento-de-empréstimo-e-cartão-nos-cards-semanais)); a Roberta
+continua fora dos dois cards.
 
 #### Os dois números avançam quando não há pendência
 
@@ -611,8 +614,8 @@ seguinte à do primeiro, buscada da mesma forma — então se o primeiro virou
 semanas", "Em 4 semanas", etc.
 
 A busca avança semana a semana até achar uma pendência entre as ocorrências
-carregadas. **Empréstimo, Cartão de Crédito e Roberta nunca entram nesses
-dois cards semanais**, pois já ficam em blocos separados. Se não existir nenhuma
+carregadas, incluindo o vencimento de Empréstimo e Cartão. **A Roberta nunca
+entra nesses dois cards semanais.** Se não existir nenhuma
 pendência comum naquela semana nem depois dela, o card mostra `R$ 0,00`; isso
 também impede uma busca infinita quando existem somente contas parceladas
 antigas ou Empréstimo.
@@ -686,15 +689,40 @@ não pago — é o total do que está programado para aquela semana.
 ## Blocos independentes: Empréstimo, Cartão de Crédito e Roberta
 
 Aparecem na tela de Contas a Pagar, dentro das Ocorrências, mas **não são
-contas**: não têm vencimento, não atrasam, não entram nos cards semanais nem no
-resumo mensal, e não dependem das regras de recorrência. Cada um tem a própria
-tabela de movimentos.
+contas**: não entram na lista de semanas nem no resumo mensal, e não dependem
+das regras de recorrência. Cada um tem a própria tabela de movimentos. A única
+ligação com as contas é o vencimento de Empréstimo e Cartão nos dois cards
+semanais, descrito abaixo; a Roberta não tem vencimento.
+
+### Vencimento de Empréstimo e Cartão nos cards semanais
+
+Empréstimo e Cartão com saldo maior que zero entram nos dois números do topo
+(esta semana / próxima) com o **saldo inteiro**, na semana em que cai o
+vencimento (`pendenciasDividasNoResumoSemanal`). Sem vencimento preenchido,
+não entram. Eles não aparecem como itens da lista de semanas nem no resumo
+"pago de … no mês", e também contam para o card avançar até a próxima semana
+com pendência.
+
+- **Cartão:** vence todo mês no mesmo dia. O dia fica em
+  `cartao_credito_lancamentos.dia_vencimento` e o app usa o do movimento mais
+  recente que o tiver preenchido. Não há campo na tela: o dia é definido por
+  UPDATE no banco. A data usada é a próxima ocorrência desse dia a partir de
+  hoje (inclusive); dia inexistente no mês vira o último dia, como nas contas
+  mensais. Por isso o Cartão nunca fica atrasado: passado o dia, ele vai para
+  o mês seguinte.
+- **Empréstimo:** vence de uma vez, na data de finalização. A data fica em
+  `emprestimo_lancamentos.data_vencimento`, só em movimentos `divida`, e vale
+  a do movimento mais recente que a tiver. Passada a data com saldo, ele entra
+  nas **atrasadas** e aparece toda semana em "Atrasadas +" até zerar.
+
+Os movimentos anteriores à migration 020 ficam com os dois campos nulos.
 
 ### Empréstimo
 
 O Empréstimo é independente de Contas a Pagar, igual ao Cartão de Crédito.
 Ele aparece sempre em um bloco próprio nas Ocorrências, antes do Cartão, sem
-vencimento, atraso, data de cadastro, cards semanais ou resumo mensal.
+data de cadastro nem resumo mensal. Só a data de finalização o liga aos cards
+semanais.
 
 Cada movimento fica em `emprestimo_lancamentos`, com valor sempre positivo e
 um tipo que define o sinal:
@@ -719,6 +747,13 @@ movimento equivalente:
 - valor informado **menor** que o saldo → grava `abatimento` com a diferença;
 - valor informado **igual** ao saldo → nenhum movimento é gravado.
 
+Enquanto o valor digitado estiver **acima** do saldo devido, a janela mostra o
+campo **Data de finalização**, que passa a ser obrigatório. A comparação é
+feita na hora, enquanto se digita. Valor maior significa que a dívida anterior
+foi quitada e outra foi contraída, ou que o empréstimo saiu do zero. A data é
+gravada na dívida criada e aparece no histórico como "vence dd/mm/aaaa".
+Valores iguais ou menores não pedem data.
+
 Isso evita o usuário ter que calcular manualmente quanto pagou ou quanto
 contraiu a mais; ele só informa o total atual da dívida. Cada movimento
 gravado mostra data, tipo e valor no histórico, e pode ser excluído
@@ -731,9 +766,9 @@ dívida e aporte como movimentos equivalentes.
 ### Cartão de Crédito
 
 O Cartão de Crédito aparece **sempre** em um bloco próprio nas Ocorrências,
-logo após o Empréstimo. Ele é independente de Contas a Pagar: não possui
-vencimento, não atrasa, não entra nos cards semanais ou no resumo mensal e
-nasce com saldo `R$ 0,00`.
+logo após o Empréstimo. Ele é independente de Contas a Pagar: não atrasa, não
+entra no resumo mensal e nasce com saldo `R$ 0,00`. O dia de vencimento mensal
+só o liga aos cards semanais.
 
 Cada movimento é registrado em `cartao_credito_lancamentos`, com valor sempre
 positivo e um tipo que define o sinal:
