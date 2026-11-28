@@ -1,0 +1,29 @@
+# Publica as Edge Functions no Supabase de PROD quando algo em
+# supabase/functions/ chega na main (merge de PR ou push direto).
+# Migrations continuam manuais: veja "Migrations" no AGENTS.md.
+name: Deploy Supabase
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/functions/**']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-supabase
+  cancel-in-progress: false
+
+jobs:
+  functions:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # Ref do projeto gestao-ammi (o mesmo da SUPABASE_URL no app.js, não é segredo).
+      SUPABASE_PROJECT_REF: odjryakghivbwyftfjar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      # Sem nome de função, o CLI publica todas as pastas de supabase/functions/.
+      - run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"

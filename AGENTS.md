@@ -122,6 +122,14 @@ o padrão das existentes. Sem isso, a tabela fica inacessível pelo app. Tabelas
 deliberadamente somente leitura, como auditoria, usam policy apenas de `select`
 e removem as permissões de escrita dos usuários do aplicativo.
 
+## Edge Functions — deploy automático
+
+O workflow `.github/workflows/deploy-supabase.yml` publica todas as pastas de
+`supabase/functions/` no PROD a cada push na `main` que mexa nelas (merge de
+PR incluído); também dá para rodar à mão em Actions. Não publique Edge
+Functions pelo MCP: basta o merge. Depende do secret `SUPABASE_ACCESS_TOKEN`
+no repositório.
+
 ## Rodar localmente
 
 O projeto é estático, mas precisa de servidor HTTP (o `app.js` usa módulo ES;
