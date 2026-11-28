@@ -595,7 +595,7 @@ function showView(name) {
   if (name === 'salario' || name === 'home') carregarSalario();
   if (name === 'contas-pagar' || name === 'home') carregarContasPagar();
   if (name === 'fiado' || name === 'home') carregarFiado();
-  if (name === 'home') carregarSaldoInfinitepay();
+  if (name === 'home' || name === 'contas-pagar') carregarSaldoInfinitepay();
 }
 
 document.querySelectorAll('[data-nav]').forEach((el) => {
@@ -1131,7 +1131,7 @@ bloquearDuranteSubmit(salarioPagamentoFormularioElemento, async (e) => {
 const contasPagarTotalMesPagoElemento = document.getElementById('contas-pagar-total-mes-pago');
 const contasPagarTotalMesGeralElemento = document.getElementById('contas-pagar-total-mes-geral');
 const contasPagarTotalSemanaAtualElemento = document.getElementById('contas-pagar-total-semana-atual');
-// Valor do primeiro card (atrasadas + semana), reaproveitado no "Precisa vender" da InfinitePay.
+// Valor bruto do primeiro card (atrasadas + semana), antes do desconto do Saldo InfinitePay.
 let contasPagarTotalPrimeiroCard = null;
 const contasPagarTotalProximaSemanaElemento = document.getElementById('contas-pagar-total-proxima-semana');
 const contasPagarRotuloSemanaAtualElemento = document.getElementById('contas-pagar-rotulo-semana-atual');
@@ -1565,7 +1565,7 @@ async function carregarContasPagar() {
     contasPagarTotalMesGeralElemento.textContent = formatMoney(0);
     contasPagarTotalSemanaAtualElemento.textContent = formatMoney(0);
     contasPagarTotalPrimeiroCard = 0;
-    atualizarPrecisaVenderInfinitepay();
+    atualizarAbatimentoInfinitepayContasPagar();
     contasPagarTotalProximaSemanaElemento.textContent = formatMoney(0);
     contasPagarRotuloSemanaAtualElemento.textContent = 'Esta semana';
     contasPagarRotuloProximaSemanaElemento.textContent = 'Próxima semana';
@@ -1694,8 +1694,7 @@ async function carregarContasPagar() {
   const totalAtrasadas = totalAtrasadasNoResumoSemanal(ocorrenciasResumoSemanal, hoje);
 
   contasPagarTotalPrimeiroCard = round2(semanaAtual.total + totalAtrasadas);
-  contasPagarTotalSemanaAtualElemento.textContent = formatMoney(contasPagarTotalPrimeiroCard);
-  atualizarPrecisaVenderInfinitepay();
+  atualizarAbatimentoInfinitepayContasPagar();
   contasPagarTotalProximaSemanaElemento.textContent = formatMoney(proximaSemana.total);
   contasPagarRotuloSemanaAtualElemento.textContent = totalAtrasadas > 0
     ? `Atrasadas + ${rotuloDistanciaSemana(semanaAtual.saltos).toLowerCase()}`
@@ -2352,7 +2351,7 @@ bloquearDuranteSubmit(fiadoPagamentoFormularioElemento, async (e) => {
 // Os cURLs com o cookie de sessão só são enviados (nunca lidos): ficam no servidor.
 
 const INFINITEPAY_FUNCAO = 'infinitepay-saldo';
-const INFINITEPAY_ALERTA_SESSAO_MS = 2 * 24 * 60 * 60 * 1000;
+const INFINITEPAY_ALERTA_SESSAO_MS = 3 * 24 * 60 * 60 * 1000;
 const INFINITEPAY_ALERTA_JWT_MS = 5 * 60 * 1000;
 const infinitepaySaldoBotoes = document.querySelectorAll('.infinitepay-saldo-botao');
 const infinitepayJanelaElemento = document.getElementById('infinitepay-janela');
@@ -2377,9 +2376,11 @@ function textoSaldoInfinitepay(resposta) {
   return { texto: INFINITEPAY_MENSAGENS[resposta?.estado] || INFINITEPAY_MENSAGENS.erro, alerta: true };
 }
 
-// Quanto a loja ainda precisa vender para cobrir o primeiro card de Contas a Pagar (atrasadas + semana).
-function calcularPrecisaVender(saldo, totalContas) {
-  return round2(Math.max(0, totalContas - saldo));
+// Desconta o Saldo InfinitePay do primeiro card de Contas a Pagar, como o Caixa Casa faz no aluguel.
+// Devolve o valor que sobra a pagar (nunca negativo) e quanto do saldo foi usado.
+function calcularContasPagarAposSaldoInfinitepay(totalContas, saldo) {
+  const abatimento = round2(Math.min(Math.max(saldo, 0), totalContas));
+  return { restante: round2(totalContas - abatimento), abatimento };
 }
 
 // Classifica uma data de expiração: vencida, perto (dentro do limite de alerta) ou ok.
@@ -2395,15 +2396,19 @@ function formatarDataHoraCurta(iso) {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-// Atualiza a linha "Precisa vender" quando o saldo e as Contas a Pagar já chegaram.
-function atualizarPrecisaVenderInfinitepay() {
-  const pronto = infinitepaySaldoAtual !== null && contasPagarTotalPrimeiroCard !== null;
-  const valor = pronto ? calcularPrecisaVender(infinitepaySaldoAtual, contasPagarTotalPrimeiroCard) : 0;
-  infinitepaySaldoBotoes.forEach((botao) => {
-    const linha = botao.querySelector('.infinitepay-precisa-vender');
-    linha.hidden = !pronto;
-    linha.textContent = `Precisa vender LÍQUIDO ${formatMoney(valor)}`;
-  });
+// Mostra o primeiro card de Contas a Pagar já com o saldo descontado, quando o saldo e as contas chegaram.
+function atualizarAbatimentoInfinitepayContasPagar() {
+  if (contasPagarTotalPrimeiroCard === null) return;
+  const abatimentoElemento = document.getElementById('contas-pagar-abatimento-infinitepay');
+  if (infinitepaySaldoAtual === null) {
+    contasPagarTotalSemanaAtualElemento.textContent = formatMoney(contasPagarTotalPrimeiroCard);
+    abatimentoElemento.hidden = true;
+    return;
+  }
+  const { restante, abatimento } = calcularContasPagarAposSaldoInfinitepay(contasPagarTotalPrimeiroCard, infinitepaySaldoAtual);
+  contasPagarTotalSemanaAtualElemento.textContent = formatMoney(restante);
+  abatimentoElemento.hidden = abatimento <= 0;
+  abatimentoElemento.textContent = `−${formatMoney(abatimento)} do Saldo`;
 }
 
 // Mostra as validades: no botão, a da sessão que vence primeiro; na janela, todas.
@@ -2413,7 +2418,8 @@ function exibirValidadesInfinitepay(validades) {
   const situacaoSessao = situacaoValidade(sessao, agora, INFINITEPAY_ALERTA_SESSAO_MS);
   infinitepaySaldoBotoes.forEach((botao) => {
     const linha = botao.querySelector('.infinitepay-validade');
-    linha.hidden = !sessao;
+    // Só aparece quando a sessão já venceu ou vence em até 3 dias.
+    linha.hidden = situacaoSessao !== 'perto' && situacaoSessao !== 'vencida';
     linha.className = `infinitepay-validade${situacaoSessao ? ` infinitepay-validade-${situacaoSessao}` : ''}`;
     if (sessao) linha.textContent = `Sessão ${situacaoSessao === 'vencida' ? 'venceu em' : 'até'} ${formatarDataHoraCurta(sessao)}`;
   });
@@ -2440,7 +2446,7 @@ function exibirSaldoInfinitepay(resposta) {
   const detalhe = resposta?.chaves ? ` (chaves: ${resposta.chaves.join(', ')})` : '';
   infinitepayJanelaSituacaoElemento.textContent = alerta ? `${texto}${detalhe}` : `Saldo atual: ${texto}`;
   if (resposta?.validades) exibirValidadesInfinitepay(resposta.validades);
-  atualizarPrecisaVenderInfinitepay();
+  atualizarAbatimentoInfinitepayContasPagar();
 }
 
 // Chama a Edge Function; erros de rede ou de deploy viram o estado "erro".
@@ -3058,9 +3064,10 @@ function executarTestes() {
     igualJson(textoSaldoInfinitepay({ estado: 'sessao_expirada' }), { texto: 'Sessão expirada, cole o cURL de novo', alerta: true });
     igual(textoSaldoInfinitepay(null).alerta, true);
   });
-  teste('InfinitePay — precisa vender é contas menos saldo, nunca negativo', () => {
-    igual(calcularPrecisaVender(300.1, 1000), 699.9);
-    igual(calcularPrecisaVender(1500, 1000), 0);
+  teste('InfinitePay — saldo desconta do primeiro card de Contas a Pagar, sem passar de zero', () => {
+    igualJson(calcularContasPagarAposSaldoInfinitepay(1000, 300.1), { restante: 699.9, abatimento: 300.1 });
+    igualJson(calcularContasPagarAposSaldoInfinitepay(1000, 1500), { restante: 0, abatimento: 1000 });
+    igualJson(calcularContasPagarAposSaldoInfinitepay(1000, -20), { restante: 1000, abatimento: 0 });
   });
   teste('InfinitePay — validade vencida, perto do limite ou com folga', () => {
     const agora = Date.parse('2026-11-28T12:00:00Z');
@@ -3070,11 +3077,10 @@ function executarTestes() {
     igual(situacaoValidade('2026-12-05T12:00:00Z', agora, 2 * dia), 'ok');
     igual(situacaoValidade(null, agora, 2 * dia), null);
   });
-  teste('Interface — saldo InfinitePay tem botão próprio de atualizar, fora do botão da sessão', () => {
-    document.querySelectorAll('.infinitepay-saldo').forEach((bloco) => {
-      igual(Boolean(bloco.querySelector(':scope > .infinitepay-atualizar-botao')), true);
-      igual(bloco.querySelector('.infinitepay-saldo-botao .infinitepay-atualizar-botao'), null);
-    });
+  teste('Interface — atualizar saldo fica ao lado do Sair, fora do bloco do saldo', () => {
+    igual(document.querySelector('#view-home .barra-topo .infinitepay-atualizar-botao + #botao-sair') !== null, true);
+    igual(document.querySelector('#grade-desktop > .desktop-atualizar + #botao-sair-desktop') !== null, true);
+    igual(document.querySelector('.infinitepay-saldo-botao .infinitepay-atualizar-botao'), null);
   });
   teste('Parcelas — quantidade é limitada a 24', () => igual(limitarQuantidadeParcelas('99'), 24));
 
