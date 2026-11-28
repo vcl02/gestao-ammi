@@ -227,7 +227,10 @@ o sistema registra o que aconteceu, não impede lançamentos.
 O card mostra dois valores:
 
 - **Após aluguel** — valor principal, calculado como
-  `max(saldo − primeiro aluguel aberto, 0)`.
+  `max(saldo − primeiro aluguel aberto, 0)`. Abaixo dele, uma etiqueta no
+  mesmo estilo da de Contas a Pagar mostra quanto foi descontado
+  (*−R$ X do Aluguel*, que é `min(max(saldo, 0), aluguel)`); some quando não
+  há aluguel aberto ou o caixa não tem saldo positivo.
 - **Total no caixa** — valor secundário, mostra o saldo original sem o
   abatimento do aluguel.
 
