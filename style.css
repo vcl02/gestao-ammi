@@ -594,6 +594,16 @@ button[type="submit"]:disabled {
   margin-top: var(--espaco-item);
 }
 
+.valor-janela-data-vencimento {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-item);
+}
+
+.valor-janela-data-vencimento[hidden] {
+  display: none;
+}
+
 .contas-pagar-pagamento-origens {
   display: flex;
   flex-direction: column;
