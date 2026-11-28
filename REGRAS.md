@@ -126,26 +126,43 @@ usuário autenticado para qualquer leitura ou escrita.
 ## Saldo da InfinitePay
 
 A Home (mobile) e o topo do desktop mostram o **saldo da conta InfinitePay**,
-consultado a cada abertura da Home. Por enquanto é só exibição: o saldo não
-entra em nenhum cálculo.
+consultado a cada abertura da Home, com duas linhas abaixo dele:
+
+- **Precisa vender:** quanto falta para o saldo cobrir o primeiro número do
+  card de Contas a Pagar (atrasadas + semana mostrada):
+
+  ```
+  precisa_vender = max(primeiro_card_contas_pagar − saldo_infinitepay, 0)
+  ```
+
+  Com zero, a linha diz *Saldo cobre as contas da semana*. Usa o mesmo valor do
+  card, então, se a semana atual já está paga e o card avançou para outra
+  semana, a conta segue o card. Não desconta taxas de venda da InfinitePay.
+- **Validade da sessão:** a data que vence primeiro entre `ifp_token_exp` e
+  o `ipdashboard_session`, em verde (mais de 2 dias), amarelo (até 2 dias) ou
+  vermelho (vencida). A janela da sessão lista as duas e a do JWT (que renova
+  sozinho; amarelo a menos de 5 minutos).
 
 A InfinitePay não tem API pública para isso. A Edge Function
-`infinitepay-saldo` usa as mesmas chamadas do painel web: com o **cookie de
-sessão** pede um token de leitura (`read-token`, vale ~30 min e fica em cache
-no servidor) e com ele consulta o saldo.
+`infinitepay-saldo` reproduz as requisições do painel web: a do `read-token`
+(com o cookie de sessão) gera um token de leitura de ~30 min, guardado em
+cache no servidor, e a do `balance` usa esse token como Bearer.
 
 - **Atualizar a sessão:** tocar no saldo abre a janela *Sessão InfinitePay*.
-  Cola-se o valor do cabeçalho `Cookie` da requisição `read-token` (DevTools →
-  Network) e, na primeira vez, o `user_id` do corpo dessa requisição. O Bearer
-  é opcional. Campo vazio mantém o valor já guardado.
-- **Sigilo:** o cookie e o token ficam só na tabela `infinitepay_sessao`, que o
-  app não consegue ler (RLS sem policy e sem permissões para os usuários) e
-  que fica fora da auditoria. A função devolve só o saldo. Os campos são do
-  tipo senha e são limpos após salvar.
+  Cola-se no campo de texto o cURL das requisições `read-token` e/ou `balance`
+  (DevTools → Network → *Copy as cURL*, bash ou cmd; as duas juntas valem). O
+  servidor valida o básico: só endereços `https://app.infinitepay.io`, o
+  read-token precisa de cookie e de `user_id` no corpo, e o balance de Bearer.
+  O que não for colado mantém o que já estava guardado; na primeira vez o
+  read-token é obrigatório.
+- **Sigilo:** as requisições e o token ficam só na tabela `infinitepay_sessao`,
+  que o app não consegue ler (RLS sem policy e sem permissões para os
+  usuários) e que fica fora da auditoria. A função devolve só o saldo e as
+  datas. O campo é limpo após salvar.
 - **Expiração:** a sessão da InfinitePay dura cerca de 7 a 14 dias. Quando ela
   recusa o cookie, o lugar do saldo mostra em vermelho *Sessão expirada, cole o
-  cookie de novo*. Outros avisos possíveis: bloqueio pela Cloudflare, resposta
-  em formato desconhecido ou erro na consulta.
+  cURL de novo*. Outros avisos possíveis: cURL inválido, bloqueio pela
+  Cloudflare, resposta em formato desconhecido ou erro na consulta.
 
 ---
 
