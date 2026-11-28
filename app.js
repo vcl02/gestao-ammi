@@ -454,6 +454,12 @@ function valorExibidoOcorrencia(ocorrencia) {
   return round2(valorBase - (ocorrencia.abatimentoCaixa || 0));
 }
 
+// Etiqueta "−R$ X do Caixa Casa" na ocorrência do aluguel que recebeu o abatimento do caixa.
+function etiquetaAbatimentoCaixaOcorrencia(ocorrencia) {
+  if (!(ocorrencia.abatimentoCaixa > 0)) return '';
+  return ` <span class="contas-pagar-abatimento-caixa">−${formatMoney(ocorrencia.abatimentoCaixa)} do Caixa Casa</span>`;
+}
+
 function entraNoResumoSemanal(ocorrencia) {
   return !ocorrencia.paga;
 }
@@ -1743,7 +1749,7 @@ async function carregarContasPagar() {
           <input type="checkbox" data-conta-id="${conta.id}" data-data="${data}" data-valor="${valorOriginal}" data-valor-pago="${valorPago}" data-valor-caixa="${valorCaixaPago}" data-valor-roberta="${valorRobertaPago}" data-descricao="${conta.descricao}" data-tipo="${conta.tipo}" data-aluguel="${ehAluguel(conta) ? 'true' : 'false'}" data-parcial="${parcial ? 'true' : 'false'}" class="contas-pagar-pago-checkbox" aria-label="${parcial ? 'Adicionar pagamento em' : 'Marcar'} ${conta.descricao}" ${paga ? 'checked' : ''}>
           <div class="lancamento-info">
             <div class="lancamento-nome-tags"><button type="button" class="contas-pagar-selecionar-botao" data-conta-id="${conta.id}" data-data="${data}" data-nome="${conta.descricao}" data-valor="${valorExibido}">${conta.descricao}</button>${parcial ? ' <span class="tag-parcial">Parcial</span>' : ''}${atrasada ? ' <span class="tag-atrasada">Atrasada</span>' : ''}</div>
-            <span class="lancamento-data">${formatDataBR(data)}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}</span>
+            <span class="lancamento-data">${formatDataBR(data)}${parcial ? ` · Pago ${formatMoney(valorPago)}` : ''}${etiquetaAbatimentoCaixaOcorrencia(ocorrencia)}</span>
           </div>
         </div>
         <span class="lancamento-valor negativo">${formatMoney(valorExibido)}</span>${botoesAcao}
@@ -2661,6 +2667,11 @@ function executarTestes() {
     igual(etiqueta.textContent, `−${formatMoney(500)} do Aluguel`);
     exibirSaldoAposAluguelCaixaCasa(-10, 500);
     igual(etiqueta.hidden, true);
+  });
+  teste('Aluguel — primeira ocorrência aberta mostra etiqueta do desconto do Caixa Casa', () => {
+    igual(etiquetaAbatimentoCaixaOcorrencia({ abatimentoCaixa: 300 }).includes(`−${formatMoney(300)} do Caixa Casa`), true);
+    igual(etiquetaAbatimentoCaixaOcorrencia({ abatimentoCaixa: 0 }), '');
+    igual(etiquetaAbatimentoCaixaOcorrencia({}), '');
   });
   teste('Aluguel — valor líquido alimenta linha, semana e resumo mensal', () => {
     igual(valorExibidoOcorrencia({ valor: 1000, abatimentoCaixa: 300 }), 700);
