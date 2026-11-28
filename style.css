@@ -997,20 +997,35 @@ button[type="submit"]:disabled {
 
 /* ===================== INFINITEPAY ===================== */
 /* Saldo discreto: no mobile fica acima do menu; no desktop, no topo ao lado do Sair */
-.infinitepay-saldo-botao {
+.infinitepay-saldo {
   display: flex;
-  flex-direction: column;
-  gap: var(--espaco-minimo);
-  width: 100%;
+  align-items: flex-start;
   margin-bottom: var(--espaco-pagina);
-  padding: var(--espaco-linha) var(--espaco-pagina);
-  font: inherit;
-  text-align: left;
-  color: var(--texto);
   background: var(--fundo-bloco);
   border: 1px solid var(--borda);
   border-radius: var(--raio-medio);
+}
+
+.infinitepay-saldo-botao {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--espaco-minimo);
+  padding: var(--espaco-linha) 0 var(--espaco-linha) var(--espaco-pagina);
+  font: inherit;
+  text-align: left;
+  color: var(--texto);
+  background: none;
+  border: none;
   cursor: pointer;
+}
+
+/* Busca o saldo de novo sem recarregar a página */
+.infinitepay-atualizar-botao {
+  margin: var(--espaco-minimo);
+  font-size: var(--fonte-subtitulo);
+  line-height: 1;
+  color: var(--texto-suave);
 }
 
 .infinitepay-saldo-linha {
@@ -1118,7 +1133,7 @@ button[type="submit"]:disabled {
     display: block;
     grid-column: 1 / -1;
     margin: 0;
-    min-height: 36px;
+    min-height: 76px;
     line-height: 36px;
     font-size: var(--fonte-titulo);
     font-weight: 600;
@@ -1135,18 +1150,19 @@ button[type="submit"]:disabled {
   }
 
   /* À esquerda do botão Sair (36px de largura + folga) */
+  /* À esquerda do botão Sair; as 3 linhas cabem na faixa do CNPJ, que cresce para isso */
   .infinitepay-saldo-desktop {
     display: flex;
     position: absolute;
-    top: 32px;
+    top: 20px;
     right: calc(var(--espaco-pagina) + 48px);
-    flex-direction: row;
-    align-items: center;
-    gap: var(--espaco-linha);
-    width: auto;
-    min-height: 36px;
+    min-width: 300px;
     margin: 0;
-    padding: 0 var(--espaco-linha);
+  }
+
+  .infinitepay-saldo-desktop .infinitepay-saldo-botao {
+    padding-top: var(--espaco-item);
+    padding-bottom: var(--espaco-item);
   }
 
   /* !important: no desktop todos os painéis aparecem, mesmo com o atributo hidden */
